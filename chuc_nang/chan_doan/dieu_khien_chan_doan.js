@@ -1,6 +1,10 @@
 /**
- * FEATURE MODULE: DIAGNOSIS CONTROLLER
- * Quản lý tương tác chọn triệu chứng, thực hiện suy diễn tiến, modal giải thích HOW, và modal suy diễn lùi WHY
+ * FEATURE MODULE: CLINICAL DIAGNOSIS CONTROLLER (BALANCED LIST & CUSTOM DROPDOWN)
+ * Hiển thị toàn bộ danh mục triệu chứng với bộ lọc cao cấp:
+ * 1. Custom Dropdown Menu chọn danh mục sang trọng, chuẩn Y khoa
+ * 2. Ô tìm kiếm từ khóa không dấu (mã + tên triệu chứng)
+ * 3. Nút "Mở tất cả" & "Thu gọn tất cả" tách biệt, rõ ràng
+ * 4. Suy diễn tiến MYCIN CF & Cột kết quả chẩn đoán cố định (Sticky)
  */
 
 class DiagnosisController {
@@ -13,19 +17,39 @@ class DiagnosisController {
 
     this.currentSelectedSymptoms = {}; // { [symptomId]: number (CF: 0 - 1.0) }
     this.lastInferenceResult = null;
+    this.activeCategoryFilter = "all"; // 'all' | 'selected' | groupId
+    this.currentSearchQuery = "";
+    this.allExpanded = true;
 
     this.initElements();
     this.bindEvents();
+    this.renderAll();
   }
 
   initElements() {
     this.container = document.getElementById("symptomGroupsContainer");
-    this.resultsContainer = document.getElementById("diagnosisResultsContainer");
-    this.selectedCountBadge = document.getElementById("selectedCountNumber");
+    
+    // Custom Dropdown Elements
+    this.dropdownContainer = document.getElementById("categoryDropdownContainer");
+    this.btnDropdownTrigger = document.getElementById("btnCategoryDropdownTrigger");
+    this.dropdownCurrentIcon = document.getElementById("dropdownCurrentIcon");
+    this.dropdownCurrentLabel = document.getElementById("dropdownCurrentLabel");
+    this.dropdownCurrentBadge = document.getElementById("dropdownCurrentBadge");
+    this.dropdownMenu = document.getElementById("categoryDropdownMenu");
+
+    this.totalSymptomsCount = document.getElementById("totalSymptomsCount");
+    this.selectedSymptomsCount = document.getElementById("selectedSymptomsCount");
     this.searchInput = document.getElementById("symptomSearchInput");
+    this.btnClearSearch = document.getElementById("btnClearSymptomSearch");
+    
+    this.btnExpandAll = document.getElementById("btnExpandAll");
+    this.btnCollapseAll = document.getElementById("btnCollapseAll");
     this.btnClear = document.getElementById("btnClearSymptoms");
+
+    // Right column & Results
+    this.resultsContainer = document.getElementById("diagnosisResultsContainer");
+    this.selectedCountNumber = document.getElementById("selectedCountNumber");
     this.btnRun = document.getElementById("btnRunForwardChaining");
-    this.resultHeaderActions = document.getElementById("resultHeaderActions");
     this.btnViewExplanation = document.getElementById("btnViewExplanation");
     this.modalExplanation = document.getElementById("modalExplanation");
     this.explanationContent = document.getElementById("explanationModalContent");
@@ -34,83 +58,257 @@ class DiagnosisController {
   }
 
   bindEvents() {
-    if (this.searchInput) {
-      this.searchInput.addEventListener("input", (e) => this.filterSymptoms(e.target.value));
+    // 1. Custom Dropdown Toggle
+    if (this.btnDropdownTrigger && this.dropdownContainer) {
+      this.btnDropdownTrigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.dropdownContainer.classList.toggle("open");
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest("#categoryDropdownContainer")) {
+          this.dropdownContainer.classList.remove("open");
+        }
+      });
     }
 
+    // 2. Quick Tags (Tất cả / Đã chọn)
+    document.querySelectorAll(".filter-quick-tag").forEach(tag => {
+      tag.addEventListener("click", (e) => {
+        const cat = e.currentTarget.getAttribute("data-cat");
+        this.selectCategory(cat);
+      });
+    });
+
+    // 3. Ô tìm kiếm
+    if (this.searchInput) {
+      this.searchInput.addEventListener("input", (e) => {
+        this.currentSearchQuery = e.target.value;
+        if (this.btnClearSearch) {
+          this.btnClearSearch.style.display = this.currentSearchQuery.length > 0 ? "block" : "none";
+        }
+        this.applyFilter();
+      });
+    }
+
+    if (this.btnClearSearch) {
+      this.btnClearSearch.addEventListener("click", () => {
+        if (this.searchInput) {
+          this.searchInput.value = "";
+          this.currentSearchQuery = "";
+          this.btnClearSearch.style.display = "none";
+          this.applyFilter();
+          this.searchInput.focus();
+        }
+      });
+    }
+
+    // 4. Nút Mở rộng / Thu gọn riêng biệt
+    if (this.btnExpandAll) {
+      this.btnExpandAll.addEventListener("click", () => this.setExpandAllState(true));
+    }
+    if (this.btnCollapseAll) {
+      this.btnCollapseAll.addEventListener("click", () => this.setExpandAllState(false));
+    }
+
+    // 5. Nút Xóa tất cả
     if (this.btnClear) {
       this.btnClear.addEventListener("click", () => this.clearAll());
     }
 
+    // 6. Nút Thực hiện Suy diễn tiến
     if (this.btnRun) {
       this.btnRun.addEventListener("click", () => {
         if (Object.keys(this.currentSelectedSymptoms).length === 0) {
-          ThongBao.canhBao("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng để hệ thống thực hiện suy luận!");
+          if (typeof ThongBao !== "undefined" && ThongBao.canhBao) {
+            ThongBao.canhBao("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng để thực hiện suy luận!");
+          } else {
+            alert("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng để thực hiện suy luận!");
+          }
           return;
         }
         this.runInference();
       });
     }
 
+    // 7. Nút Xem Vết Suy Luận HOW
     if (this.btnViewExplanation) {
       this.btnViewExplanation.addEventListener("click", () => this.openExplanationModal());
     }
   }
 
+  _stripVN(str) {
+    if (!str) return "";
+    return str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .toLowerCase();
+  }
+
+  selectCategory(catId) {
+    this.activeCategoryFilter = catId;
+    if (this.dropdownContainer) this.dropdownContainer.classList.remove("open");
+    this.renderCategoryDropdown();
+    this.updateQuickTagsState();
+    this.applyFilter();
+  }
+
+  updateQuickTagsState() {
+    document.querySelectorAll(".filter-quick-tag").forEach(tag => {
+      const cat = tag.getAttribute("data-cat");
+      tag.classList.toggle("active", cat === this.activeCategoryFilter);
+    });
+  }
+
+  renderAll() {
+    this.renderCategoryDropdown();
+    this.renderSymptomsList();
+    this.updateBadges();
+  }
+
+  /* --- 1. RENDER CUSTOM DROPDOWN MENU --- */
+  renderCategoryDropdown() {
+    if (!this.dropdownMenu) return;
+    const kb = this.kbManager.getKB();
+    const groups = kb.symptomGroups || [];
+    const allSymptoms = kb.symptoms || [];
+    const totalSelected = Object.keys(this.currentSelectedSymptoms).length;
+
+    // Cập nhật nhãn và icon trên nút trigger dropdown
+    if (this.activeCategoryFilter === "all") {
+      if (this.dropdownCurrentIcon) this.dropdownCurrentIcon.className = "fa-solid fa-layer-group dropdown-icon";
+      if (this.dropdownCurrentLabel) this.dropdownCurrentLabel.textContent = "Tất cả danh mục";
+      if (this.dropdownCurrentBadge) this.dropdownCurrentBadge.textContent = allSymptoms.length;
+    } else if (this.activeCategoryFilter === "selected") {
+      if (this.dropdownCurrentIcon) this.dropdownCurrentIcon.className = "fa-solid fa-check-double dropdown-icon";
+      if (this.dropdownCurrentLabel) this.dropdownCurrentLabel.textContent = "Triệu chứng đã chọn";
+      if (this.dropdownCurrentBadge) this.dropdownCurrentBadge.textContent = totalSelected;
+    } else {
+      const g = groups.find(item => item.id === this.activeCategoryFilter);
+      if (g) {
+        if (this.dropdownCurrentIcon) this.dropdownCurrentIcon.className = `${g.icon || 'fa-solid fa-folder'} dropdown-icon`;
+        if (this.dropdownCurrentLabel) this.dropdownCurrentLabel.textContent = g.name;
+        const gSymptoms = allSymptoms.filter(s => s.groupId === g.id);
+        const selCount = gSymptoms.filter(s => (this.currentSelectedSymptoms[s.id] || 0) > 0).length;
+        if (this.dropdownCurrentBadge) this.dropdownCurrentBadge.textContent = selCount > 0 ? `${selCount}/${gSymptoms.length}` : gSymptoms.length;
+      }
+    }
+
+    // Render danh sách các item trong menu sổ xuống
+    let html = `
+      <div class="dropdown-menu-item ${this.activeCategoryFilter === 'all' ? 'active' : ''}" data-cat-id="all">
+        <div class="dropdown-item-left">
+          <i class="fa-solid fa-layer-group" style="color: var(--color-primary); width: 16px; text-align: center;"></i>
+          <span>Tất cả danh mục</span>
+        </div>
+        <span class="dropdown-item-badge">${allSymptoms.length}</span>
+      </div>
+
+      <div class="dropdown-menu-item ${this.activeCategoryFilter === 'selected' ? 'active' : ''}" data-cat-id="selected">
+        <div class="dropdown-item-left">
+          <i class="fa-solid fa-check-double" style="color: var(--color-emerald); width: 16px; text-align: center;"></i>
+          <span>Triệu chứng đã chọn</span>
+        </div>
+        <span class="dropdown-item-badge ${totalSelected > 0 ? 'has-selected' : ''}">${totalSelected}</span>
+      </div>
+      <div style="height: 1px; background: var(--border-color); margin: 3px 0;"></div>
+    `;
+
+    groups.forEach(g => {
+      const gSymptoms = allSymptoms.filter(s => s.groupId === g.id);
+      const selCount = gSymptoms.filter(s => (this.currentSelectedSymptoms[s.id] || 0) > 0).length;
+      const isSelected = this.activeCategoryFilter === g.id;
+
+      html += `
+        <div class="dropdown-menu-item ${isSelected ? 'active' : ''}" data-cat-id="${g.id}">
+          <div class="dropdown-item-left">
+            <i class="${g.icon || 'fa-solid fa-folder'}" style="color: var(--color-primary); width: 16px; text-align: center;"></i>
+            <span>${g.name}</span>
+          </div>
+          <span class="dropdown-item-badge ${selCount > 0 ? 'has-selected' : ''}">
+            ${selCount > 0 ? `Đã chọn ${selCount}/${gSymptoms.length}` : `${gSymptoms.length}`}
+          </span>
+        </div>
+      `;
+    });
+
+    this.dropdownMenu.innerHTML = html;
+
+    this.dropdownMenu.querySelectorAll(".dropdown-menu-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        const catId = e.currentTarget.getAttribute("data-cat-id");
+        this.selectCategory(catId);
+      });
+    });
+  }
+
+  /* --- 2. RENDER TOÀN BỘ DANH SÁCH CÁC NHÓM TRIỆU CHỨNG --- */
   renderSymptomsList() {
     if (!this.container) return;
     const kb = this.kbManager.getKB();
-    this.container.innerHTML = "";
+    const groups = kb.symptomGroups || [];
+    const symptoms = kb.symptoms || [];
 
-    (kb.symptomGroups || []).forEach(group => {
-      const groupSymptoms = (kb.symptoms || []).filter(s => s.groupId === group.id);
-      if (groupSymptoms.length === 0) return;
+    this.container.innerHTML = groups.map(group => {
+      const groupSymptoms = symptoms.filter(s => s.groupId === group.id);
+      if (groupSymptoms.length === 0) return "";
 
-      const groupBox = document.createElement("div");
-      groupBox.className = "symptom-group-box";
+      const groupSelectedCount = groupSymptoms.filter(s => (this.currentSelectedSymptoms[s.id] || 0) > 0).length;
 
-      groupBox.innerHTML = `
-        <div class="symptom-group-header">
-          <div><i class="${group.icon}"></i> ${group.name} (${groupSymptoms.length})</div>
-          <i class="fa-solid fa-chevron-down toggle-icon"></i>
-        </div>
-        <div class="symptom-group-content">
-          ${groupSymptoms.map(sym => {
-            const currentCF = this.currentSelectedSymptoms[sym.id] || 0;
-            const isSelected = currentCF > 0;
-            return `
-              <div class="symptom-row ${isSelected ? 'selected' : ''}" data-symptom-id="${sym.id}">
-                <div class="symptom-info">
-                  <span class="symptom-id-badge">${sym.id}</span>
-                  <span class="symptom-name">${sym.name}</span>
+      return `
+        <div class="symptom-group-box" data-group-id="${group.id}">
+          <div class="symptom-group-header ${this.allExpanded ? 'open' : ''}">
+            <div class="group-title-left">
+              <i class="${group.icon || 'fa-solid fa-folder'}"></i>
+              <span>${group.name}</span>
+              <span class="group-stats-badge ${groupSelectedCount > 0 ? 'has-selected' : ''}">
+                ${groupSelectedCount > 0 ? `Đã chọn ${groupSelectedCount}/${groupSymptoms.length}` : `${groupSymptoms.length} triệu chứng`}
+              </span>
+            </div>
+            <i class="fa-solid fa-chevron-down toggle-icon ${this.allExpanded ? 'rotated' : ''}"></i>
+          </div>
+          <div class="symptom-group-content" style="display: ${this.allExpanded ? 'flex' : 'none'};">
+            ${groupSymptoms.map(sym => {
+              const currentCF = this.currentSelectedSymptoms[sym.id] || 0;
+              const isSelected = currentCF > 0;
+              return `
+                <div class="symptom-row ${isSelected ? 'selected' : ''}" data-symptom-id="${sym.id}" data-group-id="${group.id}">
+                  <div class="symptom-info">
+                    <span class="symptom-id-badge">${sym.id}</span>
+                    <span class="symptom-name">${sym.name}</span>
+                  </div>
+                  <div class="symptom-control">
+                    <select class="cf-select" data-id="${sym.id}">
+                      <option value="0" ${currentCF === 0 ? 'selected' : ''}>Không có (0%)</option>
+                      <option value="0.4" ${currentCF === 0.4 ? 'selected' : ''}>Nghi ngờ / Nhẹ (40%)</option>
+                      <option value="0.7" ${currentCF === 0.7 ? 'selected' : ''}>Có khả năng / Vừa (70%)</option>
+                      <option value="1.0" ${currentCF === 1.0 ? 'selected' : ''}>Chắc chắn có (100%)</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="symptom-control">
-                  <select class="cf-select" data-id="${sym.id}">
-                    <option value="0" ${currentCF === 0 ? 'selected' : ''}>Không có (0%)</option>
-                    <option value="0.4" ${currentCF === 0.4 ? 'selected' : ''}>Nghi ngờ / Nhẹ (40%)</option>
-                    <option value="0.7" ${currentCF === 0.7 ? 'selected' : ''}>Có khả năng / Vừa (70%)</option>
-                    <option value="1.0" ${currentCF === 1.0 ? 'selected' : ''}>Chắc chắn có / Rõ rệt (100%)</option>
-                  </select>
-                </div>
-              </div>
-            `;
-          }).join("")}
+              `;
+            }).join("")}
+          </div>
         </div>
       `;
+    }).join("");
 
-      const header = groupBox.querySelector(".symptom-group-header");
-      const content = groupBox.querySelector(".symptom-group-content");
-      const toggleIcon = groupBox.querySelector(".toggle-icon");
-
+    // Accordion Toggle
+    this.container.querySelectorAll(".symptom-group-header").forEach(header => {
       header.addEventListener("click", () => {
+        const box = header.closest(".symptom-group-box");
+        const content = box.querySelector(".symptom-group-content");
+        const toggleIcon = header.querySelector(".toggle-icon");
         const isHidden = content.style.display === "none";
         content.style.display = isHidden ? "flex" : "none";
-        toggleIcon.className = isHidden ? "fa-solid fa-chevron-down toggle-icon" : "fa-solid fa-chevron-right toggle-icon";
+        header.classList.toggle("open", isHidden);
+        toggleIcon.classList.toggle("rotated", isHidden);
       });
-
-      this.container.appendChild(groupBox);
     });
 
+    // Event Thay đổi CF
     this.container.querySelectorAll(".cf-select").forEach(select => {
       select.addEventListener("change", (e) => {
         const symId = e.target.getAttribute("data-id");
@@ -119,37 +317,133 @@ class DiagnosisController {
 
         if (val > 0) {
           this.currentSelectedSymptoms[symId] = val;
-          row.classList.add("selected");
+          if (row) row.classList.add("selected");
         } else {
           delete this.currentSelectedSymptoms[symId];
-          row.classList.remove("selected");
+          if (row) row.classList.remove("selected");
         }
 
-        this.updateSelectedCount();
+        this.updateBadges();
+        this.renderCategoryDropdown();
       });
     });
 
-    this.updateSelectedCount();
+    this.applyFilter();
   }
 
-  updateSelectedCount() {
-    const count = Object.keys(this.currentSelectedSymptoms).length;
-    if (this.selectedCountBadge) this.selectedCountBadge.textContent = count;
-  }
+  /* --- 3. ÁP DỤNG BỘ LỌC (TÌM KIẾM + CUSTOM DROPDOWN) --- */
+  applyFilter() {
+    if (!this.container) return;
+    const q = this._stripVN(this.currentSearchQuery.trim());
+    const cat = this.activeCategoryFilter;
 
-  filterSymptoms(query) {
-    const q = query.toLowerCase().trim();
-    document.querySelectorAll(".symptom-row").forEach(row => {
-      const text = row.textContent.toLowerCase();
-      row.style.display = text.includes(q) ? "flex" : "none";
+    this.container.querySelectorAll(".symptom-group-box").forEach(box => {
+      const groupId = box.getAttribute("data-group-id");
+      let visibleCount = 0;
+
+      const rows = box.querySelectorAll(".symptom-row");
+      rows.forEach(row => {
+        const symId = row.getAttribute("data-symptom-id") || "";
+        const symName = row.querySelector(".symptom-name") ? row.querySelector(".symptom-name").textContent : "";
+        const text = this._stripVN(symId + " " + symName);
+
+        const matchSearch = q === "" || text.includes(q);
+        let matchCat = true;
+
+        if (cat === "selected") {
+          matchCat = (this.currentSelectedSymptoms[symId] || 0) > 0;
+        } else if (cat !== "all") {
+          matchCat = groupId === cat;
+        }
+
+        if (matchSearch && matchCat) {
+          row.style.display = "flex";
+          visibleCount++;
+        } else {
+          row.style.display = "none";
+        }
+      });
+
+      if (visibleCount > 0) {
+        box.style.display = "block";
+        // Tự động mở nhóm nếu đang tìm kiếm hoặc đang ở tab "Đã chọn"
+        if (q !== "" || cat === "selected") {
+          const content = box.querySelector(".symptom-group-content");
+          const header = box.querySelector(".symptom-group-header");
+          const toggleIcon = box.querySelector(".toggle-icon");
+          if (content) content.style.display = "flex";
+          if (header) header.classList.add("open");
+          if (toggleIcon) toggleIcon.classList.add("rotated");
+        }
+      } else {
+        box.style.display = "none";
+      }
     });
+  }
+
+  /* --- 4. THAO TÁC MỞ RỘNG / THU GỌN TẤT CẢ --- */
+  setExpandAllState(expanded) {
+    this.allExpanded = expanded;
+    if (!this.container) return;
+
+    this.container.querySelectorAll(".symptom-group-box").forEach(box => {
+      const content = box.querySelector(".symptom-group-content");
+      const header = box.querySelector(".symptom-group-header");
+      const toggleIcon = box.querySelector(".toggle-icon");
+
+      if (content) content.style.display = expanded ? "flex" : "none";
+      if (header) header.classList.toggle("open", expanded);
+      if (toggleIcon) toggleIcon.classList.toggle("rotated", expanded);
+    });
+  }
+
+  /* --- 5. CẬP NHẬT BADGES & STATS --- */
+  updateBadges() {
+    const kb = this.kbManager.getKB();
+    const symptoms = kb.symptoms || [];
+    const totalSelected = Object.keys(this.currentSelectedSymptoms).length;
+
+    if (this.totalSymptomsCount) this.totalSymptomsCount.textContent = symptoms.length;
+    if (this.selectedSymptomsCount) this.selectedSymptomsCount.textContent = totalSelected;
+    if (this.selectedCountNumber) this.selectedCountNumber.textContent = totalSelected;
+
+    // Cập nhật thống kê trên từng nhóm
+    if (this.container) {
+      this.container.querySelectorAll(".symptom-group-box").forEach(box => {
+        const groupId = box.getAttribute("data-group-id");
+        const groupSymptoms = symptoms.filter(s => s.groupId === groupId);
+        const groupSelectedCount = groupSymptoms.filter(s => (this.currentSelectedSymptoms[s.id] || 0) > 0).length;
+
+        const badge = box.querySelector(".group-stats-badge");
+        if (badge) {
+          if (groupSelectedCount > 0) {
+            badge.className = "group-stats-badge has-selected";
+            badge.textContent = `Đã chọn ${groupSelectedCount}/${groupSymptoms.length}`;
+          } else {
+            badge.className = "group-stats-badge";
+            badge.textContent = `${groupSymptoms.length} triệu chứng`;
+          }
+        }
+      });
+    }
   }
 
   clearAll() {
     this.currentSelectedSymptoms = {};
-    document.querySelectorAll(".symptom-row").forEach(r => r.classList.remove("selected"));
-    document.querySelectorAll(".cf-select").forEach(s => s.value = "0");
-    this.updateSelectedCount();
+    if (this.container) {
+      this.container.querySelectorAll(".symptom-row").forEach(r => r.classList.remove("selected"));
+      this.container.querySelectorAll(".cf-select").forEach(s => s.value = "0");
+    }
+    if (this.searchInput) {
+      this.searchInput.value = "";
+      this.currentSearchQuery = "";
+      if (this.btnClearSearch) this.btnClearSearch.style.display = "none";
+    }
+    this.activeCategoryFilter = "all";
+    this.updateQuickTagsState();
+    this.renderCategoryDropdown();
+    this.updateBadges();
+    this.applyFilter();
     this.renderEmptyResults();
     if (this.onInferenceComplete) {
       this.onInferenceComplete(null, this.currentSelectedSymptoms);
@@ -158,7 +452,7 @@ class DiagnosisController {
 
   setSymptoms(symptomsMap) {
     this.currentSelectedSymptoms = { ...symptomsMap };
-    this.renderSymptomsList();
+    this.renderAll();
     this.runInference();
   }
 
@@ -166,8 +460,8 @@ class DiagnosisController {
     this.lastInferenceResult = this.forwardEngine.infer(this.currentSelectedSymptoms);
     this.renderResults(this.lastInferenceResult);
 
-    if (this.resultHeaderActions) {
-      this.resultHeaderActions.style.display = "flex";
+    if (this.btnViewExplanation) {
+      this.btnViewExplanation.style.display = "inline-flex";
     }
 
     if (this.onInferenceComplete) {
@@ -180,13 +474,15 @@ class DiagnosisController {
     this.resultsContainer.innerHTML = `
       <div class="empty-state">
         <i class="fa-solid fa-notes-medical"></i>
-        <p>Chưa có dữ liệu suy diễn.</p>
-        <p style="font-size: 0.8rem; margin-top: 0.4rem; color: var(--text-muted);">
-          Vui lòng chọn các triệu chứng ở cột bên trái và nhấn <strong>"Thực hiện Suy diễn tiến"</strong>.
+        <p style="font-weight: 600; font-size: 1rem; color: var(--text-primary);">Chưa có dữ liệu suy diễn lâm sàng.</p>
+        <p style="font-size: 0.85rem; margin-top: 0.4rem; color: var(--text-muted); line-height: 1.5;">
+          Vui lòng chọn các triệu chứng ở cột bên trái và nhấn nút <strong>"Thực hiện Suy diễn tiến"</strong> ở trên.
         </p>
       </div>
     `;
-    if (this.resultHeaderActions) this.resultHeaderActions.style.display = "none";
+    if (this.btnViewExplanation) {
+      this.btnViewExplanation.style.display = "none";
+    }
   }
 
   renderResults(result) {
@@ -196,8 +492,8 @@ class DiagnosisController {
       this.resultsContainer.innerHTML = `
         <div class="empty-state">
           <i class="fa-solid fa-triangle-exclamation" style="color: var(--color-amber);"></i>
-          <p style="color: var(--text-primary); font-weight: 600;">Không có bệnh nào thỏa mãn tập luật hiện tại.</p>
-          <p style="font-size: 0.8rem; margin-top: 0.4rem; color: var(--text-muted);">
+          <p style="color: var(--text-primary); font-weight: 600; font-size: 1rem;">Không có bệnh nào thỏa mãn tập luật hiện tại.</p>
+          <p style="font-size: 0.85rem; margin-top: 0.4rem; color: var(--text-muted); line-height: 1.5;">
             Các triệu chứng đã chọn chưa đủ để kích hoạt bất kỳ luật nào trong cơ sở tri thức, hoặc triệu chứng thuộc về các bệnh khác chưa được định nghĩa.
           </p>
         </div>
@@ -217,19 +513,21 @@ class DiagnosisController {
             <div class="disease-result-card ${isTop ? 'top-match' : ''}">
               <div class="disease-card-header">
                 <div class="disease-title-block">
-                  <span class="symptom-id-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">
+                  <span class="symptom-id-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 0.82rem;">
                     ${dis.id || item.diseaseId}
                   </span>
                   <h3>${dis.name || item.diseaseId}</h3>
-                  ${isTop ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981;">Nghi ngờ cao nhất</span>` : ''}
+                  ${isTop ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981;"><i class="fa-solid fa-crown" style="margin-right: 3px;"></i> Nghi ngờ cao nhất</span>` : ''}
                 </div>
                 <span class="badge ${interp.badgeClass}">${interp.label}</span>
               </div>
 
               <div class="cf-progress-wrapper">
                 <div class="cf-progress-labels">
-                  <span style="color: var(--text-secondary);">Độ tin cậy toán học (MYCIN CF):</span>
-                  <strong style="color: ${dis.color || 'var(--color-primary)'}; font-family: 'JetBrains Mono';">${cfPercent}% (${item.finalCF})</strong>
+                  <span style="color: var(--text-secondary);">Độ tin cậy kết hợp (MYCIN CF):</span>
+                  <strong style="color: ${dis.color || 'var(--color-primary)'}; font-family: 'JetBrains Mono'; font-size: 0.95rem;">
+                    ${cfPercent}% (${item.finalCF})
+                  </strong>
                 </div>
                 <div class="cf-progress-bar-bg">
                   <div class="cf-progress-fill" style="width: ${cfPercent}%; background: ${dis.color || 'var(--color-primary)'};"></div>
@@ -254,9 +552,9 @@ class DiagnosisController {
 
               <div class="disease-card-footer">
                 <div style="font-size: 0.78rem; color: var(--text-muted);">
-                  <i class="fa-solid fa-file-lines"></i> ${dis.reference || 'Văn bản Bộ Y Tế'}
+                  <i class="fa-solid fa-file-lines"></i> ${dis.reference || 'Văn bản Hướng dẫn - Bộ Y Tế'}
                 </div>
-                <div style="display: flex; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                   <button class="btn-secondary btn-backward-query" data-disease-id="${dis.id || item.diseaseId}">
                     <i class="fa-solid fa-magnifying-glass-plus"></i> Hỏi thêm (Suy diễn lùi - WHY)
                   </button>
@@ -359,7 +657,7 @@ class DiagnosisController {
             delete this.currentSelectedSymptoms[sym.id];
           }
 
-          this.renderSymptomsList();
+          this.renderAll();
           this.runInference();
           this.openBackwardInquiryModal(targetDiseaseId);
         });

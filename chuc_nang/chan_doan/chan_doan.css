@@ -1,134 +1,568 @@
-/* ==========================================================================
-   MODULE CSS: CHẨN ĐOÁN & SUY DIỄN (DIAGNOSIS WORKSPACE)
-   ========================================================================== */
+/* =========================================================
+   DIAGNOSIS MODULE STYLES (BALANCED 2-COLUMN & CUSTOM DROPDOWN)
+   ========================================================= */
 
 .diagnosis-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.5rem;
+  align-items: start;
+  width: 100%;
 }
 
-/* Symptom Group Accordions */
-.symptom-group-box {
-  margin-bottom: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: rgba(15, 23, 42, 0.4);
+@media (max-width: 1100px) {
+  .diagnosis-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.symptom-group-header {
-  padding: 0.75rem 1rem;
-  background: rgba(30, 41, 59, 0.7);
+/* Card Triệu Chứng & Cột Kết Quả */
+.diagnosis-symptoms-card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+.diagnosis-result-sticky-card {
+  position: sticky;
+  top: 78px;
+  max-height: calc(100vh - 95px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+/* =========================================================
+   BỘ LỌC ĐA NĂNG CAO CẤP (SMART FILTER TOOLBAR)
+   ========================================================= */
+
+.smart-filter-toolbar {
+  display: flex;
+  flex-direction: column;
+  padding: 0.85rem 1.25rem;
+  background: rgba(15, 23, 42, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  gap: 0.75rem;
+}
+
+/* Hàng 1: Custom Dropdown Menu + Ô tìm kiếm */
+.filter-controls-row {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0.75rem;
+  position: relative;
+}
+
+@media (max-width: 650px) {
+  .filter-controls-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Custom Dropdown Container */
+.custom-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.custom-dropdown-btn {
+  width: 100%;
+  display: flex;
   justify-content: space-between;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card);
   color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
   user-select: none;
 }
 
-.symptom-group-header i {
-  color: var(--color-primary);
-  margin-right: 0.5rem;
+.custom-dropdown-btn:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.02);
 }
 
-.symptom-group-content {
-  padding: 0.85rem;
+.custom-dropdown-container.open .custom-dropdown-btn {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.dropdown-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.dropdown-icon {
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.dropdown-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+
+.dropdown-btn-right {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.dropdown-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-primary);
+}
+
+.dropdown-arrow {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.custom-dropdown-container.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+/* Custom Dropdown Menu Sổ Xuống */
+.custom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 290px;
+  z-index: 150;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+  padding: 0.4rem;
+  display: none;
+}
+
+.custom-dropdown-container.open .custom-dropdown-menu {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  animation: dropdownFadeIn 0.18s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  user-select: none;
+}
+
+.dropdown-menu-item:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-primary);
+}
+
+.dropdown-menu-item.active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.dropdown-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dropdown-item-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text-muted);
+}
+
+.dropdown-item-badge.has-selected {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  font-weight: 700;
+}
+
+/* Ô Tìm Kiếm */
+.filter-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.filter-search-box .search-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.filter-search-input {
+  width: 100%;
+  padding: 0.65rem 2.2rem 0.65rem 2.5rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+
+.filter-search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+
+.btn-clear-search:hover {
+  color: var(--text-primary);
+}
+
+/* Hàng 2: Quick Filter Tags & Action Buttons */
+.filter-sub-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.65rem;
 }
 
-/* Symptom Item Row */
-.symptom-row {
+.filter-quick-tags {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.filter-quick-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-quick-tag:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-primary);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.filter-quick-tag.active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: 700;
+}
+
+.accordion-action-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.btn-text-action {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.btn-text-action:hover {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+/* =========================================================
+   DANH SÁCH TOÀN BỘ CÁC NHÓM TRIỆU CHỨNG (ACCORDION)
+   ========================================================= */
+
+.symptom-groups-list {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.symptom-group-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.symptom-group-box:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.symptom-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(15, 23, 42, 0.03);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid transparent;
+  transition: background 0.2s;
+}
+
+.symptom-group-header:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.symptom-group-header.open {
+  border-bottom-color: var(--border-color);
+}
+
+.group-title-left {
   display: flex;
   align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.group-title-left span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-title-left i {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.group-stats-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.group-stats-badge.has-selected {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-weight: 600;
+}
+
+.toggle-icon {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+
+.toggle-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* Nội dung nhóm: 1 hàng / 1 triệu chứng */
+.symptom-group-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.symptom-row {
+  display: flex;
   justify-content: space-between;
-  padding: 0.6rem 0.85rem;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 0.75rem;
+  transition: background 0.15s ease;
+}
+
+.symptom-row:last-child {
+  border-bottom: none;
 }
 
 .symptom-row:hover {
-  border-color: #475569;
-  background-color: var(--bg-card-hover);
+  background: rgba(148, 163, 184, 0.04);
 }
 
 .symptom-row.selected {
-  border-color: var(--color-emerald);
-  background-color: rgba(16, 185, 129, 0.08);
+  background: rgba(59, 130, 246, 0.07);
+  border-left: 3.5px solid var(--color-primary);
 }
 
 .symptom-info {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   flex: 1;
+  min-width: 0;
 }
 
 .symptom-id-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--color-primary);
-  padding: 0.15rem 0.45rem;
+  padding: 2px 5px;
   border-radius: 4px;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .symptom-name {
   font-size: 0.85rem;
-  font-weight: 500;
   color: var(--text-primary);
+  line-height: 1.35;
+  word-break: break-word;
 }
 
 .symptom-control {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .cf-select {
-  background-color: var(--bg-main);
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 0.35rem 0.6rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  width: 145px;
+}
+
+.symptom-row.selected .cf-select {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.cf-select:focus {
   outline: none;
+  border-color: var(--color-primary);
+}
+
+/* =========================================================
+   THANH ĐIỀU KHIỂN SUY DIỄN CỐ ĐỊNH Ở CỘT PHẢI
+   ========================================================= */
+
+.sticky-infer-control-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(59, 130, 246, 0.06);
+  border-bottom: 1px solid var(--border-color);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.selected-summary-badge {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.selected-summary-badge strong {
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.btn-run-infer-sticky {
+  padding: 0.55rem 0.95rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  border-radius: 6px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.infer-action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
+/* =========================================================
+   CỘT KẾT QUẢ CHẨN ĐOÁN (DIAGNOSIS RESULTS)
+   ========================================================= */
 
-/* Results Workspace */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  color: var(--text-secondary);
-}
-
-.empty-state i {
-  font-size: 2.75rem;
-  margin-bottom: 1rem;
-  opacity: 0.6;
-  color: var(--color-primary);
+.diagnosis-results-body {
+  padding: 1.25rem;
+  flex: 1;
 }
 
 .result-card-list {
@@ -138,264 +572,102 @@
 }
 
 .disease-result-card {
-  background-color: var(--bg-card);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   padding: 1.25rem;
-  position: relative;
-  overflow: hidden;
-  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: all 0.2s ease;
 }
 
 .disease-result-card.top-match {
-  border-color: var(--color-emerald);
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+  border: 2px solid var(--color-emerald);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12);
 }
 
 .disease-card-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .disease-title-block {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .disease-title-block h3 {
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
+/* Progress bar CF */
 .cf-progress-wrapper {
-  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .cf-progress-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  margin-bottom: 0.35rem;
+  align-items: center;
+  font-size: 0.82rem;
 }
 
 .cf-progress-bar-bg {
-  width: 100%;
   height: 8px;
-  background-color: rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-full);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
   overflow: hidden;
 }
 
 .cf-progress-fill {
   height: 100%;
-  border-radius: var(--radius-full);
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Mô tả, Cảnh báo, Khuyến nghị */
 .disease-desc-box {
-  background-color: rgba(30, 41, 59, 0.5);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem;
-  font-size: 0.82rem;
-  margin-top: 0.75rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .disease-warning-box {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.08);
   border-left: 3px solid #ef4444;
-  padding: 0.6rem 0.8rem;
-  font-size: 0.8rem;
-  color: #fca5a5;
-  margin-top: 0.6rem;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: #f87171;
+  line-height: 1.45;
 }
 
 .disease-recommendation-box {
-  background: rgba(16, 185, 129, 0.1);
-  border-left: 3px solid #10b981;
-  padding: 0.6rem 0.8rem;
-  font-size: 0.8rem;
-  color: #a7f3d0;
-  margin-top: 0.6rem;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(59, 130, 246, 0.08);
+  border-left: 3px solid var(--color-primary);
+  padding: 0.65rem 0.85rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.45;
 }
 
 .disease-card-footer {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-top: 0.85rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.trace-step-item {
-  border-left: 2px solid var(--color-primary);
-  padding-left: 1rem;
-  margin-bottom: 1rem;
-  position: relative;
-}
-
-.trace-step-item::before {
-  content: '';
-  position: absolute;
-  left: -6px;
-  top: 4px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: var(--color-primary);
-}
-
-.trace-step-title {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.trace-step-body {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
-  font-family: 'JetBrains Mono', monospace;
-  background: rgba(15, 23, 42, 0.6);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
-}
-
-/* ==========================================================================
-   LIGHT THEME HIGH CONTRAST (TỐI ƯU MÁY CHIẾU & NỀN TRẮNG)
-   ========================================================================== */
-
-[data-theme="light"] .symptom-group-box {
-  background: #f8fafc;
-  border: 1.5px solid #cbd5e1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-[data-theme="light"] .symptom-group-header {
-  background: #e2e8f0;
-  color: #0f172a;
-  font-weight: 700;
-  border-bottom: 1.5px solid #cbd5e1;
-}
-
-[data-theme="light"] .symptom-group-header:hover {
-  background: #dbeafe;
-}
-
-[data-theme="light"] .symptom-group-header i {
-  color: #0284c7;
-}
-
-[data-theme="light"] .symptom-group-content {
-  background: #ffffff;
-}
-
-[data-theme="light"] .symptom-row {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-}
-
-[data-theme="light"] .symptom-row:hover {
-  border-color: #94a3b8;
-  background-color: #f1f5f9;
-}
-
-[data-theme="light"] .symptom-row.selected {
-  border-color: #059669;
-  background-color: #ecfdf5;
-}
-
-[data-theme="light"] .symptom-id-badge {
-  background: #dbeafe;
-  color: #1e40af;
-  font-weight: 700;
-  border: 1px solid #bfdbfe;
-}
-
-[data-theme="light"] .symptom-name {
-  color: #0f172a;
-  font-weight: 600;
-}
-
-[data-theme="light"] .cf-select {
-  background-color: #ffffff;
-  color: #0f172a;
-  border: 1.5px solid #94a3b8;
-  font-weight: 600;
-}
-
-[data-theme="light"] .cf-select:focus {
-  border-color: #0284c7;
-}
-
-[data-theme="light"] .infer-action-bar {
-  border-top: 1.5px solid #e2e8f0;
-}
-
-[data-theme="light"] .disease-result-card {
-  background-color: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-[data-theme="light"] .disease-result-card.top-match {
-  border-color: #059669;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
-}
-
-[data-theme="light"] .disease-title-block h3 {
-  color: #0f172a;
-}
-
-[data-theme="light"] .cf-progress-bar-bg {
-  background-color: #e2e8f0;
-}
-
-[data-theme="light"] .disease-desc-box {
-  background-color: #f8fafc;
-  color: #0f172a;
-  border: 1px solid #e2e8f0;
-}
-
-[data-theme="light"] .disease-warning-box {
-  background: #fef2f2;
-  color: #991b1b;
-  border-left: 4px solid #ef4444;
-  font-weight: 600;
-}
-
-[data-theme="light"] .disease-recommendation-box {
-  background: #f0fdf4;
-  color: #166534;
-  border-left: 4px solid #10b981;
-  font-weight: 600;
-}
-
-[data-theme="light"] .disease-card-footer {
-  border-top: 1px solid #e2e8f0;
-}
-
-[data-theme="light"] .trace-step-title {
-  color: #0f172a;
-  font-weight: 700;
-}
-
-[data-theme="light"] .trace-step-body {
-  background: #f8fafc;
-  color: #0f172a;
-  border: 1px solid #cbd5e1;
-}
-
-@media (max-width: 960px) {
-  .diagnosis-grid {
-    grid-template-columns: 1fr;
-  }
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
 }

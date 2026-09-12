@@ -68,7 +68,17 @@ class DatabaseController {
 
     if (this.btnResetAll) {
       this.btnResetAll.addEventListener("click", async () => {
-        if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa toàn bộ CSDL và khôi phục về trạng thái chuẩn ban đầu của Bộ Y Tế?")) {
+        const isConfirmed = await (window.XacNhan ? window.XacNhan.hienThi({
+          title: "Tái tạo & Khôi phục CSDL",
+          message: "Bạn có chắc chắn muốn <strong style=\"color: #ef4444;\">tái tạo và xóa toàn bộ CSDL</strong> để khôi phục về trạng thái chuẩn ban đầu của Bộ Y Tế?",
+          detail: "Hành động này sẽ xóa sạch các bản ghi hiện tại và nạp lại toàn bộ danh mục triệu chứng, bệnh và tập luật gốc.",
+          type: "danger",
+          confirmText: "Tái tạo CSDL",
+          cancelText: "Hủy bỏ",
+          icon: "fa-trash-can"
+        }) : confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa toàn bộ CSDL và khôi phục về trạng thái chuẩn ban đầu của Bộ Y Tế?"));
+
+        if (isConfirmed) {
           await this.dbEngine.resetDatabase();
           await this.kbManager.syncFromDatabase();
           this.updateStats();

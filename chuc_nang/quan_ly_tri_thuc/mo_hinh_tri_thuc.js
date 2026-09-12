@@ -87,24 +87,61 @@ class KnowledgeBaseManager {
   }
 
   addRule(ruleData) {
-    if (!ruleData.id) {
+    if (!ruleData.id || String(ruleData.id).trim() === "") {
       const existingMax = (this.kb.rules || []).reduce((max, r) => {
-        const num = parseInt(r.id.replace("R", ""), 10);
+        const num = parseInt(String(r.id || "").replace(/[^0-9]/g, ""), 10);
         return !isNaN(num) && num > max ? num : max;
       }, 0);
       ruleData.id = `R${String(existingMax + 1).padStart(2, "0")}`;
     }
 
-    if (this.getRuleById(ruleData.id)) {
-      throw new Error(`Mã luật ${ruleData.id} đã tồn tại!`);
+    const inputId = String(ruleData.id || "").trim();
+    if (!inputId) {
+      throw new Error("Mã luật không được để trống!");
+    }
+
+    // 1. Kiểm tra trùng Mã luật
+    const existingRuleWithId = (this.kb.rules || []).find(r => (r.id || "").toUpperCase().trim() === inputId.toUpperCase());
+    if (existingRuleWithId) {
+      throw new Error(`Mã luật [${inputId}] đã tồn tại trong CSDL (${existingRuleWithId.name || existingRuleWithId.id})! Vui lòng chọn mã khác.`);
+    }
+
+    // 2. Kiểm tra định dạng CF (0.01 - 1.0)
+    const cfVal = Number(ruleData.cf);
+    if (isNaN(cfVal) || cfVal <= 0 || cfVal > 1.0) {
+      throw new Error(`Hệ số tin cậy CF [${ruleData.cf}] không hợp lệ! Yêu cầu từ 0.01 đến 1.0.`);
+    }
+
+    // 3. Kiểm tra triệu chứng tiền đề
+    const premises = (ruleData.premises || []).map(p => String(p).toUpperCase().trim()).filter(Boolean);
+    if (premises.length === 0) {
+      throw new Error("Phải chọn ít nhất 1 triệu chứng tiền đề (IF) cho luật!");
+    }
+
+    // 4. Kiểm tra bệnh kết luận
+    const conclusion = String(ruleData.conclusion || "").toUpperCase().trim();
+    if (!conclusion) {
+      throw new Error("Phải chọn bệnh kết luận (THEN) cho luật!");
+    }
+
+    // 5. Kiểm tra trùng lặp Logic: Tiền đề (IF) & Kết luận (THEN)
+    const sortedNewPremises = [...premises].sort().join(",");
+    const duplicateLogic = (this.kb.rules || []).find(r => {
+      const sortedP = (r.premises || []).map(p => String(p).toUpperCase().trim()).filter(Boolean).sort().join(",");
+      const conc = String(r.conclusion || "").toUpperCase().trim();
+      return sortedP === sortedNewPremises && conc === conclusion;
+    });
+
+    if (duplicateLogic) {
+      throw new Error(`Trùng lặp tiền đề & kết luận với luật [${duplicateLogic.id}] (${duplicateLogic.name || duplicateLogic.id})! Đã tồn tại luật có cùng IF: [${premises.join(", ")}] -> THEN: [${conclusion}].`);
     }
 
     const newRule = {
-      id: ruleData.id,
-      name: ruleData.name || `Luật ${ruleData.id}`,
-      premises: Array.isArray(ruleData.premises) ? ruleData.premises : [],
-      conclusion: ruleData.conclusion,
-      cf: Number(ruleData.cf) || 0.8,
+      id: inputId,
+      name: ruleData.name || `Luật ${inputId}`,
+      premises: premises,
+      conclusion: conclusion,
+      cf: Number(cfVal.toFixed(4)),
       description: ruleData.description || ""
     };
 
@@ -118,16 +155,59 @@ class KnowledgeBaseManager {
   }
 
   updateRule(id, ruleData) {
-    const idx = (this.kb.rules || []).findIndex(r => r.id === id);
-    if (idx === -1) throw new Error(`Không tìm thấy luật có mã ${id}`);
+    const idx = (this.kb.rules || []).findIndex(r => (r.id || "").toUpperCase().trim() === String(id).toUpperCase().trim());
+    if (idx === -1) throw new Error(`Không tìm thấy luật có mã [${id}]`);
+
+    const currentRule = this.kb.rules[idx];
+    const targetId = String(ruleData.id || id).trim();
+
+    // 1. Kiểm tra trùng mã nếu đổi mã
+    if (targetId.toUpperCase() !== String(id).toUpperCase().trim()) {
+      const existingRuleWithId = (this.kb.rules || []).find(r => (r.id || "").toUpperCase().trim() === targetId.toUpperCase());
+      if (existingRuleWithId) {
+        throw new Error(`Mã luật [${targetId}] đã tồn tại ở luật khác (${existingRuleWithId.name || existingRuleWithId.id})!`);
+      }
+    }
+
+    // 2. Kiểm tra định dạng CF (0.01 - 1.0)
+    const cfVal = Number(ruleData.cf);
+    if (isNaN(cfVal) || cfVal <= 0 || cfVal > 1.0) {
+      throw new Error(`Hệ số tin cậy CF [${ruleData.cf}] không hợp lệ! Yêu cầu từ 0.01 đến 1.0.`);
+    }
+
+    // 3. Kiểm tra triệu chứng tiền đề
+    const premises = (ruleData.premises || []).map(p => String(p).toUpperCase().trim()).filter(Boolean);
+    if (premises.length === 0) {
+      throw new Error("Phải chọn ít nhất 1 triệu chứng tiền đề (IF) cho luật!");
+    }
+
+    // 4. Kiểm tra bệnh kết luận
+    const conclusion = String(ruleData.conclusion || "").toUpperCase().trim();
+    if (!conclusion) {
+      throw new Error("Phải chọn bệnh kết luận (THEN) cho luật!");
+    }
+
+    // 5. Kiểm tra trùng lặp Logic: Tiền đề (IF) & Kết luận (THEN) với các luật khác
+    const sortedNewPremises = [...premises].sort().join(",");
+    const duplicateLogic = (this.kb.rules || []).find(r => {
+      if ((r.id || "").toUpperCase().trim() === String(id).toUpperCase().trim()) return false;
+      const sortedP = (r.premises || []).map(p => String(p).toUpperCase().trim()).filter(Boolean).sort().join(",");
+      const conc = String(r.conclusion || "").toUpperCase().trim();
+      return sortedP === sortedNewPremises && conc === conclusion;
+    });
+
+    if (duplicateLogic) {
+      throw new Error(`Trùng lặp tiền đề & kết luận với luật [${duplicateLogic.id}] (${duplicateLogic.name || duplicateLogic.id})! Đã tồn tại luật có cùng IF: [${premises.join(", ")}] -> THEN: [${conclusion}].`);
+    }
 
     this.kb.rules[idx] = {
-      ...this.kb.rules[idx],
-      name: ruleData.name || this.kb.rules[idx].name,
-      premises: Array.isArray(ruleData.premises) ? ruleData.premises : this.kb.rules[idx].premises,
-      conclusion: ruleData.conclusion || this.kb.rules[idx].conclusion,
-      cf: Number(ruleData.cf) !== undefined ? Number(ruleData.cf) : this.kb.rules[idx].cf,
-      description: ruleData.description || this.kb.rules[idx].description
+      ...currentRule,
+      id: targetId,
+      name: ruleData.name || currentRule.name,
+      premises: premises,
+      conclusion: conclusion,
+      cf: Number(cfVal.toFixed(4)),
+      description: ruleData.description !== undefined ? ruleData.description : currentRule.description
     };
 
     if (this.db) {

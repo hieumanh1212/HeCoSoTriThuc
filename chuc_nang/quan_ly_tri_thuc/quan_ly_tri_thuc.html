@@ -85,64 +85,107 @@
       </div>
     </div>
 
-    <div class="kb-subtabs">
-      <button class="kb-subtab-btn active" data-subtab="rules-table">
-        <i class="fa-solid fa-scroll"></i> Tập luật sinh (<span id="ruleCountBadge">0</span>)
-      </button>
-      <button class="kb-subtab-btn" data-subtab="symptoms-table">
-        <i class="fa-solid fa-virus"></i> Danh mục triệu chứng (<span id="symptomCountBadge">0</span>)
-      </button>
-      <button class="kb-subtab-btn" data-subtab="diseases-table">
-        <i class="fa-solid fa-disease"></i> Danh mục bệnh & phác đồ (<span id="diseaseCountBadge">0</span>)
-      </button>
+    <div class="kb-toolbar-row">
+      <div class="kb-subtabs">
+        <button class="kb-subtab-btn active" data-subtab="rules-table">
+          <i class="fa-solid fa-scroll"></i> Tập luật sinh (<span id="ruleCountBadge">0</span>)
+        </button>
+        <button class="kb-subtab-btn" data-subtab="symptoms-table">
+          <i class="fa-solid fa-virus"></i> Danh mục triệu chứng (<span id="symptomCountBadge">0</span>)
+        </button>
+        <button class="kb-subtab-btn" data-subtab="diseases-table">
+          <i class="fa-solid fa-disease"></i> Danh mục bệnh & phác đồ (<span id="diseaseCountBadge">0</span>)
+        </button>
+      </div>
+
+      <!-- Khu vực tìm kiếm & Bộ lọc khoảng CF -->
+      <div class="kb-filter-tools">
+        <!-- Bộ lọc khoảng hệ số CF (áp dụng cho tập luật) -->
+        <div id="cfFilterGroup" class="cf-filter-group" title="Lọc tập luật theo khoảng hệ số tin cậy CF">
+          <span class="cf-filter-label"><i class="fa-solid fa-sliders" style="color: var(--color-primary);"></i> Khoảng CF:</span>
+          <select id="cfRangeSelect" class="cf-range-select">
+            <option value="all">Tất cả hệ số CF</option>
+            <option value="0.9-1.0">≥ 0.90 (Rất cao)</option>
+            <option value="0.8-0.89">0.80 - 0.89 (Cao)</option>
+            <option value="0.6-0.79">0.60 - 0.79 (Trung bình)</option>
+            <option value="0.0-0.59">&lt; 0.60 (Thấp)</option>
+            <option value="custom">Tùy chỉnh khoảng...</option>
+          </select>
+          <div id="cfCustomRangeInputs" class="cf-custom-inputs" style="display: none;">
+            <input type="number" id="cfMinInput" class="cf-num-input" placeholder="Từ" step="0.05" min="0" max="1" title="Hệ số CF từ (VD: 0.7)">
+            <span class="cf-range-dash">-</span>
+            <input type="number" id="cfMaxInput" class="cf-num-input" placeholder="Đến" step="0.05" min="0" max="1" title="Hệ số CF đến (VD: 0.95)">
+          </div>
+        </div>
+
+        <!-- Ô tìm kiếm theo các cột còn lại -->
+        <div class="kb-search-box-wrapper">
+          <div class="kb-search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="kbSearchInput" class="kb-search-input"
+              placeholder="Tìm kiếm theo mã luật, tên luật, tiền đề, kết luận..." autocomplete="off">
+            <button type="button" id="btnKbClearSearch" class="btn-clear-search" style="display: none;"
+              title="Xóa tìm kiếm">&times;</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Bảng Tập Luật -->
     <div id="subtab-rules" class="data-table-wrapper">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th style="width: 70px;">Mã</th>
-            <th>Tên luật & Diễn giải lâm sàng</th>
-            <th>Tiền đề (NẾU - IF)</th>
-            <th style="width: 140px;">Kết luận (THÌ - THEN)</th>
-            <th style="width: 90px;">Hệ số CF</th>
-            <th style="width: 120px; text-align: center;">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody id="rulesTableBody"></tbody>
-      </table>
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 75px;">Mã <i class="fa-solid fa-arrow-down-9-1" style="font-size: 0.72rem; color: var(--color-primary); margin-left: 2px;" title="Đang sắp xếp theo Mã giảm dần (mới nhất ở trên cùng)"></i></th>
+                  <th>Tên luật & Diễn giải lâm sàng</th>
+                  <th>Tiền đề (NẾU - IF)</th>
+                  <th style="width: 140px;">Kết luận (THÌ - THEN)</th>
+                  <th style="width: 90px;">Hệ số CF</th>
+                  <th style="width: 120px; text-align: center;">Thao tác</th>
+                </tr>
+              </thead>
+          <tbody id="rulesTableBody"></tbody>
+        </table>
+      </div>
+      <div class="table-pagination-footer" id="paginationRules"></div>
     </div>
 
     <!-- Bảng Triệu chứng -->
     <div id="subtab-symptoms" class="data-table-wrapper" style="display: none;">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th style="width: 80px;">Mã</th>
-            <th>Tên Triệu chứng Lâm sàng</th>
-            <th>Nhóm phân loại</th>
-            <th>Câu hỏi truy vấn khi suy diễn lùi (WHY)</th>
-          </tr>
-        </thead>
-        <tbody id="symptomsTableBody"></tbody>
-      </table>
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Mã</th>
+              <th>Tên Triệu chứng Lâm sàng</th>
+              <th>Nhóm phân loại</th>
+              <th>Câu hỏi truy vấn khi suy diễn lùi (WHY)</th>
+            </tr>
+          </thead>
+          <tbody id="symptomsTableBody"></tbody>
+        </table>
+      </div>
+      <div class="table-pagination-footer" id="paginationSymptoms"></div>
     </div>
 
     <!-- Bảng Danh mục Bệnh -->
     <div id="subtab-diseases" class="data-table-wrapper" style="display: none;">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th style="width: 80px;">Mã</th>
-            <th>Tên Bệnh</th>
-            <th>Mức độ nguy hiểm</th>
-            <th>Dấu hiệu cảnh báo nguy cấp</th>
-            <th>Nguồn tham khảo y tế</th>
-          </tr>
-        </thead>
-        <tbody id="diseasesTableBody"></tbody>
-      </table>
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Mã</th>
+              <th>Tên Bệnh</th>
+              <th>Mức độ nguy hiểm</th>
+              <th>Dấu hiệu cảnh báo nguy cấp</th>
+              <th>Nguồn tham khảo y tế</th>
+            </tr>
+          </thead>
+          <tbody id="diseasesTableBody"></tbody>
+        </table>
+      </div>
+      <div class="table-pagination-footer" id="paginationDiseases"></div>
     </div>
   </main>
 
@@ -158,12 +201,19 @@
       </div>
 
       <form id="ruleForm">
-        <input type="hidden" id="formRuleId">
+        <input type="hidden" id="formRuleOriginalId">
 
-        <div class="form-group">
-          <label class="form-label">Tên luật lâm sàng:</label>
-          <input type="text" id="formRuleName" class="form-control" required
-            placeholder="Ví dụ: Luật chẩn đoán sốt xuất huyết thể nặng">
+        <div style="display: grid; grid-template-columns: 110px 1fr; gap: 0.75rem;">
+          <div class="form-group">
+            <label class="form-label">Mã luật:</label>
+            <input type="text" id="formRuleId" class="form-control"
+              placeholder="VD: R16" style="font-family: 'JetBrains Mono'; font-weight: 700; text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tên luật lâm sàng:</label>
+            <input type="text" id="formRuleName" class="form-control" required
+              placeholder="Ví dụ: Luật chẩn đoán sốt xuất huyết thể nặng">
+          </div>
         </div>
 
         <div class="form-group">
@@ -179,9 +229,9 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Hệ số tin cậy của luật (CF: 0.1 - 1.0):</label>
-          <input type="number" id="formRuleCF" class="form-control" step="0.05" min="0.1" max="1.0" value="0.85"
-            required>
+          <label class="form-label">Hệ số tin cậy của luật (CF: 0.01 - 1.0):</label>
+          <input type="number" id="formRuleCF" class="form-control" step="0.01" min="0.01" max="1.0" value="0.85"
+            required placeholder="Ví dụ: 0.85">
         </div>
 
         <div class="form-group">
@@ -285,13 +335,13 @@
                 <tr>
                   <th style="width: 45px; text-align: center;">STT</th>
                   <th style="width: 125px; text-align: center;">Tình trạng</th>
-                  <th style="width: 220px;">Chi tiết kiểm tra / Lỗi</th>
+                  <th style="min-width: 280px; width: 340px;">Chi tiết kiểm tra / Lỗi</th>
                   <th style="width: 80px;">Mã luật</th>
-                  <th style="width: 210px;">Tên luật sinh</th>
+                  <th style="width: 200px;">Tên luật sinh</th>
                   <th style="width: 130px;">Bệnh kết luận</th>
                   <th style="width: 80px; text-align: center;">Hệ số (CF)</th>
-                  <th style="width: 170px;">Tiền đề (Mã triệu chứng)</th>
-                  <th style="width: 260px;">Mô tả luật</th>
+                  <th style="width: 160px;">Tiền đề (Mã triệu chứng)</th>
+                  <th style="width: 240px;">Mô tả luật</th>
                 </tr>
               </thead>
               <tbody id="importPreviewTableBody">
@@ -362,6 +412,22 @@
           document.getElementById("subtab-rules").style.display = subtab === "rules-table" ? "block" : "none";
           document.getElementById("subtab-symptoms").style.display = subtab === "symptoms-table" ? "block" : "none";
           document.getElementById("subtab-diseases").style.display = subtab === "diseases-table" ? "block" : "none";
+
+          const cfFilterGroup = document.getElementById("cfFilterGroup");
+          if (cfFilterGroup) {
+            cfFilterGroup.style.display = subtab === "rules-table" ? "inline-flex" : "none";
+          }
+
+          const kbSearchInput = document.getElementById("kbSearchInput");
+          if (kbSearchInput) {
+            if (subtab === "rules-table") {
+              kbSearchInput.placeholder = "Tìm kiếm theo mã luật, tên luật, tiền đề, kết luận...";
+            } else if (subtab === "symptoms-table") {
+              kbSearchInput.placeholder = "Tìm kiếm theo mã, tên triệu chứng, nhóm phân loại...";
+            } else if (subtab === "diseases-table") {
+              kbSearchInput.placeholder = "Tìm kiếm theo mã bệnh, tên bệnh, mức độ nguy hiểm...";
+            }
+          }
         });
       });
 

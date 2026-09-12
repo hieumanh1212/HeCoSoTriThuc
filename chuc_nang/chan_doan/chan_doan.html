@@ -8,6 +8,7 @@
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../../css/tong_hop.css">
+  <link rel="stylesheet" href="chan_doan.css">
 </head>
 <body>
 
@@ -62,62 +63,115 @@
   <main class="main-wrapper">
     <div class="diagnosis-grid">
       
-      <!-- Cột trái: Nhập triệu chứng & Đánh giá độ chắc chắn -->
-      <div class="card">
+      <!-- Cột trái: Toàn bộ danh mục triệu chứng với Custom Dropdown Menu -->
+      <div class="card diagnosis-symptoms-card">
         <div class="card-header">
           <div class="card-title">
             <i class="fa-solid fa-list-check"></i>
-            <span>Chọn Triệu chứng Lâm sàng Ban đầu</span>
+            <span>Danh Mục Triệu Chứng Lâm Sàng</span>
           </div>
           <div class="card-actions">
-            <button id="btnClearSymptoms" class="btn-secondary" title="Bỏ chọn tất cả">
+            <button id="btnClearSymptoms" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Bỏ chọn tất cả triệu chứng">
               <i class="fa-solid fa-rotate-left"></i> Xóa chọn
             </button>
           </div>
         </div>
 
-        <div style="margin-bottom: 1rem; position: relative;">
-          <input type="text" id="symptomSearchInput" class="form-control"
-            placeholder="🔍 Tìm nhanh triệu chứng (ví dụ: sốt, đau đầu, ho, ban đỏ...)...">
-        </div>
+        <!-- BỘ LỌC ĐA NĂNG CAO CẤP (SMART FILTER TOOLBAR) -->
+        <div class="smart-filter-toolbar">
+          
+          <!-- Hàng 1: Custom Dropdown Menu + Ô tìm kiếm -->
+          <div class="filter-controls-row">
+            
+            <!-- Custom Category Dropdown Component (Sang trọng, không dùng select mặc định) -->
+            <div class="custom-dropdown-container" id="categoryDropdownContainer">
+              <button type="button" class="custom-dropdown-btn" id="btnCategoryDropdownTrigger">
+                <div class="dropdown-btn-content">
+                  <i class="fa-solid fa-layer-group dropdown-icon" id="dropdownCurrentIcon"></i>
+                  <span class="dropdown-label" id="dropdownCurrentLabel">Tất cả danh mục</span>
+                </div>
+                <div class="dropdown-btn-right">
+                  <span class="dropdown-badge" id="dropdownCurrentBadge">21</span>
+                  <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+                </div>
+              </button>
 
-        <div id="symptomGroupsContainer">
-          <!-- Render động các nhóm triệu chứng -->
-        </div>
+              <!-- Menu sổ xuống custom -->
+              <div class="custom-dropdown-menu" id="categoryDropdownMenu">
+                <!-- Render động các item lựa chọn -->
+              </div>
+            </div>
 
-        <div class="infer-action-bar">
-          <div>
-            <span id="selectedCountText" style="font-size: 0.85rem; color: var(--text-secondary);">
-              Đã chọn: <strong id="selectedCountNumber" style="color: var(--color-emerald);">0</strong> triệu chứng
-            </span>
+            <!-- Ô tìm kiếm từ khóa -->
+            <div class="filter-search-box">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="symptomSearchInput" class="filter-search-input"
+                placeholder="Tìm nhanh theo tên hoặc mã triệu chứng (sốt, đau đầu, ho, S01...)..." autocomplete="off">
+              <button type="button" id="btnClearSymptomSearch" class="btn-clear-search" style="display: none;" title="Xóa tìm kiếm">&times;</button>
+            </div>
           </div>
-          <button id="btnRunForwardChaining" class="btn-primary">
-            <i class="fa-solid fa-bolt"></i> Thực hiện Suy diễn tiến
-          </button>
+
+          <!-- Hàng 2: Quick Filter Tags & Nút Thu Gọn / Mở Rộng Tất Cả -->
+          <div class="filter-sub-toolbar">
+            <div class="filter-quick-tags">
+              <button class="filter-quick-tag active" data-cat="all">
+                <i class="fa-solid fa-layer-group"></i> Tất cả (<span id="totalSymptomsCount">0</span>)
+              </button>
+              <button class="filter-quick-tag" data-cat="selected">
+                <i class="fa-solid fa-check-double"></i> Đã chọn (<span id="selectedSymptomsCount">0</span>)
+              </button>
+            </div>
+
+            <div class="accordion-action-buttons">
+              <button id="btnExpandAll" class="btn-text-action" title="Mở rộng tất cả các nhóm triệu chứng">
+                <i class="fa-solid fa-angles-down"></i> Mở tất cả
+              </button>
+              <button id="btnCollapseAll" class="btn-text-action" title="Thu gọn tất cả các nhóm triệu chứng">
+                <i class="fa-solid fa-angles-up"></i> Thu gọn tất cả
+              </button>
+            </div>
+          </div>
+
         </div>
+
+        <!-- DANH SÁCH TOÀN BỘ CÁC NHÓM TRIỆU CHỨNG (ACCORDION RỘNG RÃI) -->
+        <div id="symptomGroupsContainer" class="symptom-groups-list">
+          <!-- Render động toàn bộ các nhóm triệu chứng -->
+        </div>
+
       </div>
 
-      <!-- Cột phải: Kết quả Chẩn đoán & Tư vấn điều trị -->
-      <div class="card">
+      <!-- Cột phải: Cố định (Sticky) với nút Thực hiện Suy diễn tiến trên đầu -->
+      <div class="card diagnosis-result-sticky-card">
         <div class="card-header">
           <div class="card-title">
             <i class="fa-solid fa-clipboard-check"></i>
-            <span>Kết quả Suy luận & Chẩn đoán Sơ bộ</span>
+            <span>Kết quả Suy luận & Chẩn đoán</span>
           </div>
-          <div class="card-actions" id="resultHeaderActions" style="display: none;">
-            <button id="btnViewExplanation" class="btn-secondary">
-              <i class="fa-solid fa-code-fork"></i> Xem vết suy luận (HOW)
+          <div class="card-actions">
+            <button id="btnViewExplanation" class="btn-secondary" style="display: none;" title="Xem phân tích cây suy luận (HOW)">
+              <i class="fa-solid fa-code-fork"></i> Vết suy luận (HOW)
             </button>
           </div>
         </div>
 
-        <div id="diagnosisResultsContainer">
+        <!-- Thanh điều khiển suy diễn CỐ ĐỊNH ở bên phải, không cần cuộn trang -->
+        <div class="sticky-infer-control-box">
+          <div class="selected-summary-badge">
+            <i class="fa-solid fa-clipboard-check"></i> Đã chọn: <strong id="selectedCountNumber">0</strong> triệu chứng
+          </div>
+          <button id="btnRunForwardChaining" class="btn-primary btn-run-infer-sticky">
+            <i class="fa-solid fa-bolt-lightning"></i> Thực hiện Suy diễn tiến
+          </button>
+        </div>
+
+        <div id="diagnosisResultsContainer" class="diagnosis-results-body">
           <!-- Trạng thái chờ -->
           <div class="empty-state">
             <i class="fa-solid fa-notes-medical"></i>
-            <p>Chưa có dữ liệu suy diễn.</p>
-            <p style="font-size: 0.8rem; margin-top: 0.4rem; color: var(--text-muted);">
-              Vui lòng chọn các triệu chứng ở cột bên trái và nhấn <strong>"Thực hiện Suy diễn tiến"</strong>.
+            <p style="font-weight: 600; font-size: 1rem; color: var(--text-primary);">Chưa có dữ liệu suy diễn lâm sàng.</p>
+            <p style="font-size: 0.85rem; margin-top: 0.4rem; color: var(--text-muted); line-height: 1.5;">
+              Vui lòng chọn các dấu hiệu lâm sàng ở cột bên trái và nhấn nút <strong>"Thực hiện Suy diễn tiến"</strong> ở trên.
             </p>
           </div>
         </div>
@@ -198,7 +252,7 @@
       kbManager.onUpdate((updatedKB) => {
         forwardEngine.setKnowledgeBase(updatedKB);
         backwardEngine.setKnowledgeBase(updatedKB);
-        diagnosisController.renderSymptomsList();
+        diagnosisController.renderAll();
       });
 
       // Kiểm tra nạp ca bệnh từ sessionStorage hoặc URL param
@@ -209,7 +263,7 @@
           const symptomsMap = JSON.parse(savedCase);
           diagnosisController.setSymptoms(symptomsMap);
         } catch (e) {
-          diagnosisController.renderSymptomsList();
+          diagnosisController.renderAll();
         }
       } else {
         const urlParams = new URLSearchParams(window.location.search);
@@ -221,10 +275,10 @@
             tc.selectedSymptoms.forEach(s => symptomsMap[s.id] = s.cf);
             diagnosisController.setSymptoms(symptomsMap);
           } else {
-            diagnosisController.renderSymptomsList();
+            diagnosisController.renderAll();
           }
         } else {
-          diagnosisController.renderSymptomsList();
+          diagnosisController.renderAll();
         }
       }
 

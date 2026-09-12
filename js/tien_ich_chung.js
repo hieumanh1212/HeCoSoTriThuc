@@ -159,6 +159,205 @@ if (typeof window !== "undefined") {
 }
 
 // ============================================================================
+// COMPONENT MODAL XÁC NHẬN TOÀN CỤC (DÙNG CHUNG TOÀN HỆ THỐNG)
+// Thay thế hoàn toàn hộp thoại window.confirm mặc định bằng UI hiện đại
+// ============================================================================
+
+class XacNhanHeThong {
+  constructor() {
+    this.modalEl = null;
+    this.currentResolver = null;
+    if (typeof document !== "undefined") {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => this.initDOM());
+      } else {
+        this.initDOM();
+      }
+    }
+  }
+
+  initDOM() {
+    if (typeof document === "undefined" || this.modalEl) return;
+    let modal = document.getElementById("global-confirm-modal-backdrop");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "global-confirm-modal-backdrop";
+      modal.className = "confirm-modal-backdrop";
+      modal.innerHTML = `
+        <div class="confirm-modal-card" role="dialog" aria-modal="true">
+          <div class="confirm-icon-circle confirm-icon-danger" id="globalConfirmIconWrap">
+            <i class="fa-solid fa-triangle-exclamation" id="globalConfirmIcon"></i>
+          </div>
+          <h3 class="confirm-title" id="globalConfirmTitle">Xác nhận thao tác</h3>
+          <p class="confirm-message" id="globalConfirmMessage">Bạn có chắc chắn muốn thực hiện hành động này?</p>
+          <div class="confirm-detail-box" id="globalConfirmDetail" style="display: none;"></div>
+          <div class="confirm-actions">
+            <button type="button" class="btn-confirm-cancel" id="btnGlobalConfirmCancel">
+              <i class="fa-solid fa-xmark"></i> <span id="globalConfirmCancelText">Hủy bỏ</span>
+            </button>
+            <button type="button" class="btn-confirm-action btn-confirm-danger" id="btnGlobalConfirmOk">
+              <i class="fa-solid fa-check" id="globalConfirmOkIcon"></i> <span id="globalConfirmOkText">Đồng ý</span>
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      const btnCancel = modal.querySelector("#btnGlobalConfirmCancel");
+      const btnOk = modal.querySelector("#btnGlobalConfirmOk");
+
+      if (btnCancel) btnCancel.addEventListener("click", () => this.close(false));
+      if (btnOk) btnOk.addEventListener("click", () => this.close(true));
+
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) this.close(false);
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (!modal.classList.contains("active")) return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          this.close(false);
+        } else if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
+          if (document.activeElement && document.activeElement.tagName === "TEXTAREA") return;
+          e.preventDefault();
+          this.close(true);
+        }
+      });
+    }
+    this.modalEl = modal;
+  }
+
+  hienThi({
+    title = "Xác nhận thao tác",
+    message = "Bạn có chắc chắn muốn thực hiện hành động này?",
+    detail = "",
+    type = "danger", // danger, warning, info, success
+    confirmText = "Đồng ý",
+    cancelText = "Hủy bỏ",
+    icon = null
+  } = {}) {
+    this.initDOM();
+    return new Promise((resolve) => {
+      this.currentResolver = resolve;
+
+      const titleEl = document.getElementById("globalConfirmTitle");
+      const messageEl = document.getElementById("globalConfirmMessage");
+      const detailEl = document.getElementById("globalConfirmDetail");
+      const iconWrap = document.getElementById("globalConfirmIconWrap");
+      const iconEl = document.getElementById("globalConfirmIcon");
+      const okBtn = document.getElementById("btnGlobalConfirmOk");
+      const okText = document.getElementById("globalConfirmOkText");
+      const okIcon = document.getElementById("globalConfirmOkIcon");
+      const cancelTextEl = document.getElementById("globalConfirmCancelText");
+
+      if (titleEl) titleEl.textContent = title;
+      if (messageEl) messageEl.innerHTML = message;
+
+      if (detailEl) {
+        if (detail) {
+          detailEl.innerHTML = detail;
+          detailEl.style.display = "block";
+        } else {
+          detailEl.style.display = "none";
+        }
+      }
+
+      if (cancelTextEl) cancelTextEl.textContent = cancelText;
+      if (okText) okText.textContent = confirmText;
+
+      // Icon & Type Styles
+      if (iconWrap && okBtn && iconEl) {
+        iconWrap.className = `confirm-icon-circle confirm-icon-${type}`;
+        okBtn.className = `btn-confirm-action btn-confirm-${type}`;
+
+        let defaultIcon = "fa-triangle-exclamation";
+        let defaultOkIcon = "fa-check";
+
+        if (type === "danger") {
+          defaultIcon = "fa-trash-can";
+          defaultOkIcon = "fa-trash-can";
+        } else if (type === "warning") {
+          defaultIcon = "fa-triangle-exclamation";
+          defaultOkIcon = "fa-arrows-rotate";
+        } else if (type === "info") {
+          defaultIcon = "fa-circle-question";
+          defaultOkIcon = "fa-arrow-right";
+        } else if (type === "success") {
+          defaultIcon = "fa-circle-check";
+          defaultOkIcon = "fa-check";
+        }
+
+        iconEl.className = `fa-solid ${icon || defaultIcon}`;
+        if (okIcon) okIcon.className = `fa-solid ${defaultOkIcon}`;
+      }
+
+      if (this.modalEl) {
+        this.modalEl.classList.add("active");
+        setTimeout(() => {
+          if (okBtn) okBtn.focus();
+        }, 50);
+      }
+    });
+  }
+
+  close(result) {
+    if (this.modalEl) {
+      this.modalEl.classList.remove("active");
+    }
+    if (typeof this.currentResolver === "function") {
+      const resolve = this.currentResolver;
+      this.currentResolver = null;
+      resolve(Boolean(result));
+    }
+  }
+
+  // Tiện ích chuyên biệt cho xóa dữ liệu
+  async xoa(tenDoiTuong, chiTiet = "") {
+    return this.hienThi({
+      title: "Xác nhận xóa dữ liệu",
+      message: `Bạn có chắc chắn muốn xóa <strong style="color: #f87171;">${tenDoiTuong}</strong>?`,
+      detail: chiTiet || "Thao tác này sẽ xóa vĩnh viễn khỏi hệ thống và không thể hoàn tác.",
+      type: "danger",
+      confirmText: "Xóa vĩnh viễn",
+      cancelText: "Hủy bỏ",
+      icon: "fa-trash-can"
+    });
+  }
+
+  // Tiện ích chuyên biệt cho khôi phục mặc định
+  async khoiPhuc(tenHeThong = "Cơ sở tri thức", chiTiet = "") {
+    return this.hienThi({
+      title: "Khôi phục dữ liệu chuẩn",
+      message: `Bạn có chắc chắn muốn khôi phục <strong style="color: #fbbf24;">${tenHeThong}</strong> về trạng thái chuẩn ban đầu của Bộ Y Tế?`,
+      detail: chiTiet || "Các dữ liệu tùy chỉnh hoặc chỉnh sửa gần nhất sẽ được thay thế bằng tri thức mặc định.",
+      type: "warning",
+      confirmText: "Đồng ý khôi phục",
+      cancelText: "Hủy bỏ",
+      icon: "fa-arrows-rotate"
+    });
+  }
+
+  // Tiện ích cảnh báo chung
+  async canhBao(tieuDe, loiNhan, chiTiet = "") {
+    return this.hienThi({
+      title: tieuDe || "Cảnh báo thao tác",
+      message: loiNhan,
+      detail: chiTiet,
+      type: "warning",
+      confirmText: "Tiếp tục",
+      cancelText: "Quay lại",
+      icon: "fa-triangle-exclamation"
+    });
+  }
+}
+
+// Khởi tạo đối tượng toàn cục
+window.XacNhan = new XacNhanHeThong();
+window.ModalConfirm = window.XacNhan;
+window.confirmAsync = (msg, options) => window.XacNhan.hienThi({ message: msg, ...options });
+
+// ============================================================================
 // COMPONENT SMART FLOATING TOOLTIP TOÀN CỤC (HIỂN THỊ TỨC THÌ KHI HOVER)
 // ============================================================================
 

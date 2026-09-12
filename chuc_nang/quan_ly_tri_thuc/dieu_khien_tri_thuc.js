@@ -54,9 +54,102 @@ class KBController {
     this.importedWorkbook = null;
     this.errorRowIndices = [];
     this.currentErrorIndex = -1;
+
+    // Cấu hình phân trang cho các bảng dữ liệu tri thức (10, 20, 50, 100)
+    this.pagination = {
+      rules: { page: 1, pageSize: 20 },
+      symptoms: { page: 1, pageSize: 20 },
+      diseases: { page: 1, pageSize: 20 }
+    };
+
+    // Tìm kiếm thông minh
+    this.kbSearchInput = document.getElementById("kbSearchInput");
+    this.btnKbClearSearch = document.getElementById("btnKbClearSearch");
+    this.searchKeyword = "";
+
+    // Bộ lọc khoảng hệ số CF (cho Tập luật)
+    this.cfFilterGroup = document.getElementById("cfFilterGroup");
+    this.cfRangeSelect = document.getElementById("cfRangeSelect");
+    this.cfCustomRangeInputs = document.getElementById("cfCustomRangeInputs");
+    this.cfMinInput = document.getElementById("cfMinInput");
+    this.cfMaxInput = document.getElementById("cfMaxInput");
+    this.cfFilter = { mode: "all", min: 0.0, max: 1.0 };
   }
 
   bindEvents() {
+    // Sự kiện tìm kiếm dữ liệu tri thức theo từ khóa hoặc cú pháp khoảng CF
+    if (this.kbSearchInput) {
+      this.kbSearchInput.addEventListener("input", (e) => {
+        this.searchKeyword = e.target.value.trim();
+        if (this.btnKbClearSearch) {
+          this.btnKbClearSearch.style.display = this.searchKeyword ? "inline-flex" : "none";
+        }
+        // Reset về trang 1 khi tìm kiếm
+        this.pagination.rules.page = 1;
+        this.pagination.symptoms.page = 1;
+        this.pagination.diseases.page = 1;
+        this.renderTables();
+      });
+    }
+
+    if (this.btnKbClearSearch) {
+      this.btnKbClearSearch.addEventListener("click", () => {
+        if (this.kbSearchInput) this.kbSearchInput.value = "";
+        this.searchKeyword = "";
+        this.btnKbClearSearch.style.display = "none";
+        this.pagination.rules.page = 1;
+        this.pagination.symptoms.page = 1;
+        this.pagination.diseases.page = 1;
+        this.renderTables();
+        if (this.kbSearchInput) this.kbSearchInput.focus();
+      });
+    }
+
+    // Sự kiện lọc khoảng hệ số CF
+    if (this.cfRangeSelect) {
+      this.cfRangeSelect.addEventListener("change", (e) => {
+        const val = e.target.value;
+        this.cfFilter.mode = val;
+
+        if (val === "custom") {
+          if (this.cfCustomRangeInputs) this.cfCustomRangeInputs.style.display = "inline-flex";
+          const min = parseFloat(this.cfMinInput ? this.cfMinInput.value : "") || 0.0;
+          const max = parseFloat(this.cfMaxInput ? this.cfMaxInput.value : "") || 1.0;
+          this.cfFilter.min = min;
+          this.cfFilter.max = max;
+        } else {
+          if (this.cfCustomRangeInputs) this.cfCustomRangeInputs.style.display = "none";
+          if (val === "all") {
+            this.cfFilter.min = 0.0;
+            this.cfFilter.max = 1.0;
+          } else {
+            const parts = val.split("-");
+            this.cfFilter.min = parseFloat(parts[0]) || 0.0;
+            this.cfFilter.max = parseFloat(parts[1]) || 1.0;
+          }
+        }
+
+        this.pagination.rules.page = 1;
+        this.renderRulesTable();
+      });
+    }
+
+    if (this.cfMinInput) {
+      this.cfMinInput.addEventListener("input", () => {
+        this.cfFilter.min = parseFloat(this.cfMinInput.value) || 0.0;
+        this.pagination.rules.page = 1;
+        this.renderRulesTable();
+      });
+    }
+
+    if (this.cfMaxInput) {
+      this.cfMaxInput.addEventListener("input", () => {
+        this.cfFilter.max = parseFloat(this.cfMaxInput.value) || 1.0;
+        this.pagination.rules.page = 1;
+        this.renderRulesTable();
+      });
+    }
+
     if (this.btnAddNewRule) {
       this.btnAddNewRule.addEventListener("click", () => this.openAddRuleModal());
     }
@@ -156,8 +249,9 @@ class KBController {
     });
 
     if (this.btnResetKB) {
-      this.btnResetKB.addEventListener("click", () => {
-        if (confirm("Bạn có chắc chắn muốn khôi phục cơ sở tri thức về trạng thái chuẩn ban đầu của Bộ Y Tế?")) {
+      this.btnResetKB.addEventListener("click", async () => {
+        const isConfirmed = await (window.XacNhan ? window.XacNhan.khoiPhuc("Cơ sở tri thức Y tế", "Toàn bộ tập luật, triệu chứng và danh mục bệnh sẽ được đặt lại về dữ liệu chuẩn Bộ Y Tế.") : confirm("Bạn có chắc chắn muốn khôi phục cơ sở tri thức về trạng thái chuẩn ban đầu của Bộ Y Tế?"));
+        if (isConfirmed) {
           this.kbManager.resetToDefault();
           this.renderTables();
           ThongBao.thanhCong("Đã khôi phục cơ sở tri thức về mặc định chuẩn Bộ Y Tế!");
@@ -343,7 +437,11 @@ class KBController {
         if (this.countInvalid) this.countInvalid.textContent = "0";
 
       } catch (err) {
-        alert(`❌ Lỗi đọc file Excel: ${err.message}`);
+        if (window.ThongBao) {
+          window.ThongBao.thatBai(`Lỗi đọc tệp Excel: ${err.message}`);
+        } else {
+          alert(`❌ Lỗi đọc file Excel: ${err.message}`);
+        }
       }
     };
     reader.readAsArrayBuffer(file);
@@ -381,10 +479,8 @@ class KBController {
 
       const nameText = row.name || `Luật ${row.id || row.stt}`;
       const descText = row.description || "-";
-      const errorText = row.errorMessage || "-";
       const premisesText = (row.premises || []).join(", ") || "[Trống]";
 
-      const tooltipError = row.status === "INVALID" ? `❌ Chi tiết lỗi:\n${errorText}` : "";
       const tooltipName = `📝 Tên luật sinh:\n${nameText}`;
       const tooltipPremises = `🔍 Triệu chứng tiền đề:\n${premisesText}`;
       const tooltipDesc = descText !== "-" ? `ℹ️ Mô tả luật:\n${descText}` : "";
@@ -400,14 +496,40 @@ class KBController {
       }
       const tooltipCF = isCfValid ? `⚖️ Hệ số tin cậy CF: ${row.cf}` : `❌ Hệ số CF không đúng định dạng (yêu cầu từ 0.01 đến 1.0): ${row.rawCF || '[Trống]'}`;
 
+      // Xây dựng danh sách chi tiết lỗi (hiển thị đầy đủ, mỗi lỗi trên 1 dòng riêng biệt)
+      let errorCellHtml = "";
+      if (row.status === "INVALID") {
+        const errorList = (row.errors && row.errors.length > 0) 
+          ? row.errors 
+          : (row.errorMessage ? row.errorMessage.split("; ").filter(Boolean) : ["Dữ liệu không hợp lệ"]);
+        
+        errorCellHtml = `
+          <div class="import-error-list">
+            ${errorList.map(err => `
+              <div class="import-error-item">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <span>${escapeHtml(err)}</span>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } else if (row.status === "VALID") {
+        errorCellHtml = `
+          <div class="import-valid-text">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Dữ liệu hợp lệ</span>
+          </div>
+        `;
+      } else {
+        errorCellHtml = `<span style="color: var(--text-muted); font-size: 0.8rem; font-style: italic;">Chưa kiểm tra</span>`;
+      }
+
       return `
         <tr class="${rowClass}" data-row-index="${idx}">
           <td style="text-align: center; font-weight: 600;">${row.stt}</td>
           <td style="text-align: center;">${badgeHtml}</td>
-          <td ${tooltipError ? `data-tooltip="${escapeHtml(tooltipError)}"` : ""}>
-            <div class="cell-truncate text-error-detail" style="color: ${row.status === 'INVALID' ? '#dc2626' : 'var(--text-muted)'}; font-weight: ${row.status === 'INVALID' ? '600' : 'normal'};">
-              ${errorText}
-            </div>
+          <td class="cell-error-detail">
+            ${errorCellHtml}
           </td>
           <td><strong style="color: var(--color-primary); font-family: 'JetBrains Mono';">${row.id || '<em style="color:#f87171;">[Trống]</em>'}</strong></td>
           <td data-tooltip="${escapeHtml(tooltipName)}">
@@ -608,10 +730,12 @@ class KBController {
       // Đánh giá trạng thái dòng
       if (errors.length > 0) {
         row.status = "INVALID";
+        row.errors = errors;
         row.errorMessage = errors.join("; ");
         invalidCount++;
       } else {
         row.status = "VALID";
+        row.errors = [];
         row.errorMessage = "";
         validCount++;
       }
@@ -696,94 +820,436 @@ class KBController {
   }
 
   renderTables() {
+    this.renderRulesTable();
+    this.renderSymptomsTable();
+    this.renderDiseasesTable();
+  }
+
+  // 1. Render Bảng Tập Luật (Rules Table) có tìm kiếm & phân trang
+  renderRulesTable() {
     const kb = this.kbManager.getKB();
+    const rawRules = kb.rules || [];
 
-    if (this.ruleCountBadge) this.ruleCountBadge.textContent = (kb.rules || []).length;
-    if (this.symCountBadge) this.symCountBadge.textContent = (kb.symptoms || []).length;
-    if (this.disCountBadge) this.disCountBadge.textContent = (kb.diseases || []).length;
+    // Sắp xếp danh sách tập luật theo Mã giảm dần (để luật mới thêm luôn hiển thị ngay trên đầu)
+    const allRules = [...rawRules].sort((a, b) => {
+      const idA = String(a.id || "");
+      const idB = String(b.id || "");
+      return idB.localeCompare(idA, undefined, { numeric: true, sensitivity: "base" });
+    });
 
-    // 1. Render Rules Table
-    if (this.rulesTbody) {
-      this.rulesTbody.innerHTML = (kb.rules || []).map(rule => {
+    const removeVietnameseTones = (str) => {
+      return String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .trim();
+    };
+
+    // Hàm phân tích khoảng CF từ ô tìm kiếm (vd: 0.8-0.9, >=0.85, <=0.7, cf: 0.7-0.95)
+    const parseCFQuery = (text) => {
+      if (!text) return null;
+      const raw = text.trim();
+
+      const cfPrefixMatch = raw.match(/^(?:cf|he\s*so)\s*[:=]?\s*(.*)$/i);
+      const targetStr = cfPrefixMatch ? cfPrefixMatch[1].trim() : raw;
+
+      // 1. Khoảng: 0.7 - 0.9, 0.7..0.9, 0.7 to 0.9
+      const rangeMatch = targetStr.match(/^(\d+(?:\.\d+)?)\s*(?:-|->|to|\.\.|,)\s*(\d+(?:\.\d+)?)$/i);
+      if (rangeMatch) {
+        let min = parseFloat(rangeMatch[1]);
+        let max = parseFloat(rangeMatch[2]);
+        if (min > 1 && min <= 100) min /= 100;
+        if (max > 1 && max <= 100) max /= 100;
+        if (min > max) [min, max] = [max, min];
+        return { min, max };
+      }
+
+      // 2. So sánh: >= 0.85, > 0.8, <= 0.9, < 0.8, = 0.85
+      const compMatch = targetStr.match(/^(>=|>|<=|<|=)\s*(\d+(?:\.\d+)?)$/i);
+      if (compMatch) {
+        const op = compMatch[1];
+        let val = parseFloat(compMatch[2]);
+        if (val > 1 && val <= 100) val /= 100;
+        if (op === ">=") return { min: val, max: 1.0 };
+        if (op === ">") return { min: val + 0.0001, max: 1.0 };
+        if (op === "<=") return { min: 0.0, max: val };
+        if (op === "<") return { min: 0.0, max: val - 0.0001 };
+        if (op === "=") return { min: val - 0.005, max: val + 0.005 };
+      }
+
+      if (cfPrefixMatch) {
+        const singleNum = parseFloat(targetStr);
+        if (!isNaN(singleNum)) {
+          const val = (singleNum > 1 && singleNum <= 100) ? singleNum / 100 : singleNum;
+          return { min: val - 0.02, max: val + 0.02 };
+        }
+      }
+
+      return null;
+    };
+
+    const cfFromQuery = parseCFQuery(this.searchKeyword);
+    const filterMinCF = cfFromQuery ? cfFromQuery.min : this.cfFilter.min;
+    const filterMaxCF = cfFromQuery ? cfFromQuery.max : this.cfFilter.max;
+    const isFilteringCF = (cfFromQuery !== null) || (this.cfFilter.mode !== "all");
+
+    let rules = allRules;
+
+    // A. Lọc theo khoảng hệ số CF
+    if (isFilteringCF) {
+      rules = rules.filter(r => {
+        const cfVal = Number(r.cf) || 0;
+        return cfVal >= (filterMinCF - 0.001) && cfVal <= (filterMaxCF + 0.001);
+      });
+    }
+
+    // B. Lọc theo từ khóa text thông thường (nếu từ khóa không phải cú pháp khoảng CF)
+    if (this.searchKeyword && !cfFromQuery) {
+      const q = removeVietnameseTones(this.searchKeyword);
+      rules = rules.filter(rule => {
+        const matchId = removeVietnameseTones(rule.id).includes(q);
+        const matchName = removeVietnameseTones(rule.name).includes(q);
+        const matchDesc = removeVietnameseTones(rule.description).includes(q);
+        const matchConc = removeVietnameseTones(rule.conclusion).includes(q);
         const dis = (kb.diseases || []).find(d => d.id === rule.conclusion);
-        return `
-          <tr>
-            <td><strong style="color: var(--color-primary); font-family: 'JetBrains Mono';">${rule.id}</strong></td>
-            <td>
-              <div style="font-weight: 600;">${rule.name}</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted);">${rule.description || ''}</div>
-            </td>
-            <td>
-              ${(rule.premises || []).map(pId => {
-                const sym = (kb.symptoms || []).find(s => s.id === pId);
-                return `<span class="tc-symptom-tag" title="${sym ? sym.name : pId}">[${pId}] ${sym ? sym.name.substring(0, 20) + '...' : pId}</span>`;
-              }).join(" ")}
-            </td>
-            <td>
-              <strong style="color: #f87171;">[${rule.conclusion}]</strong> ${dis ? dis.name : rule.conclusion}
-            </td>
-            <td>
-              <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-family: 'JetBrains Mono';">
-                ${rule.cf}
-              </span>
-            </td>
-            <td style="text-align: center;">
-              <button class="btn-secondary btn-edit-rule" data-id="${rule.id}" title="Sửa luật">
-                <i class="fa-solid fa-pen"></i>
-              </button>
-              <button class="btn-danger btn-delete-rule" data-id="${rule.id}" title="Xóa luật">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join("");
-
-      this.rulesTbody.querySelectorAll(".btn-edit-rule").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-          const ruleId = e.currentTarget.getAttribute("data-id");
-          this.openEditRuleModal(ruleId);
+        const matchDisName = dis && removeVietnameseTones(dis.name).includes(q);
+        const matchPremises = (rule.premises || []).some(p => {
+          if (removeVietnameseTones(p).includes(q)) return true;
+          const sym = (kb.symptoms || []).find(s => s.id === p);
+          return sym && removeVietnameseTones(sym.name).includes(q);
         });
-      });
-
-      this.rulesTbody.querySelectorAll(".btn-delete-rule").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-          const ruleId = e.currentTarget.getAttribute("data-id");
-          if (confirm(`Bạn có chắc chắn muốn xóa luật [${ruleId}] khỏi cơ sở tri thức?`)) {
-            this.kbManager.deleteRule(ruleId);
-          }
-        });
+        return matchId || matchName || matchDesc || matchConc || matchDisName || matchPremises;
       });
     }
 
-    // 2. Render Symptoms Table
-    if (this.symsTbody) {
-      this.symsTbody.innerHTML = (kb.symptoms || []).map(s => {
+    const isFiltered = Boolean(this.searchKeyword || isFilteringCF);
+    if (this.ruleCountBadge) {
+      this.ruleCountBadge.textContent = isFiltered ? `${rules.length}/${allRules.length}` : allRules.length;
+    }
+
+    const { page, pageSize } = this.pagination.rules;
+    const totalItems = rules.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+    const validPage = Math.min(Math.max(1, page), totalPages);
+    this.pagination.rules.page = validPage;
+
+    const startIdx = (validPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const currentRows = rules.slice(startIdx, endIdx);
+
+    if (this.rulesTbody) {
+      if (currentRows.length === 0) {
+        this.rulesTbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+              <i class="fa-solid fa-magnifying-glass" style="font-size: 1.8rem; opacity: 0.4; margin-bottom: 0.5rem; display: block;"></i>
+              ${this.searchKeyword ? `Không tìm thấy luật sinh nào phù hợp với từ khóa "<strong>${this.searchKeyword}</strong>"` : "Chưa có dữ liệu luật sinh nào"}
+            </td>
+          </tr>
+        `;
+      } else {
+        this.rulesTbody.innerHTML = currentRows.map(rule => {
+          const dis = (kb.diseases || []).find(d => d.id === rule.conclusion);
+          return `
+            <tr>
+              <td><strong style="color: var(--color-primary); font-family: 'JetBrains Mono';">${rule.id}</strong></td>
+              <td>
+                <div style="font-weight: 600;">${rule.name}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${rule.description || ''}</div>
+              </td>
+              <td>
+                ${(rule.premises || []).map(pId => {
+                  const sym = (kb.symptoms || []).find(s => s.id === pId);
+                  return `<span class="tc-symptom-tag" title="${sym ? sym.name : pId}">[${pId}] ${sym ? sym.name.substring(0, 20) + '...' : pId}</span>`;
+                }).join(" ")}
+              </td>
+              <td>
+                <strong style="color: #f87171;">[${rule.conclusion}]</strong> ${dis ? dis.name : rule.conclusion}
+              </td>
+              <td>
+                <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-family: 'JetBrains Mono'; font-weight: 700;">
+                  ${rule.cf}
+                </span>
+              </td>
+              <td style="text-align: center;">
+                <button class="btn-secondary btn-edit-rule" data-id="${rule.id}" title="Sửa luật">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="btn-danger btn-delete-rule" data-id="${rule.id}" title="Xóa luật">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        this.rulesTbody.querySelectorAll(".btn-edit-rule").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            const ruleId = e.currentTarget.getAttribute("data-id");
+            this.openEditRuleModal(ruleId);
+          });
+        });
+
+        this.rulesTbody.querySelectorAll(".btn-delete-rule").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            const ruleId = e.currentTarget.getAttribute("data-id");
+            const isConfirmed = await (window.XacNhan ? window.XacNhan.xoa(`Luật sinh [${ruleId}]`, `Luật [${ruleId}] sẽ bị xóa hoàn toàn khỏi cơ sở tri thức.`) : confirm(`Bạn có chắc chắn muốn xóa luật [${ruleId}] khỏi cơ sở tri thức?`));
+            if (isConfirmed) {
+              this.kbManager.deleteRule(ruleId);
+              this.renderRulesTable();
+              ThongBao.thanhCong(`Đã xóa luật [${ruleId}] thành công!`);
+            }
+          });
+        });
+      }
+    }
+
+    this.renderPaginationFooter("paginationRules", "rules", totalItems);
+  }
+
+  // 2. Render Bảng Triệu Chứng (Symptoms Table) có tìm kiếm & phân trang
+  renderSymptomsTable() {
+    const kb = this.kbManager.getKB();
+    const allSymptoms = kb.symptoms || [];
+
+    const removeVietnameseTones = (str) => {
+      return String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .trim();
+    };
+
+    let symptoms = allSymptoms;
+    if (this.searchKeyword) {
+      const q = removeVietnameseTones(this.searchKeyword);
+      symptoms = allSymptoms.filter(s => {
+        const matchId = removeVietnameseTones(s.id).includes(q);
+        const matchName = removeVietnameseTones(s.name).includes(q);
+        const matchQuestion = removeVietnameseTones(s.question).includes(q);
         const grp = (kb.symptomGroups || []).find(g => g.id === s.groupId);
-        return `
-          <tr>
-            <td><strong style="color: var(--color-cyan); font-family: 'JetBrains Mono';">${s.id}</strong></td>
-            <td><strong>${s.name}</strong></td>
-            <td><span class="badge badge-low">${grp ? grp.name : s.groupId}</span></td>
-            <td style="color: var(--text-secondary); font-size: 0.8rem;">${s.question}</td>
-          </tr>
-        `;
-      }).join("");
+        const matchGroup = grp && removeVietnameseTones(grp.name).includes(q);
+        return matchId || matchName || matchQuestion || matchGroup;
+      });
     }
 
-    // 3. Render Diseases Table
-    if (this.disTbody) {
-      this.disTbody.innerHTML = (kb.diseases || []).map(d => {
-        return `
+    if (this.symCountBadge) {
+      this.symCountBadge.textContent = this.searchKeyword ? `${symptoms.length}/${allSymptoms.length}` : allSymptoms.length;
+    }
+
+    const { page, pageSize } = this.pagination.symptoms;
+    const totalItems = symptoms.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+    const validPage = Math.min(Math.max(1, page), totalPages);
+    this.pagination.symptoms.page = validPage;
+
+    const startIdx = (validPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const currentRows = symptoms.slice(startIdx, endIdx);
+
+    if (this.symsTbody) {
+      if (currentRows.length === 0) {
+        this.symsTbody.innerHTML = `
           <tr>
-            <td><strong style="color: #f87171; font-family: 'JetBrains Mono';">${d.id}</strong></td>
-            <td><strong style="font-size: 0.95rem;">${d.name}</strong></td>
-            <td><span class="badge badge-high">${d.severity}</span></td>
-            <td style="color: #fca5a5; font-size: 0.8rem;">${d.warningSigns || 'Chưa cập nhật'}</td>
-            <td style="color: var(--text-muted); font-size: 0.8rem;">${d.reference || 'Bộ Y Tế'}</td>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+              <i class="fa-solid fa-magnifying-glass" style="font-size: 1.8rem; opacity: 0.4; margin-bottom: 0.5rem; display: block;"></i>
+              ${this.searchKeyword ? `Không tìm thấy triệu chứng nào phù hợp với từ khóa "<strong>${this.searchKeyword}</strong>"` : "Chưa có dữ liệu triệu chứng nào"}
+            </td>
           </tr>
         `;
-      }).join("");
+      } else {
+        this.symsTbody.innerHTML = currentRows.map(s => {
+          const grp = (kb.symptomGroups || []).find(g => g.id === s.groupId);
+          return `
+            <tr>
+              <td><strong style="color: var(--color-cyan); font-family: 'JetBrains Mono';">${s.id}</strong></td>
+              <td><strong>${s.name}</strong></td>
+              <td><span class="badge badge-low">${grp ? grp.name : s.groupId}</span></td>
+              <td style="color: var(--text-secondary); font-size: 0.8rem;">${s.question}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    this.renderPaginationFooter("paginationSymptoms", "symptoms", totalItems);
+  }
+
+  // 3. Render Bảng Danh Mục Bệnh (Diseases Table) có tìm kiếm & phân trang
+  renderDiseasesTable() {
+    const kb = this.kbManager.getKB();
+    const allDiseases = kb.diseases || [];
+
+    const removeVietnameseTones = (str) => {
+      return String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .trim();
+    };
+
+    let diseases = allDiseases;
+    if (this.searchKeyword) {
+      const q = removeVietnameseTones(this.searchKeyword);
+      diseases = allDiseases.filter(d => {
+        const matchId = removeVietnameseTones(d.id).includes(q);
+        const matchName = removeVietnameseTones(d.name).includes(q);
+        const matchSeverity = removeVietnameseTones(d.severity).includes(q);
+        const matchWarning = removeVietnameseTones(d.warningSigns).includes(q);
+        const matchRef = removeVietnameseTones(d.reference).includes(q);
+        return matchId || matchName || matchSeverity || matchWarning || matchRef;
+      });
+    }
+
+    if (this.disCountBadge) {
+      this.disCountBadge.textContent = this.searchKeyword ? `${diseases.length}/${allDiseases.length}` : allDiseases.length;
+    }
+
+    const { page, pageSize } = this.pagination.diseases;
+    const totalItems = diseases.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+    const validPage = Math.min(Math.max(1, page), totalPages);
+    this.pagination.diseases.page = validPage;
+
+    const startIdx = (validPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const currentRows = diseases.slice(startIdx, endIdx);
+
+    if (this.disTbody) {
+      if (currentRows.length === 0) {
+        this.disTbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+              <i class="fa-solid fa-magnifying-glass" style="font-size: 1.8rem; opacity: 0.4; margin-bottom: 0.5rem; display: block;"></i>
+              ${this.searchKeyword ? `Không tìm thấy bệnh học nào phù hợp với từ khóa "<strong>${this.searchKeyword}</strong>"` : "Chưa có dữ liệu danh mục bệnh nào"}
+            </td>
+          </tr>
+        `;
+      } else {
+        this.disTbody.innerHTML = currentRows.map(d => {
+          return `
+            <tr>
+              <td><strong style="color: #f87171; font-family: 'JetBrains Mono';">${d.id}</strong></td>
+              <td><strong style="font-size: 0.95rem;">${d.name}</strong></td>
+              <td><span class="badge badge-high">${d.severity}</span></td>
+              <td style="color: #fca5a5; font-size: 0.8rem;">${d.warningSigns || 'Chưa cập nhật'}</td>
+              <td style="color: var(--text-muted); font-size: 0.8rem;">${d.reference || 'Bộ Y Tế'}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    this.renderPaginationFooter("paginationDiseases", "diseases", totalItems);
+  }
+
+  // 4. Hàm render component phân trang dùng chung cho cả 3 bảng
+  renderPaginationFooter(containerId, tabKey, totalItems) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const { page, pageSize } = this.pagination[tabKey];
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    const startItem = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+    const endItem = Math.min(page * pageSize, totalItems);
+
+    // Xây dựng danh sách các nút số trang
+    let pageNumbersHtml = "";
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbersHtml += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+    } else {
+      if (page <= 4) {
+        for (let i = 1; i <= 5; i++) {
+          pageNumbersHtml += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        pageNumbersHtml += `<span class="pagination-ellipsis">...</span>`;
+        pageNumbersHtml += `<button class="btn-page-step" data-page="${totalPages}">${totalPages}</button>`;
+      } else if (page >= totalPages - 3) {
+        pageNumbersHtml += `<button class="btn-page-step" data-page="1">1</button>`;
+        pageNumbersHtml += `<span class="pagination-ellipsis">...</span>`;
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pageNumbersHtml += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+      } else {
+        pageNumbersHtml += `<button class="btn-page-step" data-page="1">1</button>`;
+        pageNumbersHtml += `<span class="pagination-ellipsis">...</span>`;
+        for (let i = page - 1; i <= page + 1; i++) {
+          pageNumbersHtml += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        pageNumbersHtml += `<span class="pagination-ellipsis">...</span>`;
+        pageNumbersHtml += `<button class="btn-page-step" data-page="${totalPages}">${totalPages}</button>`;
+      }
+    }
+
+    container.innerHTML = `
+      <div class="pagination-left">
+        <div class="pagination-info-text">
+          Hiển thị <strong>${startItem} - ${endItem}</strong> trên tổng số <strong>${totalItems}</strong> bản ghi
+        </div>
+        <div class="page-size-selector-wrap">
+          <label>Hiển thị:</label>
+          <select class="select-page-size" data-tab="${tabKey}">
+            <option value="10" ${pageSize === 10 ? 'selected' : ''}>10 dòng / trang</option>
+            <option value="20" ${pageSize === 20 ? 'selected' : ''}>20 dòng / trang</option>
+            <option value="50" ${pageSize === 50 ? 'selected' : ''}>50 dòng / trang</option>
+            <option value="100" ${pageSize === 100 ? 'selected' : ''}>100 dòng / trang</option>
+          </select>
+        </div>
+      </div>
+      <div class="pagination-nav-group">
+        <button class="btn-page-step" data-page="1" title="Trang đầu" ${page === 1 ? 'disabled' : ''}>
+          <i class="fa-solid fa-angles-left"></i>
+        </button>
+        <button class="btn-page-step" data-page="${page - 1}" title="Trang trước" ${page === 1 ? 'disabled' : ''}>
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        ${pageNumbersHtml}
+        <button class="btn-page-step" data-page="${page + 1}" title="Trang sau" ${page === totalPages ? 'disabled' : ''}>
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <button class="btn-page-step" data-page="${totalPages}" title="Trang cuối" ${page === totalPages ? 'disabled' : ''}>
+          <i class="fa-solid fa-angles-right"></i>
+        </button>
+      </div>
+    `;
+
+    // Gắn sự kiện chuyển trang
+    container.querySelectorAll(".btn-page-step[data-page]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const targetPage = parseInt(btn.getAttribute("data-page"), 10);
+        if (targetPage && targetPage !== page && targetPage >= 1 && targetPage <= totalPages) {
+          this.pagination[tabKey].page = targetPage;
+          if (tabKey === "rules") this.renderRulesTable();
+          else if (tabKey === "symptoms") this.renderSymptomsTable();
+          else if (tabKey === "diseases") this.renderDiseasesTable();
+        }
+      });
+    });
+
+    // Gắn sự kiện đổi pageSize (10, 20, 50, 100)
+    const selectEl = container.querySelector(".select-page-size");
+    if (selectEl) {
+      selectEl.addEventListener("change", (e) => {
+        const newPageSize = parseInt(e.target.value, 10);
+        if (newPageSize) {
+          this.pagination[tabKey].pageSize = newPageSize;
+          this.pagination[tabKey].page = 1; // Reset về trang 1
+          if (tabKey === "rules") this.renderRulesTable();
+          else if (tabKey === "symptoms") this.renderSymptomsTable();
+          else if (tabKey === "diseases") this.renderDiseasesTable();
+        }
+      });
     }
   }
 
@@ -791,7 +1257,25 @@ class KBController {
     if (!this.modalRuleForm || !this.ruleForm) return;
     this.ruleFormModalTitle.textContent = "Thêm Luật Sinh Mới";
     this.ruleForm.reset();
-    document.getElementById("formRuleId").value = "";
+    
+    const originalIdEl = document.getElementById("formRuleOriginalId");
+    if (originalIdEl) originalIdEl.value = "";
+    
+    const ruleIdInput = document.getElementById("formRuleId");
+    if (ruleIdInput) {
+      // Gợi ý mã luật tiếp theo
+      const kb = this.kbManager.getKB();
+      const existingMax = (kb.rules || []).reduce((max, r) => {
+        const num = parseInt(String(r.id || "").replace(/[^0-9]/g, ""), 10);
+        return !isNaN(num) && num > max ? num : max;
+      }, 0);
+      const nextId = `R${String(existingMax + 1).padStart(2, "0")}`;
+      ruleIdInput.value = nextId;
+      ruleIdInput.placeholder = nextId;
+    }
+
+    const cfInput = document.getElementById("formRuleCF");
+    if (cfInput) cfInput.value = "0.85";
 
     this.populateRuleFormInputs();
     this.modalRuleForm.classList.add("active");
@@ -802,7 +1286,13 @@ class KBController {
     if (!rule || !this.modalRuleForm) return;
 
     this.ruleFormModalTitle.textContent = `Chỉnh Sửa Luật [${rule.id}]`;
-    document.getElementById("formRuleId").value = rule.id;
+    
+    const originalIdEl = document.getElementById("formRuleOriginalId");
+    if (originalIdEl) originalIdEl.value = rule.id;
+
+    const ruleIdInput = document.getElementById("formRuleId");
+    if (ruleIdInput) ruleIdInput.value = rule.id;
+
     document.getElementById("formRuleName").value = rule.name;
     document.getElementById("formRuleCF").value = rule.cf;
     document.getElementById("formRuleDesc").value = rule.description || "";
@@ -838,33 +1328,62 @@ class KBController {
 
   handleRuleFormSubmit(e) {
     e.preventDefault();
-    const ruleId = document.getElementById("formRuleId").value;
-    const name = document.getElementById("formRuleName").value;
-    const conclusion = document.getElementById("formRuleConclusion").value;
-    const cf = parseFloat(document.getElementById("formRuleCF").value);
-    const description = document.getElementById("formRuleDesc").value;
+    const originalIdEl = document.getElementById("formRuleOriginalId");
+    const originalId = originalIdEl ? originalIdEl.value.trim() : "";
 
+    const ruleIdInput = document.getElementById("formRuleId");
+    const inputRuleId = ruleIdInput ? ruleIdInput.value.trim().toUpperCase() : "";
+
+    const name = document.getElementById("formRuleName").value.trim();
+    const conclusion = document.getElementById("formRuleConclusion").value.trim();
+    const cfVal = parseFloat(document.getElementById("formRuleCF").value);
+    const description = document.getElementById("formRuleDesc").value.trim();
+
+    // 1. Kiểm tra tiền đề
     const checkedBoxes = document.querySelectorAll('input[name="premiseCheckbox"]:checked');
-    const premises = Array.from(checkedBoxes).map(cb => cb.value);
+    const premises = Array.from(checkedBoxes).map(cb => cb.value.trim().toUpperCase());
 
     if (premises.length === 0) {
-      ThongBao.canhBao("Vui lòng chọn ít nhất 1 triệu chứng tiền đề (IF) cho luật!");
+      ThongBao.canhBao("Vui lòng chọn ít nhất 1 triệu chứng tiền đề (NẾU / IF) cho luật!");
       return;
     }
 
-    const ruleData = { id: ruleId || undefined, name, premises, conclusion, cf, description };
+    // 2. Kiểm tra bệnh kết luận
+    if (!conclusion) {
+      ThongBao.canhBao("Vui lòng chọn Bệnh kết luận (THÌ / THEN) cho luật!");
+      return;
+    }
+
+    // 3. Kiểm tra định dạng CF (0.01 - 1.0)
+    if (isNaN(cfVal) || cfVal <= 0 || cfVal > 1.0) {
+      ThongBao.canhBao("Hệ số tin cậy (CF) không hợp lệ! Vui lòng nhập số trong khoảng từ 0.01 đến 1.0.");
+      return;
+    }
+
+    const ruleData = {
+      id: inputRuleId || undefined,
+      name: name || (inputRuleId ? `Luật ${inputRuleId}` : undefined),
+      premises,
+      conclusion,
+      cf: cfVal,
+      description
+    };
 
     try {
-      if (ruleId) {
-        this.kbManager.updateRule(ruleId, ruleData);
-        ThongBao.thanhCong(`Đã cập nhật luật [${ruleId}] thành công!`);
+      if (originalId) {
+        // Cập nhật luật hiện có
+        this.kbManager.updateRule(originalId, ruleData);
+        ThongBao.thanhCong(`Đã cập nhật luật [${inputRuleId || originalId}] thành công!`);
       } else {
-        this.kbManager.addRule(ruleData);
-        ThongBao.thanhCong("Đã thêm luật sinh mới vào cơ sở tri thức!");
+        // Thêm luật mới
+        const created = this.kbManager.addRule(ruleData);
+        ThongBao.thanhCong(`Đã thêm luật sinh mới [${created.id}] vào cơ sở tri thức!`);
+        this.pagination.rules.page = 1; // Tự động chuyển về trang 1 để thấy ngay bản ghi mới ở trên cùng
       }
       this.modalRuleForm.classList.remove("active");
+      this.renderRulesTable();
     } catch (err) {
-      ThongBao.thatBai(`Lỗi: ${err.message}`);
+      ThongBao.thatBai(err.message, "Lỗi kiểm tra trùng lặp");
     }
   }
 }
