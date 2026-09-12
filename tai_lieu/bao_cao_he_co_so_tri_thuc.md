@@ -131,42 +131,38 @@ Hệ thống được thiết kế dạng Single Page Application không phụ t
 
 ---
 
-## 6. MÔ TẢ CẤU TRÚC DỮ LIỆU CỦA HỆ THỐNG
+## 6. MÔ TẢ CƠ SỞ DỮ LIỆU QUAN HỆ & CẤU TRÚC DỮ LIỆU (DATABASE DESIGN)
 
-### 6.1. Cấu trúc Đối tượng Triệu chứng (Symptom Fact)
-```json
-{
-  "id": "S05",
-  "name": "Đau nhức hai hốc mắt (tăng khi liếc mắt)",
-  "groupId": "group_pain",
-  "question": "Bạn có cảm giác đau nhức sâu phía sau hai hốc mắt không?"
-}
+Hệ thống được thiết kế với **Cơ sở dữ liệu Quan hệ Nhúng (Embedded Relational Database Engine - MedExpertDB)** chuẩn hóa dạng chuẩn 3 (3NF) trên nền IndexedDB, hỗ trợ tính toàn vẹn dữ liệu, kiểm toán biến động (Audit Log) và bộ xử lý truy vấn **SQL Console** trực quan:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                          LƯỢC ĐỒ CƠ SỞ DỮ LIỆU QUAN HỆ 3NF                            │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1. nhom_trieu_chung : (PK: id, name, icon)                                             │
+│ 2. trieu_chung      : (PK: id, name, FK: groupId, question, created_at)               │
+│ 3. danh_muc_benh    : (PK: id, name, severity, color, description, warningSigns)       │
+│ 4. tap_luat         : (PK: id, name, FK: conclusion, cf, description, premises)        │
+│ 5. tien_de_luat     : (PK: id, FK: ruleId, FK: symptomId) [Quan hệ N-N]                │
+│ 6. lich_su_chan_doan: (PK: id, timestamp, inputSymptoms, topDiseaseId, topCF, trace)   │
+│ 7. nhat_ky_csdl     : (PK: id, timestamp, actionType, tableName, recordId, detail)    │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2. Cấu trúc Đối tượng Bệnh (Disease Goal)
-```json
-{
-  "id": "D01",
-  "name": "Sốt xuất huyết Dengue",
-  "severity": "Nguy hiểm (Cần theo dõi sát tiểu cầu & dấu hiệu cảnh báo)",
-  "color": "#ef4444",
-  "warningSigns": "Đau bụng nhiều ở hạ sườn phải, nôn liên tục, chảy máu niêm mạc...",
-  "recommendation": "Uống Oresol bù nước, hạ sốt bằng Paracetamol, xét nghiệm NS1Ag...",
-  "reference": "Quyết định 2760/QĐ-BYT Bộ Y Tế"
-}
-```
+### 6.1. Chi tiết các Bảng Quan hệ:
+* **Bảng `trieu_chung` (Facts):** Chứa các sự kiện triệu chứng đơn nguyên, liên kết 1-N với `nhom_trieu_chung`.
+* **Bảng `danh_muc_benh` (Goals):** Chứa danh mục bệnh kết luận, phác đồ điều trị và dấu hiệu cảnh báo nguy hiểm.
+* **Bảng `tap_luat` & `tien_de_luat` (N-N Production Rules):** Tách bạch vế trái IF (nhiều triệu chứng liên kết qua bảng nối `tien_de_luat`) và vế phải THEN (kết luận về 1 bệnh trong bảng `danh_muc_benh`).
+* **Bảng `lich_su_chan_doan` (Audit Trails):** Tự động ghi nhận mọi phiên chẩn đoán của người dùng, thời gian thực thi, triệu chứng nạp vào, bệnh kết luận và độ tin cậy $CF$.
+* **Bảng `nhat_ky_csdl`:** Ghi vết mọi thao tác thêm, sửa, xóa luật và các đợt nạp dữ liệu nhằm đảm bảo tính toàn vẹn của cơ sở tri thức.
 
-### 6.3. Cấu trúc Đối tượng Luật sinh (Production Rule)
-```json
-{
-  "id": "R01",
-  "name": "Luật chẩn đoán Sốt xuất huyết thể điển hình",
-  "premises": ["S01", "S04", "S05", "S06"],
-  "conclusion": "D01",
-  "cf": 0.85,
-  "description": "IF Sốt cao (S01) AND Đau đầu (S04) AND Đau hốc mắt (S05) AND Đau cơ (S06) THEN Nghi ngờ Sốt xuất huyết [CF = 0.85]"
-}
-```
+### 6.2. Bộ Xử lý Truy vấn SQL Console:
+Hệ thống tích hợp một trình biên dịch SQL giả lập cho phép chuyên gia và giảng viên chạy trực tiếp các câu lệnh truy vấn chuẩn:
+* `SELECT * FROM tap_luat WHERE cf >= 0.85`: Tìm các luật có độ tin cậy cao.
+* `SELECT * FROM trieu_chung WHERE groupId = 'group_fever'`: Lọc triệu chứng theo nhóm sốt.
+* `SELECT * FROM danh_muc_benh`: Xem toàn bộ danh mục bệnh.
+* `SELECT * FROM lich_su_chan_doan LIMIT 10`: Xem các ca chẩn đoán gần nhất.
+* `SELECT COUNT(*) FROM tap_luat`: Đếm số lượng tri thức hiện có.
 
 ---
 

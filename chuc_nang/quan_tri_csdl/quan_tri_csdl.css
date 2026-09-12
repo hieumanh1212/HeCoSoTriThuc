@@ -1,0 +1,120 @@
+/* ==========================================================================
+   MODULE CSS: QUẢN TRỊ DATABASE & SQL CONSOLE
+   ========================================================================== */
+
+.db-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.db-stat-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.sql-sample-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+
+.sql-pill {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sql-pill:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.sql-editor {
+  width: 100%;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+  color: #38bdf8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  outline: none;
+  resize: vertical;
+}
+
+.sql-editor:focus {
+  border-color: var(--border-focus);
+}
+
+/* Light Theme High Contrast for Projectors */
+[data-theme="light"] .db-stat-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .stat-value {
+  color: #0f172a;
+}
+
+[data-theme="light"] .stat-label {
+  color: #334155;
+  font-weight: 600;
+}
+
+[data-theme="light"] .sql-editor {
+  background-color: #ffffff;
+  color: #0369a1;
+  border-color: #94a3b8;
+  font-weight: 600;
+}
+
+[data-theme="light"] .sql-pill {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+  font-weight: 700;
+}
+
+[data-theme="light"] .sql-pill:hover {
+  background: #0284c7;
+  color: #ffffff;
+}

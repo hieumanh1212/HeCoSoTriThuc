@@ -1,6 +1,6 @@
 /**
- * MODULE ĐỘNG CƠ SUY DIỄN TIẾN (FORWARD CHAINING INFERENCE ENGINE)
- * Cơ chế: Dữ liệu dẫn dắt (Data-driven). Từ tập sự kiện ban đầu -> quét tập luật -> sinh kết luận
+ * ĐỘNG CƠ SUY DIỄN TIẾN (FORWARD CHAINING INFERENCE ENGINE)
+ * Lập luận dựa trên sự kiện ban đầu (Data-driven) và ghi nhật ký vết suy luận
  */
 
 class ForwardChainingEngine {
@@ -8,28 +8,14 @@ class ForwardChainingEngine {
     this.kb = knowledgeBase;
   }
 
-  /**
-   * Cập nhật cơ sở tri thức đang sử dụng
-   */
   setKnowledgeBase(kb) {
     this.kb = kb;
   }
 
-  /**
-   * Thực hiện suy diễn tiến từ các sự kiện triệu chứng người dùng cung cấp
-   * @param {Object.<string, number>} facts Map { symptomId: userCF } (CF từ 0.1 đến 1.0)
-   * @returns {{
-   *    results: Array<{ disease: Object, cf: number, firedRules: Array, interpretation: Object }>,
-   *    firedRules: Array<Object>,
-   *    traceLogs: Array<Object>,
-   *    workingMemory: Object.<string, number>
-   * }}
-   */
   infer(facts) {
     const workingMemory = { ...facts };
     const firedRules = [];
     const traceLogs = [];
-    // Lưu danh sách CF của các luật kích hoạt theo từng bệnh: { [diseaseId]: Array<{ ruleId, cf, formula }> }
     const diseaseRuleMatches = {};
 
     traceLogs.push({
@@ -37,7 +23,7 @@ class ForwardChainingEngine {
       type: "START",
       message: "Khởi tạo Bộ nhớ làm việc (Working Memory) với tập triệu chứng ban đầu",
       data: Object.entries(workingMemory).map(([id, cf]) => {
-        const sym = this.kb.symptoms.find(s => s.id === id);
+        const sym = (this.kb.symptoms || []).find(s => s.id === id);
         return { id, name: sym ? sym.name : id, cf };
       })
     });
@@ -56,15 +42,14 @@ class ForwardChainingEngine {
         message: `Bắt đầu chu kỳ suy diễn số ${cycleCount}: Quét tập luật sinh...`
       });
 
-      for (const rule of this.kb.rules) {
+      for (const rule of (this.kb.rules || [])) {
         if (evaluatedRules.has(rule.id)) continue;
 
-        // Kiểm tra xem tất cả các tiền đề (Premises) của luật có trong Working Memory không
         const premiseCFs = [];
         let allPremisesPresent = true;
         const missingPremises = [];
 
-        for (const premiseId of rule.premises) {
+        for (const premiseId of (rule.premises || [])) {
           if (workingMemory[premiseId] !== undefined && workingMemory[premiseId] > 0) {
             premiseCFs.push(workingMemory[premiseId]);
           } else {
@@ -73,17 +58,14 @@ class ForwardChainingEngine {
           }
         }
 
-        if (allPremisesPresent) {
-          // Luật thỏa mãn -> Kích hoạt (Fire)
+        if (allPremisesPresent && (rule.premises || []).length > 0) {
           evaluatedRules.add(rule.id);
           ruleActivatedInCycle = true;
 
-          // 1. Tính CF vế tiền đề (AND logic = min)
           const premiseCF = window.CertaintyFactorEngine.and(premiseCFs);
-          // 2. Tính CF của luật này
           const ruleOutputCF = window.CertaintyFactorEngine.evaluateRule(premiseCF, rule.cf);
 
-          const disease = this.kb.diseases.find(d => d.id === rule.conclusion);
+          const disease = (this.kb.diseases || []).find(d => d.id === rule.conclusion);
           const diseaseName = disease ? disease.name : rule.conclusion;
 
           const firedInfo = {
@@ -93,7 +75,7 @@ class ForwardChainingEngine {
             premises: rule.premises,
             premiseDetails: rule.premises.map((pId, idx) => ({
               id: pId,
-              name: (this.kb.symptoms.find(s => s.id === pId) || {}).name || pId,
+              name: ((this.kb.symptoms || []).find(s => s.id === pId) || {}).name || pId,
               userCF: premiseCFs[idx]
             })),
             premiseCF,
@@ -119,14 +101,13 @@ class ForwardChainingEngine {
             details: firedInfo
           });
         } else {
-          // Ghi vết luật chưa kích hoạt được do thiếu triệu chứng
           traceLogs.push({
             step: traceLogs.length + 1,
             type: "RULE_SKIPPED",
             ruleId: rule.id,
             message: `Bỏ qua [${rule.id}]: Thiếu ${missingPremises.length} triệu chứng tiền đề`,
             missing: missingPremises.map(id => {
-              const sym = this.kb.symptoms.find(s => s.id === id);
+              const sym = (this.kb.symptoms || []).find(s => s.id === id);
               return { id, name: sym ? sym.name : id };
             })
           });
@@ -134,12 +115,11 @@ class ForwardChainingEngine {
       }
     }
 
-    // TỔNG HỢP VÀ KẾT HỢP ĐỘ TIN CẬY CF CHO TỪNG BỆNH (MYCIN Combination)
     const results = [];
 
     for (const diseaseId in diseaseRuleMatches) {
       const matchRules = diseaseRuleMatches[diseaseId];
-      const disease = this.kb.diseases.find(d => d.id === diseaseId);
+      const disease = (this.kb.diseases || []).find(d => d.id === diseaseId);
       const cfList = matchRules.map(r => r.outputCF);
 
       let finalCF = 0;
@@ -184,7 +164,6 @@ class ForwardChainingEngine {
       });
     }
 
-    // Sắp xếp các bệnh theo độ tin cậy CF từ cao xuống thấp
     results.sort((a, b) => b.finalCF - a.finalCF);
 
     traceLogs.push({

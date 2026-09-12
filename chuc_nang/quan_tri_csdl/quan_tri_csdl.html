@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Trị CSDL & SQL Console - Hệ Cơ Sở Tri Thức</title>
+  
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+</head>
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Quản trị Cơ sở dữ liệu quan hệ nhúng IndexedDB & SQL Query Engine</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="../chan_doan/chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="quan_tri_csdl.html" class="nav-btn active">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="../ca_kiem_thu/ca_kiem_thu.html" class="nav-btn">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div class="kb-management-header">
+      <div>
+        <h2 style="font-size: 1.25rem; font-weight: 700;">Quản Trị Cơ Sở Dữ Liệu Quan Hệ (IndexedDB 3NF)</h2>
+        <p style="font-size: 0.82rem; color: var(--text-secondary);">
+          Chuẩn hóa quan hệ 3NF • Trình duyệt Bảng CSDL • Bảng điều khiển thực thi truy vấn SQL • Nhật ký kiểm toán & chẩn đoán
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.6rem;">
+        <button id="btnRefreshDBStats" class="btn-secondary">
+          <i class="fa-solid fa-rotate"></i> Làm mới CSDL
+        </button>
+        <button id="btnResetDatabaseAll" class="btn-danger">
+          <i class="fa-solid fa-trash-can"></i> Tái tạo & Khôi phục CSDL
+        </button>
+      </div>
+    </div>
+
+    <!-- Thống kê CSDL -->
+    <div class="db-stats-grid">
+      <div class="db-stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--color-primary);"><i class="fa-solid fa-scroll"></i></div>
+        <div>
+          <div class="stat-value" id="dbStatRules">0</div>
+          <div class="stat-label">Số lượng Luật sinh (tap_luat)</div>
+        </div>
+      </div>
+      <div class="db-stat-card">
+        <div class="stat-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--color-cyan);"><i class="fa-solid fa-virus"></i></div>
+        <div>
+          <div class="stat-value" id="dbStatSymptoms">0</div>
+          <div class="stat-label">Số lượng Triệu chứng (trieu_chung)</div>
+        </div>
+      </div>
+      <div class="db-stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;"><i class="fa-solid fa-disease"></i></div>
+        <div>
+          <div class="stat-value" id="dbStatDiseases">0</div>
+          <div class="stat-label">Số lượng Bệnh mục tiêu (danh_muc_benh)</div>
+        </div>
+      </div>
+      <div class="db-stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--color-emerald);"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div>
+          <div class="stat-value" id="dbStatSessions">0</div>
+          <div class="stat-label">Lịch sử phiên chẩn đoán (lich_su_chan_doan)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SQL QUERY CONSOLE -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fa-solid fa-terminal" style="color: var(--color-primary);"></i>
+          <span>Bảng Điều Khiển & Thực Thi Truy Vấn SQL</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Động cơ: Bộ xử lý SQL IndexedDB
+        </div>
+      </div>
+
+      <div style="margin-bottom: 0.75rem;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+          Mẫu câu truy vấn nhanh:
+        </div>
+        <div class="sql-sample-pills">
+          <span class="sql-pill" data-query="SELECT * FROM tap_luat WHERE cf >= 0.85">Luật có CF >= 0.85</span>
+          <span class="sql-pill" data-query="SELECT * FROM trieu_chung WHERE groupId = 'group_fever'">Triệu chứng nhóm sốt</span>
+          <span class="sql-pill" data-query="SELECT * FROM danh_muc_benh">Toàn bộ danh mục bệnh</span>
+          <span class="sql-pill" data-query="SELECT * FROM lich_su_chan_doan LIMIT 10">Lịch sử chẩn đoán gần nhất</span>
+          <span class="sql-pill" data-query="SELECT * FROM nhat_ky_csdl LIMIT 20">Nhật ký kiểm toán CSDL</span>
+          <span class="sql-pill" data-query="SELECT COUNT(*) FROM tap_luat">Đếm tổng số luật sinh</span>
+        </div>
+      </div>
+
+      <div style="position: relative;">
+        <textarea id="sqlQueryInput" class="sql-editor" rows="3" placeholder="Nhập câu truy vấn SQL (Ví dụ: SELECT * FROM tap_luat WHERE cf >= 0.85)...">SELECT * FROM tap_luat WHERE cf >= 0.85</textarea>
+        <button id="btnExecuteSQL" class="btn-primary" style="margin-top: 0.6rem;">
+          <i class="fa-solid fa-play"></i> Thực thi Truy vấn SQL
+        </button>
+      </div>
+
+      <!-- Bảng Kết quả Truy vấn SQL -->
+      <div id="sqlResultContainer" style="margin-top: 1rem; display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-emerald);">
+            <i class="fa-solid fa-circle-check"></i> Kết quả truy vấn (<span id="sqlRowCount">0</span> dòng)
+          </div>
+          <span class="badge badge-low" id="sqlExecTime">0.4ms</span>
+        </div>
+        <div class="data-table-wrapper" style="max-height: 280px; overflow-y: auto;">
+          <table class="data-table" id="sqlResultTable">
+            <thead id="sqlResultThead"></thead>
+            <tbody id="sqlResultTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRÌNH DUYỆT CÁC BẢNG DỮ LIỆU -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fa-solid fa-table-list" style="color: var(--color-emerald);"></i>
+          <span>Trình Duyệt Chi Tiết Các Bảng Dữ Liệu Quan Hệ</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">Chọn Bảng:</label>
+          <select id="dbTableSelector" class="form-control" style="width: 280px; padding: 0.4rem 0.6rem;">
+            <option value="tap_luat">Bảng: tap_luat (Tập luật sinh)</option>
+            <option value="trieu_chung">Bảng: trieu_chung (Triệu chứng)</option>
+            <option value="danh_muc_benh">Bảng: danh_muc_benh (Danh mục bệnh)</option>
+            <option value="tien_de_luat">Bảng: tien_de_luat (Bảng nối Tiền đề)</option>
+            <option value="lich_su_chan_doan">Bảng: lich_su_chan_doan (Lịch sử chẩn đoán)</option>
+            <option value="nhat_ky_csdl">Bảng: nhat_ky_csdl (Nhật ký kiểm toán)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="data-table-wrapper" style="max-height: 380px; overflow-y: auto;">
+        <table class="data-table" id="dbExplorerTable">
+          <thead id="dbExplorerThead"></thead>
+          <tbody id="dbExplorerTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="dieu_khien_csdl.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const dbEngine = new DatabaseEngine();
+      try { await dbEngine.init(); } catch (e) {}
+
+      const kbManager = new KnowledgeBaseManager(dbEngine);
+      const dbController = new DatabaseController({
+        dbEngine,
+        kbManager,
+        onResetComplete: () => {
+          dbController.updateStats();
+          const selector = document.getElementById("dbTableSelector");
+          if (selector) dbController.renderTableExplorer(selector.value);
+        }
+      });
+
+      dbController.updateStats();
+      const initialTable = document.getElementById("dbTableSelector");
+      if (initialTable) dbController.renderTableExplorer(initialTable.value);
+    });
+  </script>
+</body>
+</html>

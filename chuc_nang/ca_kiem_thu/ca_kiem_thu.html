@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ca Bệnh Kiểm Thử Mẫu - Hệ Cơ Sở Tri Thức</title>
+  
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+</head>
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Bộ Ca bệnh Lâm sàng Kiểm chứng Thực nghiệm (Benchmark)</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="../chan_doan/chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="../quan_tri_csdl/quan_tri_csdl.html" class="nav-btn">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="ca_kiem_thu.html" class="nav-btn active">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div style="margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 700;">Bộ Ca Bệnh Kiểm Thử Mẫu Lâm Sàng (Benchmark)</h2>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+        Kiểm chứng độ chính xác và tính tương đồng của hệ chuyên gia so với chẩn đoán chuẩn của bác sĩ lâm sàng.
+      </p>
+    </div>
+
+    <div class="test-cases-grid" id="testCasesContainer"></div>
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="dieu_khien_kiem_thu.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const dbEngine = new DatabaseEngine();
+      try { await dbEngine.init(); } catch (e) {}
+
+      const kbManager = new KnowledgeBaseManager(dbEngine);
+      const testcasesController = new TestCasesController({
+        kbManager,
+        onLoadTestCase: (symptomsMap) => {
+          // Lưu ca bệnh vào sessionStorage và chuyển trang
+          sessionStorage.setItem("LOAD_TESTCASE_SYMPTOMS", JSON.stringify(symptomsMap));
+          window.location.href = "../chan_doan/chan_doan.html";
+        }
+      });
+
+      testcasesController.renderTestCases();
+    });
+  </script>
+</body>
+</html>

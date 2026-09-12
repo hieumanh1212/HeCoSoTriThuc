@@ -1,0 +1,16 @@
+/* ==========================================================================
+   TẬP HỢP TẤT CẢ ĐỊNH DẠNG CSS (CSS TỔNG HỢP)
+   Tổ chức theo Kiến trúc Module Chức Năng Tiếng Việt
+   ========================================================================== */
+
+/* 1. Nền tảng dùng chung (Giao diện gốc, biến màu & thành phần dùng chung) */
+@import url('nen_tang.css');
+@import url('thanh_phan.css');
+
+/* 2. Định dạng riêng biệt của từng màn hình / chức năng */
+@import url('../chuc_nang/chan_doan/chan_doan.css');
+@import url('../chuc_nang/do_thi_rpg/do_thi_rpg.css');
+@import url('../chuc_nang/quan_ly_tri_thuc/quan_ly_tri_thuc.css');
+@import url('../chuc_nang/quan_tri_csdl/quan_tri_csdl.css');
+@import url('../chuc_nang/ca_kiem_thu/ca_kiem_thu.css');
+@import url('../chuc_nang/ly_thuyet/ly_thuyet.css');

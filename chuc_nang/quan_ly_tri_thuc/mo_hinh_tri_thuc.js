@@ -1,13 +1,36 @@
 /**
- * MODULE QUẢN LÝ CƠ SỞ TRI THỨC (KNOWLEDGE BASE MANAGER)
- * Quản lý CRUD Luật, Triệu chứng, Bệnh, Import/Export JSON, LocalStorage
+ * FEATURE MODULE: KNOWLEDGE BASE MODEL & STORAGE MANAGER
  */
 
 class KnowledgeBaseManager {
-  constructor() {
+  constructor(dbEngine = null) {
     this.STORAGE_KEY = "HE_CO_SO_TRI_THUC_KB_DATA";
+    this.db = dbEngine;
     this.kb = this.loadFromStorage();
     this.listeners = [];
+
+    if (this.db && this.db.isReady) {
+      this.syncFromDatabase();
+    }
+  }
+
+  setDatabaseEngine(dbEngine) {
+    this.db = dbEngine;
+    this.syncFromDatabase();
+  }
+
+  async syncFromDatabase() {
+    if (!this.db) return;
+    try {
+      const dbKB = await this.db.toKnowledgeBaseObject();
+      if (dbKB && dbKB.rules && dbKB.rules.length > 0) {
+        this.kb = dbKB;
+        this.saveToStorage();
+        this.notifyListeners();
+      }
+    } catch (e) {
+      console.warn("Lỗi sync từ Database, sử dụng cache:", e);
+    }
   }
 
   loadFromStorage() {
@@ -19,16 +42,18 @@ class KnowledgeBaseManager {
     } catch (e) {
       console.warn("Lỗi đọc LocalStorage, sử dụng dữ liệu mặc định:", e);
     }
-    // Nhân bản sâu dữ liệu mặc định
     return JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {}));
   }
 
-  saveToStorage() {
+  async saveToStorage() {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      if (this.db) {
+        await this.db.importFromKBObject(this.kb, "Cập nhật qua KnowledgeBaseManager");
+      }
       this.notifyListeners();
     } catch (e) {
-      console.error("Lỗi lưu LocalStorage:", e);
+      console.error("Lỗi lưu trữ CSDL:", e);
     }
   }
 
@@ -52,7 +77,7 @@ class KnowledgeBaseManager {
     return this.kb;
   }
 
-  // --- QUẢN LÝ TẬP LUẬT (RULES CRUD) ---
+  // --- RULES CRUD ---
   getRules() {
     return this.kb.rules || [];
   }
@@ -70,7 +95,6 @@ class KnowledgeBaseManager {
       ruleData.id = `R${String(existingMax + 1).padStart(2, "0")}`;
     }
 
-    // Kiểm tra trùng ID
     if (this.getRuleById(ruleData.id)) {
       throw new Error(`Mã luật ${ruleData.id} đã tồn tại!`);
     }
@@ -110,7 +134,7 @@ class KnowledgeBaseManager {
     this.saveToStorage();
   }
 
-  // --- QUẢN LÝ TRIỆU CHỨNG (SYMPTOMS CRUD) ---
+  // --- SYMPTOMS CRUD ---
   getSymptoms() {
     return this.kb.symptoms || [];
   }
@@ -135,7 +159,7 @@ class KnowledgeBaseManager {
     return symptomData;
   }
 
-  // --- QUẢN LÝ BỆNH KẾT LUẬN (DISEASES CRUD) ---
+  // --- DISEASES CRUD ---
   getDiseases() {
     return this.kb.diseases || [];
   }

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nguồn & Lý Thuyết - Hệ Cơ Sở Tri Thức</title>
+  
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+</head>
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Nguồn Tri thức Quy chuẩn Y khoa & Cơ sở Lý thuyết Toán học</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="../chan_doan/chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="../quan_tri_csdl/quan_tri_csdl.html" class="nav-btn">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="../ca_kiem_thu/ca_kiem_thu.html" class="nav-btn">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="ly_thuyet.html" class="nav-btn active">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div class="card theory-section" style="margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--color-emerald);">
+        <i class="fa-solid fa-certificate"></i> Nguồn gốc và Độ tin cậy của Tri thức Y khoa
+      </h2>
+      <p style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+        Toàn bộ tri thức y khoa trong hệ thống được trích xuất, chuẩn hóa và số hóa từ các văn bản quy chuẩn quốc gia của <strong>Bộ Y Tế Việt Nam</strong> và hướng dẫn chuyên môn của <strong>Tổ chức Y tế Thế giới (WHO)</strong>:
+      </p>
+      <ul style="padding-left: 1.5rem; color: var(--text-secondary); line-height: 2; font-size: 0.9rem;">
+        <li><strong>Sốt xuất huyết Dengue:</strong> Quyết định số 2760/QĐ-BYT Hướng dẫn chẩn đoán, điều trị sốt xuất huyết Dengue.</li>
+        <li><strong>Cúm mùa & Cúm A:</strong> Quyết định số 2078/QĐ-BYT Hướng dẫn chẩn đoán và điều trị Cúm mùa.</li>
+        <li><strong>Bệnh Sởi:</strong> Quyết định số 1327/QĐ-BYT Hướng dẫn chẩn đoán, điều trị bệnh Sởi ở trẻ em và người lớn.</li>
+        <li><strong>Bệnh Tay Chân Miệng:</strong> Quyết định số 1003/QĐ-BYT Hướng dẫn chẩn đoán, điều trị bệnh Tay - Chân - Miệng.</li>
+        <li><strong>COVID-19:</strong> Quyết định số 250/QĐ-BYT Hướng dẫn chẩn đoán và điều trị COVID-19.</li>
+        <li><strong>Bệnh Thủy đậu:</strong> Quyết định số 3409/QĐ-BYT Hướng dẫn chẩn đoán và điều trị bệnh Thủy đậu.</li>
+      </ul>
+    </div>
+
+    <div class="card theory-section">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--color-primary);">
+        <i class="fa-solid fa-square-root-variable"></i> Cơ sở Lý thuyết & Mô hình Tính toán Hệ số Tin cậy Certainty Factor (MYCIN)
+      </h2>
+      <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
+        <p><strong>1. Biểu diễn tri thức bất định:</strong> Mỗi luật sinh có dạng: <code>NẾU &lt;Tiền đề&gt; THÌ &lt;Kết luận&gt; [CF]</code> với $CF \in (0, 1]$.</p>
+        <p><strong>2. Độ tin cậy của tiền đề phức hợp dạng hội (AND):</strong></p>
+        <pre class="math-formula-box">CF(E1 ∧ E2 ∧ ... ∧ En) = min(CF(E1), CF(E2), ..., CF(En))</pre>
+        
+        <p><strong>3. Độ tin cậy của một luật kích hoạt:</strong></p>
+        <pre class="math-formula-box">CF(Rule) = CF(Premise) × CF_Rule_Base</pre>
+        
+        <p><strong>4. Kết hợp nhiều luật cùng suy ra một bệnh (Công thức kết hợp MYCIN):</strong></p>
+        <pre class="math-formula-box">CF_combine(CF1, CF2) = CF1 + CF2 - (CF1 × CF2)   (khi CF1 >= 0 và CF2 >= 0)</pre>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+</body>
+</html>

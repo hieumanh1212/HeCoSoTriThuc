@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chẩn Đoán & Suy Diễn Y Tế - Hệ Cơ Sở Tri Thức</title>
+  
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+</head>
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="chan_doan.html" class="nav-btn active">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="../quan_tri_csdl/quan_tri_csdl.html" class="nav-btn">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="../ca_kiem_thu/ca_kiem_thu.html" class="nav-btn">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div class="diagnosis-grid">
+      
+      <!-- Cột trái: Nhập triệu chứng & Đánh giá độ chắc chắn -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Chọn Triệu chứng Lâm sàng Ban đầu</span>
+          </div>
+          <div class="card-actions">
+            <button id="btnClearSymptoms" class="btn-secondary" title="Bỏ chọn tất cả">
+              <i class="fa-solid fa-rotate-left"></i> Xóa chọn
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1rem; position: relative;">
+          <input type="text" id="symptomSearchInput" class="form-control"
+            placeholder="🔍 Tìm nhanh triệu chứng (ví dụ: sốt, đau đầu, ho, ban đỏ...)...">
+        </div>
+
+        <div id="symptomGroupsContainer">
+          <!-- Render động các nhóm triệu chứng -->
+        </div>
+
+        <div class="infer-action-bar">
+          <div>
+            <span id="selectedCountText" style="font-size: 0.85rem; color: var(--text-secondary);">
+              Đã chọn: <strong id="selectedCountNumber" style="color: var(--color-emerald);">0</strong> triệu chứng
+            </span>
+          </div>
+          <button id="btnRunForwardChaining" class="btn-primary">
+            <i class="fa-solid fa-bolt"></i> Thực hiện Suy diễn tiến
+          </button>
+        </div>
+      </div>
+
+      <!-- Cột phải: Kết quả Chẩn đoán & Tư vấn điều trị -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>Kết quả Suy luận & Chẩn đoán Sơ bộ</span>
+          </div>
+          <div class="card-actions" id="resultHeaderActions" style="display: none;">
+            <button id="btnViewExplanation" class="btn-secondary">
+              <i class="fa-solid fa-code-fork"></i> Xem vết suy luận (HOW)
+            </button>
+          </div>
+        </div>
+
+        <div id="diagnosisResultsContainer">
+          <!-- Trạng thái chờ -->
+          <div class="empty-state">
+            <i class="fa-solid fa-notes-medical"></i>
+            <p>Chưa có dữ liệu suy diễn.</p>
+            <p style="font-size: 0.8rem; margin-top: 0.4rem; color: var(--text-muted);">
+              Vui lòng chọn các triệu chứng ở cột bên trái và nhấn <strong>"Thực hiện Suy diễn tiến"</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ==================== MODAL: SUY DIỄN LÙI (WHY) ==================== -->
+  <div id="modalBackward" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-circle-question" style="color: var(--color-amber);"></i>
+          <span>Suy Diễn Lùi: Truy Vấn Triệu Chứng Khu Biệt (WHY)</span>
+        </div>
+        <button class="modal-close-btn" data-close="modalBackward">&times;</button>
+      </div>
+
+      <div id="backwardModalContent"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: PHÂN HỆ GIẢI THÍCH (HOW) ==================== -->
+  <div id="modalExplanation" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 800px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-diagram-project" style="color: var(--color-primary);"></i>
+          <span>Phân Hệ Giải Thích: Cây & Nhật Ký Vết Suy Luận (HOW)</span>
+        </div>
+        <button class="modal-close-btn" data-close="modalExplanation">&times;</button>
+      </div>
+
+      <div id="explanationModalContent"></div>
+    </div>
+  </div>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="../../js/dong_co/he_so_tin_cay.js"></script>
+  <script src="../../js/dong_co/suy_dien_tien.js"></script>
+  <script src="../../js/dong_co/suy_dien_lui.js"></script>
+  <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="dieu_khien_chan_doan.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const dbEngine = new DatabaseEngine();
+      try { await dbEngine.init(); } catch (e) {}
+
+      const kbManager = new KnowledgeBaseManager(dbEngine);
+      const forwardEngine = new ForwardChainingEngine(kbManager.getKB());
+      const backwardEngine = new BackwardChainingEngine(kbManager.getKB());
+
+      const diagnosisController = new DiagnosisController({
+        kbManager,
+        forwardEngine,
+        backwardEngine,
+        onInferenceComplete: (inferenceResult, selectedSymptoms) => {
+          if (dbEngine && dbEngine.isReady && inferenceResult && (inferenceResult.results || []).length > 0) {
+            dbEngine.saveInferenceSession(selectedSymptoms, inferenceResult.results, inferenceResult.traceLogs)
+              .catch(err => console.warn(err));
+          }
+        },
+        onFocusGraph: (diseaseId) => {
+          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${diseaseId}`;
+        }
+      });
+
+      kbManager.onUpdate((updatedKB) => {
+        forwardEngine.setKnowledgeBase(updatedKB);
+        backwardEngine.setKnowledgeBase(updatedKB);
+        diagnosisController.renderSymptomsList();
+      });
+
+      // Kiểm tra nạp ca bệnh từ sessionStorage hoặc URL param
+      const savedCase = sessionStorage.getItem("LOAD_TESTCASE_SYMPTOMS");
+      if (savedCase) {
+        sessionStorage.removeItem("LOAD_TESTCASE_SYMPTOMS");
+        try {
+          const symptomsMap = JSON.parse(savedCase);
+          diagnosisController.setSymptoms(symptomsMap);
+        } catch (e) {
+          diagnosisController.renderSymptomsList();
+        }
+      } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const testcaseId = urlParams.get("testcase");
+        if (testcaseId) {
+          const tc = (kbManager.getKB().testCases || []).find(c => c.id === testcaseId);
+          if (tc) {
+            const symptomsMap = {};
+            tc.selectedSymptoms.forEach(s => symptomsMap[s.id] = s.cf);
+            diagnosisController.setSymptoms(symptomsMap);
+          } else {
+            diagnosisController.renderSymptomsList();
+          }
+        } else {
+          diagnosisController.renderSymptomsList();
+        }
+      }
+
+      // Đóng modal
+      document.querySelectorAll("[data-close]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const modalId = e.currentTarget.getAttribute("data-close");
+          const modal = document.getElementById(modalId);
+          if (modal) modal.classList.remove("active");
+        });
+      });
+
+      document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+        backdrop.addEventListener("click", (e) => {
+          if (e.target === backdrop) backdrop.classList.remove("active");
+        });
+      });
+    });
+  </script>
+</body>
+</html>

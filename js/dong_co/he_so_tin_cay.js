@@ -1,47 +1,28 @@
 /**
- * MODULE XỬ LÝ ĐỘ TIN CẬY (CERTAINTY FACTOR - CF)
- * Dựa trên mô hình toán học của hệ chuyên gia y tế MYCIN (Shortliffe & Buchanan)
+ * ĐỘNG CƠ TÍNH TOÁN HỆ SỐ TIN CẬY (CERTAINTY FACTOR - MYCIN)
+ * Quản lý các phép toán hội (AND), tuyển (OR), đánh giá luật và kết hợp bằng chứng
  */
 
 const CertaintyFactorEngine = {
-  /**
-   * Tính CF của vế tiền đề khi kết hợp phép VÀ (AND): min(CF_1, CF_2, ...)
-   * @param {number[]} cfList Danh sách các hệ số CF của từng sự kiện tiền đề
-   * @returns {number}
-   */
+  // Phép hội (AND) các tiền đề: CF = min(CF1, CF2, ...)
   and(cfList) {
     if (!cfList || cfList.length === 0) return 0;
     return Math.min(...cfList);
   },
 
-  /**
-   * Tính CF của vế tiền đề khi kết hợp phép HOẶC (OR): max(CF_1, CF_2, ...)
-   * @param {number[]} cfList Danh sách các hệ số CF
-   * @returns {number}
-   */
+  // Phép tuyển (OR) các tiền đề: CF = max(CF1, CF2, ...)
   or(cfList) {
     if (!cfList || cfList.length === 0) return 0;
     return Math.max(...cfList);
   },
 
-  /**
-   * Tính CF của một luật đơn: CF(Rule) = CF(Premise) * CF(Rule_Weight)
-   * Chỉ kích hoạt nếu CF(Premise) > 0 (người dùng có triệu chứng)
-   * @param {number} premiseCF Hệ số CF của vế tiền đề
-   * @param {number} ruleWeight Trọng số độ tin cậy của luật do chuyên gia đặt
-   * @returns {number}
-   */
+  // Đánh giá luật kích hoạt: CF(Rule) = CF(Premise) * CF(Rule_Base)
   evaluateRule(premiseCF, ruleWeight) {
     if (premiseCF <= 0) return 0;
     return Number((premiseCF * ruleWeight).toFixed(4));
   },
 
-  /**
-   * Kết hợp 2 nguồn bằng chứng độc lập cùng dẫn tới một kết luận (MYCIN Combination Function)
-   * @param {number} cf1 Hệ số CF tích lũy hiện tại [-1, 1]
-   * @param {number} cf2 Hệ số CF của luật mới kích hoạt [-1, 1]
-   * @returns {number}
-   */
+  // Kết hợp 2 nguồn bằng chứng cùng suy ra một kết luận (Hàm kết hợp MYCIN)
   combine(cf1, cf2) {
     let result = 0;
     if (cf1 >= 0 && cf2 >= 0) {
@@ -51,7 +32,7 @@ const CertaintyFactorEngine = {
     } else {
       const minAbs = Math.min(Math.abs(cf1), Math.abs(cf2));
       if (minAbs === 1) {
-        result = 1; // Tránh chia cho 0
+        result = 1;
       } else {
         result = (cf1 + cf2) / (1 - minAbs);
       }
@@ -59,11 +40,7 @@ const CertaintyFactorEngine = {
     return Number(Math.max(-1, Math.min(1, result)).toFixed(4));
   },
 
-  /**
-   * Kết hợp một mảng nhiều hệ số CF của các luật cùng suy ra 1 bệnh
-   * @param {number[]} cfList Mảng các hệ số CF của các luật
-   * @returns {number}
-   */
+  // Kết hợp danh sách nhiều luật
   combineMultiple(cfList) {
     if (!cfList || cfList.length === 0) return 0;
     let accumulatedCF = cfList[0];
@@ -73,11 +50,7 @@ const CertaintyFactorEngine = {
     return accumulatedCF;
   },
 
-  /**
-   * Chuyển đổi giá trị số CF sang nhãn ngôn ngữ tự nhiên (Linguistic Interpretation)
-   * @param {number} cf Giá trị CF trong khoảng [0, 1]
-   * @returns {{ label: string, badgeClass: string, percentage: number }}
-   */
+  // Diễn giải ngôn ngữ học mức độ tin cậy
   interpret(cf) {
     const percentage = Math.round(cf * 100);
     if (cf >= 0.90) {

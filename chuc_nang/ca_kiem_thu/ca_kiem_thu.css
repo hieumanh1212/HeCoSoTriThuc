@@ -1,0 +1,96 @@
+/* ==========================================================================
+   MODULE CSS: CÁC CA BỆNH KIỂM THỬ MẪU (TEST CASES)
+   ========================================================================== */
+
+.test-cases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.test-case-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all var(--transition-fast);
+}
+
+.test-case-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.tc-header {
+  margin-bottom: 0.75rem;
+}
+
+.tc-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-cyan);
+}
+
+.tc-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.tc-patient {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.tc-symptoms-list {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.85rem;
+}
+
+.tc-symptom-tag {
+  display: inline-block;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  margin: 0.15rem;
+  font-size: 0.75rem;
+}
+
+[data-theme="light"] .tc-symptoms-list {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .tc-symptom-tag {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-weight: 600;
+}
+
+[data-theme="light"] .tc-patient {
+  color: #475569;
+}
+
+[data-theme="light"] .test-case-card {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .tc-id {
+  color: #0284c7;
+}
+
+[data-theme="light"] .tc-title {
+  color: #0f172a;
+}

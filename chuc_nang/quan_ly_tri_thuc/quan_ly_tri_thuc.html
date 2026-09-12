@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Lý Cơ Sở Tri Thức - Hệ Cơ Sở Tri Thức</title>
+  
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+</head>
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Quản trị Tập luật, Danh mục Triệu chứng & Bệnh học</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="../chan_doan/chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="quan_ly_tri_thuc.html" class="nav-btn active">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="../quan_tri_csdl/quan_tri_csdl.html" class="nav-btn">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="../ca_kiem_thu/ca_kiem_thu.html" class="nav-btn">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div class="kb-management-header">
+      <div>
+        <h2 style="font-size: 1.25rem; font-weight: 700;">Quản trị Cơ sở Tri thức Y tế</h2>
+        <p style="font-size: 0.82rem; color: var(--text-secondary);">Thêm, sửa, xóa luật sinh, triệu chứng, danh mục bệnh và Nhập/Xuất dữ liệu JSON</p>
+      </div>
+      <div style="display: flex; gap: 0.6rem;">
+        <button id="btnAddNewRule" class="btn-primary">
+          <i class="fa-solid fa-plus"></i> Thêm luật mới
+        </button>
+        <button id="btnExportKB" class="btn-secondary">
+          <i class="fa-solid fa-download"></i> Xuất file JSON
+        </button>
+        <label class="btn-secondary" style="cursor: pointer;">
+          <i class="fa-solid fa-upload"></i> Nhập file JSON
+          <input type="file" id="importJsonInput" accept=".json" style="display: none;">
+        </label>
+        <button id="btnResetKB" class="btn-danger" title="Khôi phục dữ liệu gốc chuẩn">
+          <i class="fa-solid fa-arrows-rotate"></i> Khôi phục mặc định
+        </button>
+      </div>
+    </div>
+
+    <div class="kb-subtabs">
+      <button class="kb-subtab-btn active" data-subtab="rules-table">
+        <i class="fa-solid fa-scroll"></i> Tập luật sinh (<span id="ruleCountBadge">0</span>)
+      </button>
+      <button class="kb-subtab-btn" data-subtab="symptoms-table">
+        <i class="fa-solid fa-virus"></i> Danh mục triệu chứng (<span id="symptomCountBadge">0</span>)
+      </button>
+      <button class="kb-subtab-btn" data-subtab="diseases-table">
+        <i class="fa-solid fa-disease"></i> Danh mục bệnh & phác đồ (<span id="diseaseCountBadge">0</span>)
+      </button>
+    </div>
+
+    <!-- Bảng Tập Luật -->
+    <div id="subtab-rules" class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">Mã</th>
+            <th>Tên luật & Diễn giải lâm sàng</th>
+            <th>Tiền đề (NẾU - IF)</th>
+            <th style="width: 140px;">Kết luận (THÌ - THEN)</th>
+            <th style="width: 90px;">Hệ số CF</th>
+            <th style="width: 120px; text-align: center;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="rulesTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Bảng Triệu chứng -->
+    <div id="subtab-symptoms" class="data-table-wrapper" style="display: none;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 80px;">Mã</th>
+            <th>Tên Triệu chứng Lâm sàng</th>
+            <th>Nhóm phân loại</th>
+            <th>Câu hỏi truy vấn khi suy diễn lùi (WHY)</th>
+          </tr>
+        </thead>
+        <tbody id="symptomsTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Bảng Danh mục Bệnh -->
+    <div id="subtab-diseases" class="data-table-wrapper" style="display: none;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 80px;">Mã</th>
+            <th>Tên Bệnh</th>
+            <th>Mức độ nguy hiểm</th>
+            <th>Dấu hiệu cảnh báo nguy cấp</th>
+            <th>Nguồn tham khảo y tế</th>
+          </tr>
+        </thead>
+        <tbody id="diseasesTableBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ==================== MODAL: THÊM / SỬA LUẬT ==================== -->
+  <div id="modalRuleForm" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-pen-to-square" style="color: var(--color-primary);"></i>
+          <span id="ruleFormModalTitle">Thêm Luật Sinh Mới</span>
+        </div>
+        <button class="modal-close-btn" data-close="modalRuleForm">&times;</button>
+      </div>
+
+      <form id="ruleForm">
+        <input type="hidden" id="formRuleId">
+        
+        <div class="form-group">
+          <label class="form-label">Tên luật lâm sàng:</label>
+          <input type="text" id="formRuleName" class="form-control" required placeholder="Ví dụ: Luật chẩn đoán sốt xuất huyết thể nặng">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Các triệu chứng tiền đề (NẾU / IF):</label>
+          <div id="formRulePremisesList" style="max-height: 180px; overflow-y: auto; background: var(--bg-main); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color);"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Bệnh kết luận (THÌ / THEN):</label>
+          <select id="formRuleConclusion" class="form-control" required></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Hệ số tin cậy của luật (CF: 0.1 - 1.0):</label>
+          <input type="number" id="formRuleCF" class="form-control" step="0.05" min="0.1" max="1.0" value="0.85" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Mô tả / Ghi chú phác đồ lâm sàng:</label>
+          <textarea id="formRuleDesc" class="form-control" rows="2" placeholder="Ghi chú thêm về điều kiện lâm sàng..."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem;">
+          <button type="button" class="btn-secondary" data-close="modalRuleForm">Hủy bỏ</button>
+          <button type="submit" class="btn-primary">Lưu Luật Sinh</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="mo_hinh_tri_thuc.js"></script>
+  <script src="dieu_khien_tri_thuc.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const dbEngine = new DatabaseEngine();
+      try { await dbEngine.init(); } catch (e) {}
+
+      const kbManager = new KnowledgeBaseManager(dbEngine);
+      const kbController = new KBController({ kbManager });
+      kbController.renderTables();
+
+      // Xử lý chuyển subtab
+      const kbSubtabBtns = document.querySelectorAll(".kb-subtab-btn");
+      kbSubtabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          kbSubtabBtns.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const subtab = btn.getAttribute("data-subtab");
+
+          document.getElementById("subtab-rules").style.display = subtab === "rules-table" ? "block" : "none";
+          document.getElementById("subtab-symptoms").style.display = subtab === "symptoms-table" ? "block" : "none";
+          document.getElementById("subtab-diseases").style.display = subtab === "diseases-table" ? "block" : "none";
+        });
+      });
+
+      // Đóng modal
+      document.querySelectorAll("[data-close]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const modalId = e.currentTarget.getAttribute("data-close");
+          const modal = document.getElementById(modalId);
+          if (modal) modal.classList.remove("active");
+        });
+      });
+
+      document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+        backdrop.addEventListener("click", (e) => {
+          if (e.target === backdrop) backdrop.classList.remove("active");
+        });
+      });
+    });
+  </script>
+</body>
+</html>

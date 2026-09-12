@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đồ Thị Mạng Luật RPG - Hệ Cơ Sở Tri Thức</title>
+  
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+</head>
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Trực quan hóa Đồ thị mạng luật RPG (Rule Petri Graph)</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="../chan_doan/chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="do_thi_rpg.html" class="nav-btn active">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="../quan_tri_csdl/quan_tri_csdl.html" class="nav-btn">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="../ca_kiem_thu/ca_kiem_thu.html" class="nav-btn">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div class="graph-toolbar">
+      <div class="graph-controls">
+        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
+          Lọc theo bệnh:
+        </label>
+        <select id="rpgDiseaseFilter" class="form-control" style="width: 260px; padding: 0.4rem 0.6rem;">
+          <option value="ALL">-- Toàn bộ mạng luật --</option>
+        </select>
+        <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i></button>
+        <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i></button>
+        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa"><i class="fa-solid fa-expand"></i> Căn giữa</button>
+      </div>
+
+      <div class="graph-legend">
+        <div class="legend-item">
+          <span class="legend-shape shape-place"></span>
+          <span>Sự kiện / Triệu chứng (Place)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-trans"></span>
+          <span>Luật sinh (Transition)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-place" style="border-radius: 4px; border-color: #f87171;"></span>
+          <span>Kết luận / Bệnh (Goal)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-active"></span>
+          <span>Đã kích hoạt suy luận</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="rpgCanvas"></canvas>
+    </div>
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="ve_do_thi_rpg.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const dbEngine = new DatabaseEngine();
+      try { await dbEngine.init(); } catch (e) {}
+
+      const kbManager = new KnowledgeBaseManager(dbEngine);
+      const rpgVisualizer = new RPGVisualizer("rpgCanvas");
+
+      function populateFilters() {
+        const filterSelect = document.getElementById("rpgDiseaseFilter");
+        if (!filterSelect) return;
+        const kb = kbManager.getKB();
+        filterSelect.innerHTML = `<option value="ALL">-- Toàn bộ mạng luật (${(kb.rules || []).length} luật) --</option>`;
+        (kb.diseases || []).forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.textContent = `[${d.id}] ${d.name}`;
+          filterSelect.appendChild(opt);
+        });
+      }
+
+      function updateGraph() {
+        const filterSelect = document.getElementById("rpgDiseaseFilter");
+        const diseaseFilter = filterSelect ? filterSelect.value : "ALL";
+        rpgVisualizer.setData(kbManager.getKB(), new Set(), new Set(), diseaseFilter);
+      }
+
+      populateFilters();
+
+      // Kiểm tra focus bệnh từ URL query
+      const urlParams = new URLSearchParams(window.location.search);
+      const focusDisease = urlParams.get("focus");
+      if (focusDisease) {
+        const filterSelect = document.getElementById("rpgDiseaseFilter");
+        if (filterSelect) filterSelect.value = focusDisease;
+      }
+
+      setTimeout(() => {
+        rpgVisualizer.resizeCanvas();
+        updateGraph();
+      }, 50);
+
+      const rpgDiseaseFilter = document.getElementById("rpgDiseaseFilter");
+      if (rpgDiseaseFilter) rpgDiseaseFilter.addEventListener("change", updateGraph);
+
+      document.getElementById("btnZoomIn").addEventListener("click", () => rpgVisualizer.zoomIn());
+      document.getElementById("btnZoomOut").addEventListener("click", () => rpgVisualizer.zoomOut());
+      document.getElementById("btnResetGraph").addEventListener("click", () => rpgVisualizer.resetView());
+
+      kbManager.onUpdate(() => {
+        populateFilters();
+        updateGraph();
+      });
+    });
+  </script>
+</body>
+</html>

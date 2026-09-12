@@ -1,10 +1,5 @@
 /**
- * MODULE TRỰC QUAN HÓA ĐỒ THỊ RPG (RULE PETRI GRAPH) & CÂY SUY DIỄN
- * Biểu diễn:
- * - Vị trí (Places / Facts): Nút tròn đại diện cho Triệu chứng (S) hoặc Bệnh kết luận (D)
- * - Chuyển tiếp (Transitions / Rules): Nút chữ nhật đại diện cho Luật sinh (R)
- * - Cung có hướng (Directed Arcs): Nối từ Sự kiện -> Luật -> Kết luận
- * - Trạng thái động (Tokens / Active State): Đánh dấu phát sáng các nút và đường đi đã kích hoạt
+ * FEATURE MODULE: RPG VISUALIZER (RULE PETRI GRAPH)
  */
 
 class RPGVisualizer {
@@ -18,19 +13,17 @@ class RPGVisualizer {
     this.firedRules = new Set();
     this.selectedDiseaseFilter = "ALL";
 
-    // Viewport transform
     this.scale = 1;
     this.offsetX = 60;
     this.offsetY = 40;
 
-    // Interaction state
     this.isDragging = false;
     this.dragStartX = 0;
     this.dragStartY = 0;
     this.hoveredNode = null;
 
-    this.nodes = []; // { id, type: 'FACT'|'RULE'|'DISEASE', label, subLabel, x, y, width, height, radius, data }
-    this.edges = []; // { from, to, isFired }
+    this.nodes = [];
+    this.edges = [];
 
     this.initEvents();
     this.resizeCanvas();
@@ -71,7 +64,6 @@ class RPGVisualizer {
         this.offsetY = e.clientY - this.dragStartY;
         this.render();
       } else {
-        // Kiểm tra hover node
         let found = null;
         for (const node of this.nodes) {
           if (node.type === "FACT") {
@@ -139,9 +131,6 @@ class RPGVisualizer {
     this.render();
   }
 
-  /**
-   * Thiết lập và xây dựng cấu trúc đồ thị phân lớp (Layered Petri Graph)
-   */
   setData(knowledgeBase, activeFacts = new Set(), firedRules = new Set(), diseaseFilter = "ALL") {
     this.kb = knowledgeBase;
     this.activeFacts = activeFacts instanceof Set ? activeFacts : new Set(Object.keys(activeFacts || {}));
@@ -158,24 +147,17 @@ class RPGVisualizer {
     this.nodes = [];
     this.edges = [];
 
-    // Lọc theo bệnh nếu người dùng chọn
-    let targetRules = this.kb.rules;
-    let targetDiseases = this.kb.diseases;
+    let targetRules = this.kb.rules || [];
+    let targetDiseases = this.kb.diseases || [];
 
     if (this.selectedDiseaseFilter !== "ALL") {
-      targetRules = this.kb.rules.filter(r => r.conclusion === this.selectedDiseaseFilter);
-      targetDiseases = this.kb.diseases.filter(d => d.id === this.selectedDiseaseFilter);
+      targetRules = (this.kb.rules || []).filter(r => r.conclusion === this.selectedDiseaseFilter);
+      targetDiseases = (this.kb.diseases || []).filter(d => d.id === this.selectedDiseaseFilter);
     }
 
-    // Tập hợp các triệu chứng tham gia vào các luật được chọn
     const usedSymptomIds = new Set();
-    targetRules.forEach(r => r.premises.forEach(pId => usedSymptomIds.add(pId)));
-    const targetSymptoms = this.kb.symptoms.filter(s => usedSymptomIds.has(s.id));
-
-    // Bố cục phân lớp 3 cột:
-    // Cột 1: Triệu chứng (Places Fact) - x: 120
-    // Cột 2: Luật (Transitions Rule) - x: 500
-    // Cột 3: Bệnh kết luận (Places Disease) - x: 880
+    targetRules.forEach(r => (r.premises || []).forEach(pId => usedSymptomIds.add(pId)));
+    const targetSymptoms = (this.kb.symptoms || []).filter(s => usedSymptomIds.has(s.id));
 
     const col1X = 140;
     const col2X = 520;
@@ -191,7 +173,6 @@ class RPGVisualizer {
 
     const nodeMap = new Map();
 
-    // 1. Tạo nút Triệu chứng (Hình tròn)
     targetSymptoms.forEach((s, idx) => {
       const node = {
         id: s.id,
@@ -208,7 +189,6 @@ class RPGVisualizer {
       nodeMap.set(s.id, node);
     });
 
-    // 2. Tạo nút Luật sinh (Hình chữ nhật)
     targetRules.forEach((r, idx) => {
       const node = {
         id: r.id,
@@ -226,7 +206,6 @@ class RPGVisualizer {
       nodeMap.set(r.id, node);
     });
 
-    // 3. Tạo nút Bệnh kết luận (Hình tròn lớn / Viên thuốc)
     targetDiseases.forEach((d, idx) => {
       const node = {
         id: d.id,
@@ -244,13 +223,11 @@ class RPGVisualizer {
       nodeMap.set(d.id, node);
     });
 
-    // 4. Tạo các cung có hướng (Arcs)
     targetRules.forEach(r => {
       const ruleNode = nodeMap.get(r.id);
       if (!ruleNode) return;
 
-      // Cung từ Fact -> Rule
-      r.premises.forEach(pId => {
+      (r.premises || []).forEach(pId => {
         const symNode = nodeMap.get(pId);
         if (symNode) {
           this.edges.push({
@@ -261,7 +238,6 @@ class RPGVisualizer {
         }
       });
 
-      // Cung từ Rule -> Disease
       const disNode = nodeMap.get(r.conclusion);
       if (disNode) {
         this.edges.push({
@@ -282,11 +258,9 @@ class RPGVisualizer {
 
     ctx.clearRect(0, 0, width, height);
 
-    // Vẽ nền canvas theo theme
     ctx.fillStyle = isLight ? "#f8fafc" : "#0b1120";
     ctx.fillRect(0, 0, width, height);
 
-    // Vẽ lưới nền hiện đại (Grid dots)
     ctx.save();
     ctx.fillStyle = isLight ? "rgba(100, 116, 139, 0.2)" : "rgba(148, 163, 184, 0.15)";
     const dotSize = 1.5;
@@ -307,17 +281,14 @@ class RPGVisualizer {
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
-    // 1. Vẽ các cạnh nối (Edges / Arcs)
     this.edges.forEach(edge => {
       this.drawEdge(ctx, edge, isLight);
     });
 
-    // 2. Vẽ các nút (Nodes)
     this.nodes.forEach(node => {
       this.drawNode(ctx, node, isLight);
     });
 
-    // 3. Vẽ Tooltip nếu đang hover
     if (this.hoveredNode) {
       this.drawTooltip(ctx, this.hoveredNode, isLight);
     }

@@ -1,0 +1,56 @@
+/* ==========================================================================
+   MODULE CSS: QUẢN LÝ CƠ SỞ TRI THỨC (KB MANAGEMENT)
+   ========================================================================== */
+
+.kb-management-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.kb-subtabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.kb-subtab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kb-subtab-btn.active {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--color-primary);
+}
+
+/* Light Theme High Contrast for Projectors */
+[data-theme="light"] .kb-subtab-btn {
+  color: #334155;
+  font-weight: 600;
+}
+
+[data-theme="light"] .kb-subtab-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .kb-subtab-btn.active {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0284c7;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
