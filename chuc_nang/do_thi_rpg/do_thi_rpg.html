@@ -8,6 +8,7 @@
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../../css/tong_hop.css">
+  <link rel="stylesheet" href="do_thi_rpg.css">
 </head>
 <body>
 
@@ -65,12 +66,12 @@
         <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
           Lọc theo bệnh:
         </label>
-        <select id="rpgDiseaseFilter" class="form-control" style="width: 260px; padding: 0.4rem 0.6rem;">
+        <select id="rpgDiseaseFilter" class="form-control" style="width: 280px; padding: 0.45rem 0.75rem;">
           <option value="ALL">-- Toàn bộ mạng luật --</option>
         </select>
-        <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i></button>
-        <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i></button>
-        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa"><i class="fa-solid fa-expand"></i> Căn giữa</button>
+        <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i> Phóng to</button>
+        <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i> Thu nhỏ</button>
+        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa tự động"><i class="fa-solid fa-expand"></i> Căn giữa</button>
       </div>
 
       <div class="graph-legend">
@@ -88,7 +89,7 @@
         </div>
         <div class="legend-item">
           <span class="legend-shape shape-active"></span>
-          <span>Đã kích hoạt suy luận</span>
+          <span>Đã kích hoạt suy luận (Active)</span>
         </div>
       </div>
     </div>
@@ -131,15 +132,36 @@
         });
       }
 
+      function getActiveState() {
+        let activeFacts = new Set();
+        let firedRules = new Set();
+        try {
+          const rawSyms = sessionStorage.getItem("RPG_ACTIVE_SYMPTOMS");
+          if (rawSyms) {
+            const symMap = JSON.parse(rawSyms);
+            activeFacts = new Set(Object.keys(symMap).filter(k => symMap[k] > 0));
+          }
+          const rawRules = sessionStorage.getItem("RPG_FIRED_RULES");
+          if (rawRules) {
+            const rulesArr = JSON.parse(rawRules);
+            firedRules = new Set(rulesArr.map(r => r.ruleId || r));
+          }
+        } catch (e) {
+          console.warn("Lỗi đọc trạng thái RPG:", e);
+        }
+        return { activeFacts, firedRules };
+      }
+
       function updateGraph() {
         const filterSelect = document.getElementById("rpgDiseaseFilter");
         const diseaseFilter = filterSelect ? filterSelect.value : "ALL";
-        rpgVisualizer.setData(kbManager.getKB(), new Set(), new Set(), diseaseFilter);
+        const { activeFacts, firedRules } = getActiveState();
+        rpgVisualizer.setData(kbManager.getKB(), activeFacts, firedRules, diseaseFilter);
       }
 
       populateFilters();
 
-      // Kiểm tra focus bệnh từ URL query
+      // Kiểm tra focus bệnh từ URL query (?focus=D01)
       const urlParams = new URLSearchParams(window.location.search);
       const focusDisease = urlParams.get("focus");
       if (focusDisease) {

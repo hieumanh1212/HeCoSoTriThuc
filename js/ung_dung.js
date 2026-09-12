@@ -56,13 +56,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     },
     onFocusGraph: (diseaseId) => {
-      const rpgNavBtn = document.querySelector('[data-tab="tab-rpg"]');
-      if (rpgNavBtn) rpgNavBtn.click();
-      const filterSelect = document.getElementById("rpgDiseaseFilter");
-      if (filterSelect) {
-        filterSelect.value = diseaseId;
-        updateRPGGraph();
+      sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
+      if (diagnosisController.lastInferenceResult) {
+        sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
       }
+      window.location.href = `chuc_nang/do_thi_rpg/do_thi_rpg.html?focus=${diseaseId}`;
     }
   });
 

@@ -245,6 +245,10 @@
           }
         },
         onFocusGraph: (diseaseId) => {
+          sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
+          if (diagnosisController.lastInferenceResult) {
+            sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
+          }
           window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${diseaseId}`;
         }
       });

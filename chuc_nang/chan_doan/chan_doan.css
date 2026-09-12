@@ -1,5 +1,5 @@
 /* =========================================================
-   DIAGNOSIS MODULE STYLES (BALANCED 2-COLUMN & CUSTOM DROPDOWN)
+   DIAGNOSIS MODULE STYLES (PREMIUM CLINICAL UI & MODERN RESULTS)
    ========================================================= */
 
 .diagnosis-grid {
@@ -557,7 +557,7 @@
 }
 
 /* =========================================================
-   CỘT KẾT QUẢ CHẨN ĐOÁN (DIAGNOSIS RESULTS)
+   CỘT KẾT QUẢ CHẨN ĐOÁN CAO CẤP (CLINICAL DIAGNOSIS SHOWCASE)
    ========================================================= */
 
 .diagnosis-results-body {
@@ -571,20 +571,23 @@
   gap: 1.25rem;
 }
 
+/* Thẻ Bệnh Chính (Top Match Showcase Card) */
 .disease-result-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  transition: all 0.2s ease;
+  gap: 1rem;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .disease-result-card.top-match {
   border: 2px solid var(--color-emerald);
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.03) 0%, var(--bg-card) 100px);
 }
 
 .disease-card-header {
@@ -592,82 +595,502 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .disease-title-block {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   flex-wrap: wrap;
 }
 
-.disease-title-block h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-primary);
+.disease-code-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  letter-spacing: 0.5px;
 }
 
-/* Progress bar CF */
-.cf-progress-wrapper {
+.disease-name-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.top-match-crown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Thước Đo Độ Tin Cậy Lâm Sàng TRỰC QUAN (Clinical Confidence Meter Showcase) */
+.cf-meter-showcase {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.cf-meter-showcase.highlight {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.03) 0%, var(--bg-card) 100%);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.08);
+}
+
+.cf-hero-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .cf-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+}
+
+.cf-score-dial {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.1rem;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  min-width: 120px;
+  text-align: center;
 }
 
-.cf-progress-labels {
+.dark-mode .cf-score-dial {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cf-percentage-large {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.95rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.cf-percent-sign {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.cf-score-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+  font-weight: 500;
+}
+
+.cf-score-label strong {
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.cf-scale-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.cf-scale-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.82rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.cf-progress-bar-bg {
-  height: 8px;
+.cf-scale-status-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cf-fired-rules-tag {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  background: rgba(148, 163, 184, 0.15);
+  padding: 0.25rem 0.6rem;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.2);
-  overflow: hidden;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.cf-progress-fill {
+/* Thanh Đo Tiến Trình Cao Cấp */
+.cf-segmented-bar-track {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.cf-bar-fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Mô tả, Cảnh báo, Khuyến nghị */
-.disease-desc-box {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+.cf-benchmark-zones {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cf-benchmark-zones .zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.cf-benchmark-zones .zone.active {
+  color: var(--text-primary);
+  font-weight: 800;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+}
+
+/* ==================== 3. MA TRẬN CHỨNG CỨ LÂM SÀNG ==================== */
+.clinical-evidence-box {
+  background: rgba(16, 185, 129, 0.035);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.dark-mode .clinical-evidence-box {
+  background: rgba(16, 185, 129, 0.07);
+}
+
+.evidence-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.evidence-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.evidence-count-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.evidence-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.evidence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  line-height: 1.3;
+  transition: all 0.15s ease;
+}
+
+.evidence-chip.matched {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #047857;
+  font-weight: 600;
+}
+
+.dark-mode .evidence-chip.matched {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+.evidence-chip.matched i {
+  color: #10b981;
+}
+
+.chip-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+}
+
+.chip-cf-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.2);
+  color: #065f46;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 3px;
+}
+
+.dark-mode .chip-cf-pill {
+  background: rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+
+.evidence-missing-row {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed rgba(148, 163, 184, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.evidence-missing-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.evidence-chip.unconfirmed {
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px dashed var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+/* ==================== 4. KHỐI THÔNG TIN LÂM SÀNG PHÂN TẦNG ==================== */
+.clinical-section-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
   line-height: 1.5;
 }
 
-.disease-warning-box {
-  background: rgba(239, 68, 68, 0.08);
-  border-left: 3px solid #ef4444;
-  padding: 0.65rem 0.85rem;
-  border-radius: 4px;
-  font-size: 0.82rem;
-  color: #f87171;
-  line-height: 1.45;
-}
-
-.disease-recommendation-box {
-  background: rgba(59, 130, 246, 0.08);
-  border-left: 3px solid var(--color-primary);
-  padding: 0.65rem 0.85rem;
-  border-radius: 4px;
-  font-size: 0.82rem;
+.section-card-desc {
+  background: rgba(59, 130, 246, 0.035);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--color-primary);
   color: var(--text-primary);
-  line-height: 1.45;
 }
 
+.section-card-warning {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-left: 4px solid #ef4444;
+}
+
+.section-card-recommendation {
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-left: 4px solid #10b981;
+}
+
+.section-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  font-size: 0.84rem;
+  letter-spacing: 0.2px;
+}
+
+.section-card-desc .section-header-title {
+  color: var(--color-primary);
+}
+
+.section-card-warning .section-header-title {
+  color: #ef4444;
+}
+
+.section-card-recommendation .section-header-title {
+  color: #10b981;
+}
+
+.section-card-content {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* Tags cảnh báo nguy hiểm trực quan */
+.warning-tags-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.warning-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.dark-mode .warning-tag-pill {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.warning-tag-pill i {
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+/* Danh sách hướng dẫn & xử lý ban đầu có icon rõ ràng */
+.recommendation-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.recommendation-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.5rem 0.8rem;
+  background: var(--bg-card);
+  border-radius: 7px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.step-icon-box {
+  width: 20px;
+  font-size: 0.95rem;
+  text-align: center;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* ==================== 5. CHÂN THẺ (FOOTER ACTIONS) ==================== */
 .disease-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
   border-top: 1px solid var(--border-color);
+  margin-top: 0.25rem;
+}
+
+.legal-reference-tag {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.legal-reference-tag i {
+  color: var(--color-primary);
+}
+
+.btn-card-action {
+  padding: 0.48rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.btn-action-backward {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+}
+
+.btn-action-backward:hover {
+  background: #f59e0b;
+  color: #fff;
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+.btn-action-graph {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-primary);
+  border: 1.5px solid rgba(59, 130, 246, 0.35);
+}
+
+.btn-action-graph:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }

@@ -1,10 +1,6 @@
 /**
  * FEATURE MODULE: CLINICAL DIAGNOSIS CONTROLLER (BALANCED LIST & CUSTOM DROPDOWN)
- * Hiển thị toàn bộ danh mục triệu chứng với bộ lọc cao cấp:
- * 1. Custom Dropdown Menu chọn danh mục sang trọng, chuẩn Y khoa
- * 2. Ô tìm kiếm từ khóa không dấu (mã + tên triệu chứng)
- * 3. Nút "Mở tất cả" & "Thu gọn tất cả" tách biệt, rõ ràng
- * 4. Suy diễn tiến MYCIN CF & Cột kết quả chẩn đoán cố định (Sticky)
+ * Hiển thị toàn bộ danh mục triệu chứng với bộ lọc cao cấp & Cột kết quả chuẩn Y khoa
  */
 
 class DiagnosisController {
@@ -485,6 +481,7 @@ class DiagnosisController {
     }
   }
 
+  /* --- 6. RENDER KẾT QUẢ CHẨN ĐOÁN CAO CẤP (CLINICAL SHOWCASE) --- */
   renderResults(result) {
     if (!this.resultsContainer) return;
 
@@ -501,6 +498,8 @@ class DiagnosisController {
       return;
     }
 
+    const kb = this.kbManager.getKB();
+
     this.resultsContainer.innerHTML = `
       <div class="result-card-list">
         ${result.results.map((item, index) => {
@@ -508,61 +507,221 @@ class DiagnosisController {
           const dis = item.disease || {};
           const interp = item.interpretation;
           const cfPercent = interp.percentage;
+          const diseaseColor = dis.color || '#3b82f6';
+
+          // 1. Phân tích ma trận chứng cứ lâm sàng (Triệu chứng đã khớp vs còn thiếu)
+          const diseaseRules = (kb.rules || []).filter(r => r.conclusion === (dis.id || item.diseaseId));
+          const allRelatedPremiseIds = new Set();
+          diseaseRules.forEach(r => (r.premises || []).forEach(p => allRelatedPremiseIds.add(p)));
+
+          const matchedPremises = [];
+          const missingPremises = [];
+
+          allRelatedPremiseIds.forEach(pId => {
+            const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
+            const userCF = this.currentSelectedSymptoms[pId];
+            if (userCF !== undefined && userCF > 0) {
+              matchedPremises.push({ ...sym, userCF });
+            } else {
+              missingPremises.push(sym);
+            }
+          });
+
+          // 2. Định dạng danh sách cảnh báo nguy hiểm thành tags
+          let warningTagsHtml = '';
+          if (dis.warningSigns) {
+            const signs = dis.warningSigns.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+            warningTagsHtml = `
+              <div class="warning-tags-grid">
+                ${signs.map(sign => `
+                  <div class="warning-tag-pill">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>${sign}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }
+
+          // 3. Định dạng khuyến nghị xử lý thành danh sách các bước có icon
+          let recommendationStepsHtml = '';
+          if (dis.recommendation) {
+            const steps = dis.recommendation.split(/(?<=\.)\s+|;\s*/).map(p => p.trim()).filter(Boolean);
+            recommendationStepsHtml = `
+              <div class="recommendation-steps-list">
+                ${steps.map(step => {
+                  let icon = 'fa-solid fa-circle-check';
+                  let iconColor = '#10b981';
+                  const lower = step.toLowerCase();
+                  if (lower.includes('aspirin') || lower.includes('không dùng') || lower.includes('tránh') || lower.includes('tuyệt đối')) {
+                    icon = 'fa-solid fa-ban';
+                    iconColor = '#ef4444';
+                  } else if (lower.includes('nước') || lower.includes('oresol') || lower.includes('bù nước')) {
+                    icon = 'fa-solid fa-droplet';
+                    iconColor = '#06b6d4';
+                  } else if (lower.includes('xét nghiệm') || lower.includes('y tế') || lower.includes('bệnh viện') || lower.includes('khám') || lower.includes('chỉ định')) {
+                    icon = 'fa-solid fa-hospital-user';
+                    iconColor = '#8b5cf6';
+                  } else if (lower.includes('cách ly') || lower.includes('khẩu trang') || lower.includes('vitamin')) {
+                    icon = 'fa-solid fa-shield-virus';
+                    iconColor = '#f59e0b';
+                  }
+                  return `
+                    <div class="recommendation-step-item">
+                      <div class="step-icon-box" style="color: ${iconColor};">
+                        <i class="${icon}"></i>
+                      </div>
+                      <div class="step-text">${step}</div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }
 
           return `
             <div class="disease-result-card ${isTop ? 'top-match' : ''}">
+              
+              <!-- 1. Header Card: Mã + Tên bệnh + Badge Nghi ngờ cao nhất -->
               <div class="disease-card-header">
                 <div class="disease-title-block">
-                  <span class="symptom-id-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 0.82rem;">
-                    ${dis.id || item.diseaseId}
-                  </span>
-                  <h3>${dis.name || item.diseaseId}</h3>
-                  ${isTop ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981;"><i class="fa-solid fa-crown" style="margin-right: 3px;"></i> Nghi ngờ cao nhất</span>` : ''}
+                  <span class="disease-code-pill">${dis.id || item.diseaseId}</span>
+                  <h3 class="disease-name-title">${dis.name || item.diseaseId}</h3>
+                  ${isTop ? `
+                    <span class="top-match-crown-badge">
+                      <i class="fa-solid fa-crown"></i> NGHI NGỜ CAO NHẤT
+                    </span>
+                  ` : ''}
                 </div>
                 <span class="badge ${interp.badgeClass}">${interp.label}</span>
               </div>
 
-              <div class="cf-progress-wrapper">
-                <div class="cf-progress-labels">
-                  <span style="color: var(--text-secondary);">Độ tin cậy kết hợp (MYCIN CF):</span>
-                  <strong style="color: ${dis.color || 'var(--color-primary)'}; font-family: 'JetBrains Mono'; font-size: 0.95rem;">
-                    ${cfPercent}% (${item.finalCF})
-                  </strong>
-                </div>
-                <div class="cf-progress-bar-bg">
-                  <div class="cf-progress-fill" style="width: ${cfPercent}%; background: ${dis.color || 'var(--color-primary)'};"></div>
+              <!-- 2. Thước Đo Độ Tin Cậy Lâm Sàng TRỰC QUAN (Clinical Confidence Meter) -->
+              <div class="cf-meter-showcase ${isTop ? 'highlight' : ''}">
+                <div class="cf-hero-grid">
+                  
+                  <!-- Khối Điểm Số % Lớn -->
+                  <div class="cf-score-dial" style="--gauge-color: ${diseaseColor};">
+                    <div class="cf-percentage-large" style="color: ${diseaseColor};">
+                      ${cfPercent}<span class="cf-percent-sign">%</span>
+                    </div>
+                    <div class="cf-score-label">MYCIN CF: <strong>${item.finalCF}</strong></div>
+                  </div>
+
+                  <!-- Khối Thanh Thước Đo & Vạch Định Mức -->
+                  <div class="cf-scale-panel">
+                    <div class="cf-scale-header">
+                      <span class="cf-scale-status-badge ${interp.badgeClass}">
+                        <i class="fa-solid fa-chart-line"></i> ${interp.label}
+                      </span>
+                      <span class="cf-fired-rules-tag">
+                        <i class="fa-solid fa-bolt-lightning"></i> ${item.firedRules.length} luật kích hoạt
+                      </span>
+                    </div>
+
+                    <!-- Thanh Đo Tiến Trình Gradient -->
+                    <div class="cf-segmented-bar-track">
+                      <div class="cf-bar-fill" style="width: ${cfPercent}%; background: linear-gradient(90deg, ${diseaseColor}99 0%, ${diseaseColor} 100%);"></div>
+                    </div>
+
+                    <!-- Vạch Định Mức 3 Phân Vùng Rõ Rệt -->
+                    <div class="cf-benchmark-zones">
+                      <span class="zone ${cfPercent < 40 ? 'active' : ''}">
+                        <i class="fa-solid fa-circle" style="font-size: 5px;"></i> &lt; 40%: Nghi ngờ
+                      </span>
+                      <span class="zone ${cfPercent >= 40 && cfPercent < 70 ? 'active' : ''}">
+                        <i class="fa-solid fa-circle" style="font-size: 5px;"></i> 40 - 70%: Khả năng cao
+                      </span>
+                      <span class="zone ${cfPercent >= 70 ? 'active' : ''}">
+                        <i class="fa-solid fa-circle" style="font-size: 5px;"></i> &gt; 70%: Rất chắc chắn
+                      </span>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
-              <div class="disease-desc-box">
-                <p><strong>Mô tả lâm sàng:</strong> ${dis.description || 'Chưa có mô tả chi tiết.'}</p>
+              <!-- 3. Ma Trận Chứng Cớ Lâm Sàng Đã Ghi Nhận (CỰC KỲ TRỰC QUAN) -->
+              <div class="clinical-evidence-box">
+                <div class="evidence-box-header">
+                  <span class="evidence-title">
+                    <i class="fa-solid fa-notes-medical" style="color: var(--color-emerald);"></i> Bằng chứng lâm sàng đã ghi nhận:
+                  </span>
+                  <span class="evidence-count-badge">${matchedPremises.length} triệu chứng khớp</span>
+                </div>
+
+                <div class="evidence-chips-wrap">
+                  ${matchedPremises.map(s => `
+                    <span class="evidence-chip matched" title="Độ chắc chắn đã chọn: ${Math.round(s.userCF * 100)}%">
+                      <i class="fa-solid fa-circle-check"></i>
+                      <strong class="chip-code">${s.id}:</strong> ${s.name}
+                      <span class="chip-cf-pill">${Math.round(s.userCF * 100)}%</span>
+                    </span>
+                  `).join('')}
+                </div>
+
+                ${missingPremises.length > 0 ? `
+                  <div class="evidence-missing-row">
+                    <span class="evidence-missing-label">
+                      <i class="fa-regular fa-circle-question"></i> Triệu chứng đặc trưng khác cần theo dõi:
+                    </span>
+                    <div class="evidence-chips-wrap">
+                      ${missingPremises.map(s => `
+                        <span class="evidence-chip unconfirmed" title="Chưa ghi nhận ở bệnh nhân này">
+                          <i class="fa-regular fa-circle-dot"></i>
+                          <strong class="chip-code">${s.id}:</strong> ${s.name}
+                        </span>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
               </div>
 
+              <!-- 4. Khối Mô Tả Lâm Sàng -->
+              <div class="clinical-section-card section-card-desc">
+                <div class="section-header-title">
+                  <i class="fa-solid fa-stethoscope" style="color: var(--color-primary);"></i> Mô tả lâm sàng & Bệnh học:
+                </div>
+                <div class="section-card-content">${dis.description || 'Chưa có mô tả chi tiết cho bệnh này.'}</div>
+              </div>
+
+              <!-- 5. Khối Dấu Hiệu Cảnh Báo Nguy Hiểm (Red Flags) -->
               ${dis.warningSigns ? `
-                <div class="disease-warning-box">
-                  <strong>⚠️ Dấu hiệu cảnh báo nguy hiểm:</strong> ${dis.warningSigns}
+                <div class="clinical-section-card section-card-warning">
+                  <div class="section-header-title">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Dấu hiệu cảnh báo nguy hiểm (Cần can thiệp khẩn cấp):
+                  </div>
+                  <div class="section-card-content">${warningTagsHtml}</div>
                 </div>
               ` : ''}
 
+              <!-- 6. Khối Khuyến Nghị Xử Lý Ban Đầu (Actionable Steps) -->
               ${dis.recommendation ? `
-                <div class="disease-recommendation-box">
-                  <strong>💡 Khuyến nghị xử lý ban đầu:</strong> ${dis.recommendation}
+                <div class="clinical-section-card section-card-recommendation">
+                  <div class="section-header-title">
+                    <i class="fa-solid fa-clipboard-list"></i> Khuyến nghị xử lý ban đầu & Phác đồ:
+                  </div>
+                  <div class="section-card-content">${recommendationStepsHtml}</div>
                 </div>
               ` : ''}
 
+              <!-- 7. Footer Card: Căn cứ pháp lý & Nút thao tác -->
               <div class="disease-card-footer">
-                <div style="font-size: 0.78rem; color: var(--text-muted);">
-                  <i class="fa-solid fa-file-lines"></i> ${dis.reference || 'Văn bản Hướng dẫn - Bộ Y Tế'}
+                <div class="legal-reference-tag">
+                  <i class="fa-solid fa-file-shield"></i>
+                  <span>${dis.reference || 'Hướng dẫn chẩn đoán - Bộ Y Tế'}</span>
                 </div>
+
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                  <button class="btn-secondary btn-backward-query" data-disease-id="${dis.id || item.diseaseId}">
-                    <i class="fa-solid fa-magnifying-glass-plus"></i> Hỏi thêm (Suy diễn lùi - WHY)
+                  <button class="btn-card-action btn-action-backward btn-backward-query" data-disease-id="${dis.id || item.diseaseId}" title="Truy vấn triệu chứng phân biệt">
+                    <i class="fa-solid fa-magnifying-glass-plus"></i> Hỏi thêm (WHY)
                   </button>
-                  <button class="btn-secondary btn-focus-graph" data-disease-id="${dis.id || item.diseaseId}">
-                    <i class="fa-solid fa-project-diagram"></i> Xem trên Đồ thị RPG
+                  <button class="btn-card-action btn-action-graph btn-focus-graph" data-disease-id="${dis.id || item.diseaseId}" title="Xem đường suy diễn trên đồ thị RPG">
+                    <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
                   </button>
                 </div>
               </div>
+
             </div>
           `;
         }).join("")}
