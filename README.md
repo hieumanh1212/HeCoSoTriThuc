@@ -12,30 +12,29 @@ Toàn bộ cây thư mục, tên file, module chức năng và các bảng CSDL 
 ```
 HeCoSoTriThuc/
 │
-├── index.html                                 # Single Page Application Dashboard chính
+├── index.html                                 # Dashboard Portal điều hướng chính
 ├── README.md                                  # Hướng dẫn sử dụng & tổng quan kiến trúc
+├── may_chu.js                                 # Máy chủ backend đồng bộ thời gian thực Web & SQLite (DBeaver)
+├── co_so_du_lieu_y_te.db                     # File CSDL vật lý SQLite kết nối trực tiếp với DBeaver
 │
 ├── css/                                       # [ĐỊNH DẠNG CSS NỀN TẢNG DÙNG CHUNG]
-│   ├── nen_tang.css                           # Biến CSS, chế độ Sáng / Tối, Typography, Reset
-│   ├── thanh_phan.css                         # Components dùng chung (Header, Tabs, Buttons, Cards, Modals, Forms)
+│   ├── nen_tang.css                           # Biến CSS, chế độ Sáng / Tối, độ tương phản máy chiếu
+│   ├── thanh_phan.css                         # Components dùng chung (Header, Tabs, Buttons, Cards, Modals)
 │   └── tong_hop.css                           # File tổng hợp gom toàn bộ định dạng CSS hệ thống
 │
 ├── js/                                        # [ĐỘNG CƠ AI & CƠ SỞ DỮ LIỆU CỐT LÕI]
-│   │
+│   ├── tien_ich_chung.js                      # Tiện ích quản lý giao diện Sáng/Tối đồng bộ liên trang
 │   ├── dong_co/                               # Động cơ Suy diễn cốt lõi & Đại số bất định
 │   │   ├── he_so_tin_cay.js                   # Mô hình toán học Hệ số tin cậy Certainty Factor (MYCIN)
 │   │   ├── suy_dien_tien.js                   # Động cơ Suy diễn tiến (Data-driven) & Vết lập luận
 │   │   └── suy_dien_lui.js                    # Động cơ Suy diễn lùi (Goal-driven) & Truy vấn WHY
 │   │
-│   ├── co_so_du_lieu/                         # Tầng Cơ sở dữ liệu Quan hệ nhúng (IndexedDB 3NF)
-│   │   ├── dong_co_csdl.js                    # Engine CSDL IndexedDB 7 bảng & Trình xử lý SQL
-│   │   └── tri_thuc_mac_dinh.js               # Bộ tri thức y tế chuẩn Bộ Y Tế & WHO
-│   │
-│   └── ung_dung.js                            # Điểm khởi chạy ứng dụng & Navigation Router
+│   └── co_so_du_lieu/                         # Tầng Cơ sở dữ liệu Quan hệ nhúng & SQLite
+│       ├── dong_co_csdl.js                    # Dual-mode Engine: Realtime SQLite Sync & IndexedDB Offline
+│       ├── tri_thuc_mac_dinh.js               # Bộ tri thức y tế chuẩn Bộ Y Tế & WHO
+│       └── co_so_du_lieu_y_te.sql             # Kịch bản DDL + DML SQLite 3NF chuẩn
 │
 ├── chuc_nang/                                 # [MỖI MÀN HÌNH / CHỨC NĂNG CÓ 1 FOLDER RIÊNG BIỆT]
-│   │
-│   ├── chan_doan/                             # 🩺 Màn hình Chẩn đoán & Suy diễn
 │   │   ├── chan_doan.css                      # CSS riêng cho bộ chọn triệu chứng & bảng kết quả
 │   │   └── dieu_khien_chan_doan.js            # Controller xử lý chọn triệu chứng, suy diễn, modal HOW/WHY
 │   │

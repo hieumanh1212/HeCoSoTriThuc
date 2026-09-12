@@ -1,6 +1,9 @@
 /**
- * ĐỘNG CƠ CƠ SỞ DỮ LIỆU QUAN HỆ NHÚNG (INDEXEDDB 3NF)
- * Quản lý 7 bảng dữ liệu quan hệ, nhật ký kiểm toán và bộ xử lý truy vấn SQL Console
+ * ============================================================================
+ * ĐỘNG CƠ CƠ SỞ DỮ LIỆU QUAN HỆ (INDEXEDDB & SQLITE LIVE SYNC DUAL-MODE)
+ * ============================================================================
+ * - Tự động đồng bộ thời gian thực với backend Node.js (may_chu.js) và file SQLite co_so_du_lieu_y_te.db
+ * - Tự động fallback sang IndexedDB khi mở offline trực tiếp qua file:///
  */
 
 class DatabaseEngine {
@@ -9,9 +12,32 @@ class DatabaseEngine {
     this.DB_VERSION = 2;
     this.db = null;
     this.isReady = false;
+    this.isServerMode = false;
+    this.apiBase = (typeof window !== 'undefined' && window.location.protocol.startsWith('http'))
+      ? `${window.location.origin}/api`
+      : 'http://localhost:3000/api';
   }
 
   async init() {
+    // 1. Thử kết nối tới Backend SQLite Server (may_chu.js)
+    try {
+      const response = await fetch(`${this.apiBase}/trang_thai`, { method: 'GET', mode: 'cors', headers: { 'Accept': 'application/json' } });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok) {
+          this.isServerMode = true;
+          this.isReady = true;
+          console.log("🟢 [CSDL] Đã kết nối chế độ Real-time SQLite Sync:", data.dbFile);
+          this.notifyStatus(true, data);
+          return this;
+        }
+      }
+    } catch (e) {
+      // Backend không bật -> dùng IndexedDB offline
+      this.isServerMode = false;
+    }
+
+    // 2. Fallback: Khởi tạo IndexedDB chạy nội bộ trình duyệt
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
 
@@ -71,6 +97,7 @@ class DatabaseEngine {
         this.db = event.target.result;
         this.isReady = true;
         await this.seedInitialDataIfEmpty();
+        this.notifyStatus(false, { mode: "IndexedDB_Offline" });
         resolve(this);
       };
 
@@ -81,15 +108,37 @@ class DatabaseEngine {
     });
   }
 
+  notifyStatus(isServer, data) {
+    if (typeof document !== "undefined") {
+      const badge = document.getElementById("db-status-badge");
+      if (badge) {
+        if (isServer) {
+          badge.innerHTML = `<span class="badge" style="background:#10b981; color:#fff;"><i class="fa-solid fa-server"></i> SQLite Live (DBeaver)</span>`;
+        } else {
+          badge.innerHTML = `<span class="badge" style="background:#64748b; color:#fff;"><i class="fa-solid fa-database"></i> IndexedDB Offline</span>`;
+        }
+      }
+    }
+  }
+
   async seedInitialDataIfEmpty() {
     const rulesCount = await this.count("tap_luat");
     if (rulesCount === 0 && window.DEFAULT_KNOWLEDGE_BASE) {
-      console.log("Khởi tạo dữ liệu mẫu chuẩn y tế vào CSDL...");
+      console.log("Khởi tạo dữ liệu mẫu chuẩn y tế vào IndexedDB...");
       await this.importFromKBObject(window.DEFAULT_KNOWLEDGE_BASE, "Hệ thống tự động khởi tạo dữ liệu mẫu");
     }
   }
 
   async count(storeName) {
+    if (this.isServerMode) {
+      try {
+        const res = await this.executeSQL(`SELECT count(*) as c FROM ${storeName};`);
+        return (res.rows && res.rows[0]) ? (res.rows[0].c || res.rows[0]["count(*)"] || 0) : 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction([storeName], "readonly");
       const store = tx.objectStore(storeName);
@@ -100,6 +149,11 @@ class DatabaseEngine {
   }
 
   async getAll(storeName) {
+    if (this.isServerMode) {
+      const res = await this.executeSQL(`SELECT * FROM ${storeName};`);
+      return res.rows || [];
+    }
+
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction([storeName], "readonly");
       const store = tx.objectStore(storeName);
@@ -110,6 +164,15 @@ class DatabaseEngine {
   }
 
   async get(storeName, key) {
+    if (this.isServerMode) {
+      const idCol = (storeName === 'nhom_trieu_chung') ? 'ma_nhom' :
+                    (storeName === 'trieu_chung') ? 'ma_trieu_chung' :
+                    (storeName === 'danh_muc_benh') ? 'ma_benh' :
+                    (storeName === 'tap_luat') ? 'ma_luat' : 'id';
+      const res = await this.executeSQL(`SELECT * FROM ${storeName} WHERE ${idCol} = '${key}' LIMIT 1;`);
+      return res.rows && res.rows[0] ? res.rows[0] : null;
+    }
+
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction([storeName], "readonly");
       const store = tx.objectStore(storeName);
@@ -120,6 +183,19 @@ class DatabaseEngine {
   }
 
   async put(storeName, item, log = true) {
+    if (this.isServerMode && storeName === 'tap_luat') {
+      try {
+        await fetch(`${this.apiBase}/luat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item)
+        });
+        return item.id;
+      } catch (e) {
+        console.warn("Lỗi lưu luật lên Server SQLite:", e);
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction([storeName], "readwrite");
       const store = tx.objectStore(storeName);
@@ -135,6 +211,15 @@ class DatabaseEngine {
   }
 
   async delete(storeName, key, log = true) {
+    if (this.isServerMode && storeName === 'tap_luat') {
+      try {
+        await fetch(`${this.apiBase}/luat/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        return true;
+      } catch (e) {
+        console.warn("Lỗi xóa luật trên Server SQLite:", e);
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction([storeName], "readwrite");
       const store = tx.objectStore(storeName);
@@ -151,17 +236,19 @@ class DatabaseEngine {
 
   async logAudit(actionType, tableName, recordId, description) {
     try {
-      const tx = this.db.transaction(["nhat_ky_csdl"], "readwrite");
-      const store = tx.objectStore("nhat_ky_csdl");
-      store.add({
-        actionType,
-        tableName,
-        recordId: String(recordId),
-        description,
-        timestamp: new Date().toISOString()
-      });
+      if (this.db && this.db.objectStoreNames.contains("nhat_ky_csdl")) {
+        const tx = this.db.transaction(["nhat_ky_csdl"], "readwrite");
+        const store = tx.objectStore("nhat_ky_csdl");
+        store.add({
+          actionType,
+          tableName,
+          recordId: String(recordId),
+          description,
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (e) {
-      console.warn("Không thể ghi nhật ký kiểm toán:", e);
+      // Bỏ qua lỗi log
     }
   }
 
@@ -182,12 +269,53 @@ class DatabaseEngine {
       traceStepCount: (traceLogs || []).length
     };
 
-    await this.put("lich_su_chan_doan", sessionRecord, false);
-    await this.logAudit("PHIÊN_CHẨN_ĐOÁN", "lich_su_chan_doan", sessionRecord.id, `Chẩn đoán ra [${sessionRecord.topDiseaseName}] với CF=${sessionRecord.topCF}`);
+    if (this.isServerMode) {
+      try {
+        await fetch(`${this.apiBase}/lich_su`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sessionRecord)
+        });
+      } catch (e) {
+        console.warn("Lỗi lưu lịch sử lên SQLite Server:", e);
+      }
+    }
+
+    if (this.db) {
+      await this.put("lich_su_chan_doan", sessionRecord, false);
+      await this.logAudit("PHIÊN_CHẨN_ĐOÁN", "lich_su_chan_doan", sessionRecord.id, `Chẩn đoán ra [${sessionRecord.topDiseaseName}] với CF=${sessionRecord.topCF}`);
+    }
     return sessionId;
   }
 
   async toKnowledgeBaseObject() {
+    if (this.isServerMode) {
+      try {
+        const res = await fetch(`${this.apiBase}/kb`);
+        if (res.ok) {
+          const kbData = await res.json();
+          if (kbData.ok) {
+            const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            return {
+              metadata: {
+                domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
+                version: "2.5.0 (SQLite Realtime Sync)",
+                lastUpdated: new Date().toISOString(),
+                source: "co_so_du_lieu_y_te.db"
+              },
+              symptomGroups: kbData.symptomGroups,
+              symptoms: kbData.symptoms,
+              diseases: kbData.diseases,
+              rules: kbData.rules,
+              testCases: defaultKB.testCases || []
+            };
+          }
+        }
+      } catch (e) {
+        console.warn("Không lấy được tri thức từ server, fallback về IndexedDB/Default:", e);
+      }
+    }
+
     const symptomGroups = await this.getAll("nhom_trieu_chung");
     const symptoms = await this.getAll("trieu_chung");
     const diseases = await this.getAll("danh_muc_benh");
@@ -271,6 +399,15 @@ class DatabaseEngine {
   }
 
   async resetDatabase() {
+    if (this.isServerMode) {
+      try {
+        const res = await fetch(`${this.apiBase}/khoi_phuc`, { method: 'POST' });
+        if (res.ok) return true;
+      } catch (e) {
+        console.warn("Lỗi reset qua server SQLite:", e);
+      }
+    }
+
     const storeNames = ["nhom_trieu_chung", "trieu_chung", "danh_muc_benh", "tap_luat", "tien_de_luat", "lich_su_chan_doan", "nhat_ky_csdl"];
     for (const name of storeNames) {
       const records = await this.getAll(name);
@@ -288,6 +425,41 @@ class DatabaseEngine {
     const rawSql = sqlStr.trim();
     if (!rawSql) throw new Error("Câu lệnh SQL không được để trống!");
 
+    // Nếu đang ở chế độ Server SQLite Live Sync
+    if (this.isServerMode) {
+      const t0 = performance.now();
+      const response = await fetch(`${this.apiBase}/sql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: rawSql })
+      });
+      const t1 = performance.now();
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || "Lỗi thực thi câu lệnh SQL trên SQLite");
+      }
+
+      if (data.isSelect) {
+        return {
+          columns: data.columns,
+          rows: data.rows,
+          executionTime: `${(t1 - t0).toFixed(2)}ms (SQLite)`,
+          rowCount: data.rowCount,
+          tableName: "SQLite Database"
+        };
+      } else {
+        return {
+          columns: ["Thông báo"],
+          rows: [{ "Thông báo": data.message }],
+          executionTime: `${(t1 - t0).toFixed(2)}ms (SQLite)`,
+          rowCount: 1,
+          tableName: "SQLite DDL/DML"
+        };
+      }
+    }
+
+    // Fallback nếu chạy thuần IndexedDB
     const selectMatch = rawSql.match(/^SELECT\s+(.+?)\s+FROM\s+([a-zA-Z0-9_]+)(?:\s+WHERE\s+(.+?))?(?:\s+LIMIT\s+(\d+))?$/i);
 
     if (!selectMatch) {
@@ -335,7 +507,7 @@ class DatabaseEngine {
       return {
         columns: ["COUNT(*)"],
         rows: [{ "COUNT(*)": records.length }],
-        executionTime: "0.4ms",
+        executionTime: "0.4ms (IndexedDB)",
         rowCount: 1
       };
     }
@@ -356,7 +528,7 @@ class DatabaseEngine {
     return {
       columns,
       rows: records,
-      executionTime: `${(Math.random() * 1.5 + 0.3).toFixed(2)}ms`,
+      executionTime: `${(Math.random() * 1.5 + 0.3).toFixed(2)}ms (IndexedDB)`,
       rowCount: records.length,
       tableName
     };

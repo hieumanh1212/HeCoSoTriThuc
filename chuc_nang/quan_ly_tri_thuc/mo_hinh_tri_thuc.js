@@ -99,17 +99,22 @@ class KnowledgeBaseManager {
       throw new Error(`Mã luật ${ruleData.id} đã tồn tại!`);
     }
 
-    this.kb.rules.push({
+    const newRule = {
       id: ruleData.id,
       name: ruleData.name || `Luật ${ruleData.id}`,
       premises: Array.isArray(ruleData.premises) ? ruleData.premises : [],
       conclusion: ruleData.conclusion,
       cf: Number(ruleData.cf) || 0.8,
       description: ruleData.description || ""
-    });
+    };
+
+    this.kb.rules.push(newRule);
+    if (this.db) {
+      this.db.put("tap_luat", newRule, true);
+    }
 
     this.saveToStorage();
-    return ruleData;
+    return newRule;
   }
 
   updateRule(id, ruleData) {
@@ -125,12 +130,19 @@ class KnowledgeBaseManager {
       description: ruleData.description || this.kb.rules[idx].description
     };
 
+    if (this.db) {
+      this.db.put("tap_luat", this.kb.rules[idx], true);
+    }
+
     this.saveToStorage();
     return this.kb.rules[idx];
   }
 
   deleteRule(id) {
     this.kb.rules = (this.kb.rules || []).filter(r => r.id !== id);
+    if (this.db) {
+      this.db.delete("tap_luat", id, true);
+    }
     this.saveToStorage();
   }
 
