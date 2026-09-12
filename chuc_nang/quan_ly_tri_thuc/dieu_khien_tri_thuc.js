@@ -501,39 +501,69 @@ class KBController {
     }
 
     const kb = this.kbManager.getKB();
+    const existingRules = kb.rules || [];
     const validDiseases = (kb.diseases || []).map(d => d.id.toUpperCase());
     const validSymptoms = (kb.symptoms || []).map(s => s.id.toUpperCase());
 
-    const seenIds = new Set();
+    // 1. Ánh xạ dữ liệu CSDL hiện có để đối chiếu trùng lặp
+    const existingRuleIdMap = new Map(); // Mã luật hiện có: uId -> rule
+    const existingLogicMap = new Map(); // Logic hiện có: "S01,S02->D01" -> rule
+
+    existingRules.forEach(r => {
+      const uId = (r.id || "").toUpperCase().trim();
+      if (uId) {
+        existingRuleIdMap.set(uId, r);
+      }
+
+      const sortedPremises = (r.premises || []).map(p => p.toUpperCase().trim()).filter(Boolean).sort().join(",");
+      const conclusionId = (r.conclusion || "").toUpperCase().trim();
+      if (sortedPremises && conclusionId) {
+        existingLogicMap.set(`${sortedPremises}->${conclusionId}`, r);
+      }
+    });
+
+    // 2. Map theo dõi trùng lặp nội bộ trong cùng file Excel
+    const seenIdsInFile = new Map(); // uId -> stt dòng xuất hiện đầu tiên
+    const seenLogicInFile = new Map(); // "S01,S02->D01" -> stt dòng xuất hiện đầu tiên
+
     let validCount = 0;
     let invalidCount = 0;
 
     for (const row of this.importedParsedRows) {
       const errors = [];
 
-      // 1. Kiểm tra Mã luật
+      // A. KIỂM TRA MÃ LUẬT (ID)
       if (!row.id || row.id.startsWith("R_ROW_")) {
         errors.push("Mã luật không được để trống");
       } else {
-        const uId = row.id.toUpperCase();
-        // Kiểm tra định dạng mã luật: không chứa khoảng trắng hoặc ký tự đặc biệt lạ
+        const uId = row.id.toUpperCase().trim();
+
+        // 1. Kiểm tra định dạng mã luật (chữ cái, chữ số, gạch dưới, gạch ngang)
         if (!/^[a-zA-Z0-9_\-]+$/.test(row.id.trim())) {
           errors.push(`Mã luật [${row.id}] không đúng định dạng (không chứa khoảng trắng/ký tự lạ, VD: R01, R15)`);
-        } else if (seenIds.has(uId)) {
-          errors.push(`Mã luật [${row.id}] bị trùng lặp trong file`);
+        }
+        // 2. Kiểm tra trùng mã trong cùng file Excel
+        else if (seenIdsInFile.has(uId)) {
+          const firstStt = seenIdsInFile.get(uId);
+          errors.push(`Trùng mã luật [${row.id}] với dòng STT ${firstStt} trong file`);
+        }
+        // 3. Kiểm tra trùng mã với các luật đã tồn tại trong CSDL
+        else if (existingRuleIdMap.has(uId)) {
+          const existRule = existingRuleIdMap.get(uId);
+          errors.push(`Trùng mã luật [${row.id}] đã có trong CSDL (${existRule.name || existRule.id})`);
         } else {
-          seenIds.add(uId);
+          seenIdsInFile.set(uId, row.stt);
         }
       }
 
-      // 2. Kiểm tra Bệnh kết luận
+      // B. KIỂM TRA BỆNH KẾT LUẬN
       if (!row.conclusion) {
         errors.push("Mã bệnh kết luận không được để trống");
       } else if (!validDiseases.includes(row.conclusion.toUpperCase())) {
         errors.push(`Mã bệnh [${row.conclusion}] không tồn tại trong danh mục bệnh`);
       }
 
-      // 3. Kiểm tra Hệ số tin cậy CF (Định dạng số từ 0.01 đến 1.0)
+      // C. KIỂM TRA HỆ SỐ TIN CẬY CF (Yêu cầu số từ 0.01 đến 1.0)
       if (row.cf === null && (!row.rawCF || row.rawCF.trim() === "")) {
         errors.push("Hệ số CF không được để trống (yêu cầu từ 0.01 đến 1.0)");
       } else if (isNaN(row.cf)) {
@@ -542,17 +572,40 @@ class KBController {
         errors.push(`Hệ số CF [${row.rawCF || row.cf}] nằm ngoài khoảng cho phép (yêu cầu từ 0.01 đến 1.0)`);
       }
 
-      // 4. Kiểm tra Triệu chứng tiền đề
+      // D. KIỂM TRA TRIỆU CHỨNG TIỀN ĐỀ
+      let hasValidPremises = false;
       if (!row.premises || row.premises.length === 0) {
         errors.push("Phải có ít nhất 1 triệu chứng tiền đề");
       } else {
         const invalidSyms = row.premises.filter(p => !validSymptoms.includes(p.toUpperCase()));
         if (invalidSyms.length > 0) {
           errors.push(`Mã triệu chứng [${invalidSyms.join(', ')}] không tồn tại trong danh mục`);
+        } else {
+          hasValidPremises = true;
         }
       }
 
-      // Đánh giá dòng
+      // E. KIỂM TRA TRÙNG LẶP TIỀN ĐỀ VÀ KẾT LUẬN (LOGICAL DUPLICATE RULE)
+      if (hasValidPremises && row.conclusion && validDiseases.includes(row.conclusion.toUpperCase())) {
+        const sortedPremises = row.premises.map(p => p.toUpperCase().trim()).sort().join(",");
+        const conclusionId = row.conclusion.toUpperCase().trim();
+        const logicSig = `${sortedPremises}->${conclusionId}`;
+
+        // 1. Kiểm tra trùng tiền đề & kết luận trong cùng file
+        if (seenLogicInFile.has(logicSig)) {
+          const firstStt = seenLogicInFile.get(logicSig);
+          errors.push(`Trùng lặp tiền đề & kết luận với dòng STT ${firstStt} trong file (cùng IF: [${row.premises.join(', ')}] -> THEN: [${row.conclusion}])`);
+        }
+        // 2. Kiểm tra trùng tiền đề & kết luận với CSDL đã có
+        else if (existingLogicMap.has(logicSig)) {
+          const existRule = existingLogicMap.get(logicSig);
+          errors.push(`Trùng lặp tiền đề & kết luận với luật [${existRule.id}] đã có trong CSDL (cùng IF: [${row.premises.join(', ')}] -> THEN: [${row.conclusion}])`);
+        } else {
+          seenLogicInFile.set(logicSig, row.stt);
+        }
+      }
+
+      // Đánh giá trạng thái dòng
       if (errors.length > 0) {
         row.status = "INVALID";
         row.errorMessage = errors.join("; ");
