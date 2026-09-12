@@ -62,7 +62,7 @@ class DatabaseController {
       this.btnRefreshStats.addEventListener("click", () => {
         this.updateStats();
         if (this.dbTableSelector) this.renderTableExplorer(this.dbTableSelector.value);
-        alert("Đã làm mới thông tin Cơ sở dữ liệu!");
+        ThongBao.thongTin("Đã làm mới thông tin và cấu trúc bảng CSDL!");
       });
     }
 
@@ -74,7 +74,7 @@ class DatabaseController {
           this.updateStats();
           if (this.dbTableSelector) this.renderTableExplorer(this.dbTableSelector.value);
           if (this.onResetComplete) this.onResetComplete();
-          alert("Đã khôi phục toàn bộ CSDL về mặc định thành công!");
+          ThongBao.thanhCong("Đã khôi phục toàn bộ CSDL về mặc định thành công!");
         }
       });
     }
@@ -99,7 +99,7 @@ class DatabaseController {
 
   async executeSQL(sqlQuery) {
     if (!this.dbEngine || !this.dbEngine.isReady) {
-      alert("Động cơ CSDL chưa sẵn sàng!");
+      ThongBao.canhBao("Động cơ CSDL chưa sẵn sàng!");
       return;
     }
 
@@ -124,8 +124,9 @@ class DatabaseController {
           }).join("")}</tr>`;
         }).join("");
       }
+      ThongBao.thanhCong(`Truy vấn SQL thành công (${res.rowCount} dòng, ${res.executionTime}ms)!`);
     } catch (err) {
-      alert(`Lỗi thực thi SQL: ${err.message}`);
+      ThongBao.thatBai(`Lỗi thực thi SQL: ${err.message}`);
     }
   }
 

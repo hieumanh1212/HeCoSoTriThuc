@@ -439,12 +439,92 @@
   background: rgba(244, 63, 94, 0.12);
   color: #f43f5e;
   border: 1px solid rgba(244, 63, 94, 0.25);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pill-invalid:hover {
+  background: rgba(244, 63, 94, 0.2);
+  transform: translateY(-1px);
 }
 
 [data-theme="light"] .pill-invalid {
   background: #fef2f2;
   color: #b91c1c;
   border-color: #fecaca;
+}
+
+[data-theme="light"] .pill-invalid:hover {
+  background: #fee2e2;
+}
+
+/* --- Error Navigator (Thanh điều hướng chuyển đến vị trí lỗi) --- */
+.error-nav-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1.5px solid #f43f5e;
+  padding: 2px 6px 2px 10px;
+  border-radius: 9999px;
+  animation: fadeInNav 0.25s ease-out;
+}
+
+@keyframes fadeInNav {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+[data-theme="light"] .error-nav-group {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.error-nav-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f43f5e;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+[data-theme="light"] .error-nav-label {
+  color: #b91c1c;
+}
+
+.btn-error-nav {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-error-nav:hover {
+  background: #f43f5e;
+  border-color: #f43f5e;
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+[data-theme="light"] .btn-error-nav {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .btn-error-nav:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
 }
 
 /* --- Bảng Xem Trước --- */
@@ -464,15 +544,17 @@
 
 .import-table {
   width: 100%;
+  min-width: 1240px;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   text-align: left;
 }
 
 .import-table th {
   background-color: var(--bg-main);
   color: var(--text-primary);
-  padding: 0.75rem 0.85rem;
+  padding: 0.65rem 0.75rem;
   font-weight: 700;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -491,10 +573,11 @@
 }
 
 .import-table td {
-  padding: 0.65rem 0.85rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
   transition: background-color var(--transition-fast);
+  height: 42px;
 }
 
 [data-theme="light"] .import-table td {
@@ -502,8 +585,17 @@
   color: #1e293b;
 }
 
+.cell-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  width: 100%;
+  cursor: help;
+}
+
 .import-table tbody tr:hover td {
-  background-color: rgba(59, 130, 246, 0.04);
+  background-color: rgba(59, 130, 246, 0.05);
 }
 
 .import-row-error td {
@@ -512,6 +604,29 @@
 
 [data-theme="light"] .import-row-error td {
   background-color: #fff5f5 !important;
+}
+
+/* Highlight nổi bật khi dòng lỗi đang được chọn / focus */
+.import-row-error.row-focused td {
+  background-color: rgba(244, 63, 94, 0.28) !important;
+  border-top: 2px solid #f43f5e !important;
+  border-bottom: 2px solid #f43f5e !important;
+  position: relative;
+  z-index: 1;
+}
+
+.import-row-error.row-focused td:first-child {
+  border-left: 4px solid #f43f5e !important;
+}
+
+[data-theme="light"] .import-row-error.row-focused td {
+  background-color: #fee2e2 !important;
+  border-top: 2px solid #dc2626 !important;
+  border-bottom: 2px solid #dc2626 !important;
+}
+
+[data-theme="light"] .import-row-error.row-focused td:first-child {
+  border-left: 4px solid #dc2626 !important;
 }
 
 .import-row-valid td {

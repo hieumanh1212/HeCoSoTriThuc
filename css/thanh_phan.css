@@ -575,3 +575,198 @@
     gap: 0.85rem;
   }
 }
+
+/* ==========================================================================
+   TOAST NOTIFICATION COMPONENT (GÓC PHẢI MÀN HÌNH - TOÀN HỆ THỐNG)
+   ========================================================================== */
+.toast-container-top-right {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999999;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 520px;
+  width: calc(100vw - 48px);
+  pointer-events: none;
+}
+
+.toast-card {
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.15rem;
+  padding: 1.25rem 1.6rem;
+  border-radius: 16px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: translateX(110%);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-card.toast-show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast-card.toast-hiding {
+  opacity: 0;
+  transform: translateX(110%) scale(0.95);
+  transition: all 0.25s ease-in;
+}
+
+[data-theme="light"] .toast-card {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+}
+
+.toast-icon-wrap {
+  font-size: 2rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.toast-content-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="light"] .toast-title {
+  color: #0f172a;
+}
+
+.toast-message {
+  font-size: 1.02rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+[data-theme="light"] .toast-message {
+  color: #334155;
+}
+
+.toast-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.85rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 0.25rem;
+  margin-top: -4px;
+  margin-right: -4px;
+  transition: color 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.toast-close-btn:hover {
+  color: var(--text-primary);
+  transform: scale(1.15);
+}
+
+/* Các biến thể màu sắc */
+.toast-success {
+  border-left: 8px solid #10b981;
+}
+.toast-success .toast-icon-wrap {
+  color: #10b981;
+}
+
+.toast-error {
+  border-left: 8px solid #f43f5e;
+}
+.toast-error .toast-icon-wrap {
+  color: #f43f5e;
+}
+
+.toast-warning {
+  border-left: 8px solid #f59e0b;
+}
+.toast-warning .toast-icon-wrap {
+  color: #f59e0b;
+}
+
+.toast-info {
+  border-left: 8px solid #3b82f6;
+}
+.toast-info .toast-icon-wrap {
+  color: #3b82f6;
+}
+
+/* Thanh progress bar đếm ngược thời gian tự đóng */
+.toast-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4.5px;
+  width: 100%;
+  opacity: 0.4;
+  animation: toastProgressBar linear forwards;
+}
+
+.toast-success .toast-progress-bar { background-color: #10b981; }
+.toast-error .toast-progress-bar { background-color: #f43f5e; }
+.toast-warning .toast-progress-bar { background-color: #f59e0b; }
+.toast-info .toast-progress-bar { background-color: #3b82f6; }
+
+@keyframes toastProgressBar {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* ============================================================================
+   FLOATING GLOBAL SMART TOOLTIP (HIỂN THỊ TỨC THÌ, ĐẸP MẮT & KHÔNG TRỄ)
+   ============================================================================ */
+.smart-tooltip-bubble {
+  position: fixed;
+  z-index: 9999999;
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.5), 0 6px 12px -4px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  max-width: 440px;
+  word-wrap: break-word;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+[data-theme="light"] .smart-tooltip-bubble {
+  background: rgba(30, 41, 59, 0.96);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.3);
+}
+
+.smart-tooltip-bubble.smart-tooltip-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+

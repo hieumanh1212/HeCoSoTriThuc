@@ -358,10 +358,22 @@ class KnowledgeBaseManager {
     let importedDiseases = 0;
 
     // Helper chuẩn hóa text key
-    const norm = (str) => String(str || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    const normalizeKey = (str) => {
+      return String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+    };
 
     // 1. Phân tích Sheet Tập Luật
-    const ruleSheetName = workbook.SheetNames.find(name => /luat|rule/i.test(name)) || workbook.SheetNames[0];
+    const ruleSheetName = workbook.SheetNames.find(name => {
+      const n = normalizeKey(name);
+      return n.includes("luat") || n.includes("rule") || n.includes("tapluat");
+    }) || workbook.SheetNames[0];
+
     if (ruleSheetName) {
       const rows = XLSX.utils.sheet_to_json(workbook.Sheets[ruleSheetName]);
       if (rows && rows.length > 0) {
@@ -369,23 +381,40 @@ class KnowledgeBaseManager {
 
         for (const row of rows) {
           // Tìm các trường linh hoạt
-          let rId = null, rName = null, rConclusion = null, rCF = 0.8, rPremises = [], rDesc = "";
+          let rId = null, rName = null, rConclusion = null, rCF = 0.85, rPremises = [], rDesc = "";
 
           for (const [k, v] of Object.entries(row)) {
-            const nk = norm(k);
-            if (nk.includes("maluat") || nk === "id" || nk === "ma") rId = String(v).trim();
-            else if (nk.includes("tenluat") || nk === "name" || nk === "ten") rName = String(v).trim();
-            else if (nk.includes("mabenh") || nk.includes("conclusion") || nk.includes("ketluan")) rConclusion = String(v).trim();
-            else if (nk.includes("cf") || nk.includes("tincay") || nk.includes("heso")) {
-              const val = String(v).replace("%", "").replace(",", ".");
-              rCF = parseFloat(val);
-              if (rCF > 1.0 && rCF <= 100) rCF = rCF / 100;
+            if (v === undefined || v === null || String(v).trim() === "") continue;
+            const nk = normalizeKey(k);
+            const strVal = String(v).trim();
+
+            if (nk.includes("maluat") || nk === "id" || nk === "ma" || nk.includes("ruleid") || nk === "sttluat") {
+              rId = strVal;
+            } else if (nk.includes("tenluat") || nk === "name" || (nk.includes("ten") && !nk.includes("benh") && !nk.includes("trieuchung")) || nk.includes("rulename")) {
+              rName = strVal;
+            } else if (nk.includes("mabenh") || nk === "conclusion" || nk === "ketluan" || (nk.includes("ketluan") && !nk.includes("ten")) || nk.includes("then")) {
+              rConclusion = strVal;
+            } else if (nk.includes("cf") || nk.includes("tincay") || nk.includes("heso") || nk.includes("certainty")) {
+              const val = strVal.replace("%", "").replace(",", ".");
+              const parsed = parseFloat(val);
+              if (!isNaN(parsed)) {
+                rCF = parsed > 1.0 && parsed <= 100 ? parsed / 100 : parsed;
+              }
+            } else if (nk.includes("matrieuchung") || nk.includes("danhsach") || (nk.includes("tiende") && !nk.includes("ten")) || (nk.includes("trieuchung") && !nk.includes("ten")) || nk.includes("premises") || nk === "if") {
+              rPremises = strVal.split(/[,;\n\r\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+            } else if (nk.includes("mota") || nk.includes("description") || nk.includes("ghichu") || nk.includes("note")) {
+              rDesc = strVal;
             }
-            else if (nk.includes("trieuchung") || nk.includes("tiende") || nk.includes("premises") || nk.includes("danhsach")) {
-              const strVal = String(v || "");
-              rPremises = strVal.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+          }
+
+          if (rConclusion) {
+            const matchedDis = (this.kb.diseases || []).find(d => 
+              d.id.toUpperCase() === rConclusion.toUpperCase() || 
+              normalizeKey(d.name) === normalizeKey(rConclusion)
+            );
+            if (matchedDis) {
+              rConclusion = matchedDis.id;
             }
-            else if (nk.includes("mota") || nk.includes("description")) rDesc = String(v).trim();
           }
 
           if (rId && rConclusion) {

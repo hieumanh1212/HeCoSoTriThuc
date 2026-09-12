@@ -45,7 +45,7 @@ class DiagnosisController {
     if (this.btnRun) {
       this.btnRun.addEventListener("click", () => {
         if (Object.keys(this.currentSelectedSymptoms).length === 0) {
-          alert("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng để hệ thống thực hiện suy luận!");
+          ThongBao.canhBao("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng để hệ thống thực hiện suy luận!");
           return;
         }
         this.runInference();

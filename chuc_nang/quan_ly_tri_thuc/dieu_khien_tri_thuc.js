@@ -42,9 +42,18 @@ class KBController {
     this.ruleForm = document.getElementById("ruleForm");
     this.ruleFormModalTitle = document.getElementById("ruleFormModalTitle");
 
+    // Điều hướng lỗi
+    this.errorNavigatorGroup = document.getElementById("errorNavigatorGroup");
+    this.errorNavIndex = document.getElementById("errorNavIndex");
+    this.btnPrevError = document.getElementById("btnPrevError");
+    this.btnNextError = document.getElementById("btnNextError");
+    this.pillInvalidCount = document.getElementById("pillInvalidCount");
+
     // State biến tạm
     this.importedParsedRows = [];
     this.importedWorkbook = null;
+    this.errorRowIndices = [];
+    this.currentErrorIndex = -1;
   }
 
   bindEvents() {
@@ -56,8 +65,9 @@ class KBController {
       this.btnExportExcel.addEventListener("click", () => {
         try {
           this.kbManager.exportExcel();
+          ThongBao.thanhCong("Đã xuất thành công tệp Excel cơ sở tri thức!");
         } catch (err) {
-          alert(`Lỗi xuất Excel: ${err.message}`);
+          ThongBao.thatBai(`Lỗi xuất Excel: ${err.message}`);
         }
       });
     }
@@ -66,8 +76,9 @@ class KBController {
       this.btnDownloadTemplate.addEventListener("click", () => {
         try {
           this.kbManager.downloadExcelTemplate();
+          ThongBao.thanhCong("Đã tải tệp mẫu Excel thành công!");
         } catch (err) {
-          alert(`Lỗi tải mẫu Excel: ${err.message}`);
+          ThongBao.thatBai(`Lỗi tải mẫu Excel: ${err.message}`);
         }
       });
     }
@@ -76,8 +87,9 @@ class KBController {
       this.modalDownloadTemplateLink.addEventListener("click", () => {
         try {
           this.kbManager.downloadExcelTemplate();
+          ThongBao.thanhCong("Đã tải tệp mẫu chuẩn thành công!");
         } catch (err) {
-          alert(`Lỗi tải mẫu Excel: ${err.message}`);
+          ThongBao.thatBai(`Lỗi tải mẫu Excel: ${err.message}`);
         }
       });
     }
@@ -102,12 +114,53 @@ class KBController {
       this.btnSubmitImport.addEventListener("click", () => this.submitImportData());
     }
 
+    // Gắn sự kiện bấm vào từng dòng trong bảng xem trước để chọn nhanh
+    if (this.importPreviewTableBody) {
+      this.importPreviewTableBody.addEventListener("click", (e) => {
+        const tr = e.target.closest("tr[data-row-index]");
+        if (!tr) return;
+        const rowIdx = parseInt(tr.dataset.rowIndex, 10);
+        if (this.errorRowIndices && this.errorRowIndices.length > 0) {
+          const errIdx = this.errorRowIndices.indexOf(rowIdx);
+          if (errIdx >= 0) {
+            this.jumpToError(errIdx);
+          }
+        }
+      });
+    }
+
+    // Điều hướng vị trí dòng lỗi (Error Navigator)
+    if (this.btnPrevError) {
+      this.btnPrevError.addEventListener("click", () => this.jumpToError(this.currentErrorIndex - 1));
+    }
+    if (this.btnNextError) {
+      this.btnNextError.addEventListener("click", () => this.jumpToError(this.currentErrorIndex + 1));
+    }
+    if (this.pillInvalidCount) {
+      this.pillInvalidCount.addEventListener("click", () => {
+        if (this.errorRowIndices && this.errorRowIndices.length > 0) {
+          this.jumpToError(this.currentErrorIndex + 1);
+        }
+      });
+    }
+
+    // Phím tắt chuyển lỗi F8 / Shift+F8 khi modal đang mở
+    document.addEventListener("keydown", (e) => {
+      if (!this.modalImportExcel || !this.modalImportExcel.classList.contains("active")) return;
+      if (this.errorRowIndices && this.errorRowIndices.length > 0) {
+        if (e.key === "F8") {
+          e.preventDefault();
+          this.jumpToError(e.shiftKey ? this.currentErrorIndex - 1 : this.currentErrorIndex + 1);
+        }
+      }
+    });
+
     if (this.btnResetKB) {
       this.btnResetKB.addEventListener("click", () => {
         if (confirm("Bạn có chắc chắn muốn khôi phục cơ sở tri thức về trạng thái chuẩn ban đầu của Bộ Y Tế?")) {
           this.kbManager.resetToDefault();
           this.renderTables();
-          alert("Đã khôi phục cơ sở tri thức mặc định!");
+          ThongBao.thanhCong("Đã khôi phục cơ sở tri thức về mặc định chuẩn Bộ Y Tế!");
         }
       });
     }
@@ -124,6 +177,13 @@ class KBController {
   openImportModal() {
     this.importedParsedRows = [];
     this.importedWorkbook = null;
+    this.errorRowIndices = [];
+    this.currentErrorIndex = -1;
+
+    if (this.errorNavigatorGroup) {
+      this.errorNavigatorGroup.style.display = "none";
+    }
+
     if (this.selectedFileName) {
       this.selectedFileName.classList.remove("has-file");
       this.selectedFileName.innerHTML = `<i class="fa-regular fa-file"></i> <span>Chưa có tệp nào được chọn</span>`;
@@ -173,8 +233,22 @@ class KBController {
         const workbook = XLSX.read(data, { type: "array" });
         this.importedWorkbook = workbook;
 
-        const norm = (str) => String(str || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-        const ruleSheetName = workbook.SheetNames.find(name => /luat|rule/i.test(name)) || workbook.SheetNames[0];
+        const normalizeKey = (str) => {
+          return String(str || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "D")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+        };
+
+        const kb = this.kbManager.getKB();
+        const ruleSheetName = workbook.SheetNames.find(name => {
+          const n = normalizeKey(name);
+          return n.includes("luat") || n.includes("rule") || n.includes("tapluat");
+        }) || workbook.SheetNames[0];
+
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[ruleSheetName]);
 
         if (!rows || rows.length === 0) {
@@ -186,37 +260,78 @@ class KBController {
         }
 
         this.importedParsedRows = rows.map((row, idx) => {
-          let rId = null, rName = null, rConclusion = null, rCF = 0.8, rPremises = [], rDesc = "";
+          let rId = null, rName = null, rConclusion = null, rRawCF = "", rCF = null, rPremises = [], rDesc = "";
 
           for (const [k, v] of Object.entries(row)) {
-            const nk = norm(k);
-            if (nk.includes("maluat") || nk === "id" || nk === "ma") rId = String(v).trim();
-            else if (nk.includes("tenluat") || nk === "name" || nk === "ten") rName = String(v).trim();
-            else if (nk.includes("mabenh") || nk.includes("conclusion") || nk.includes("ketluan")) rConclusion = String(v).trim();
-            else if (nk.includes("cf") || nk.includes("tincay") || nk.includes("heso")) {
-              const val = String(v).replace("%", "").replace(",", ".");
-              rCF = parseFloat(val);
-              if (rCF > 1.0 && rCF <= 100) rCF = rCF / 100;
+            if (v === undefined || v === null || String(v).trim() === "") continue;
+            const nk = normalizeKey(k);
+            const strVal = String(v).trim();
+
+            // 1. Mã luật
+            if (nk.includes("maluat") || nk === "id" || nk === "ma" || nk.includes("ruleid") || nk === "sttluat") {
+              rId = strVal;
             }
-            else if (nk.includes("trieuchung") || nk.includes("tiende") || nk.includes("premises") || nk.includes("danhsach")) {
-              const strVal = String(v || "");
-              rPremises = strVal.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+            // 2. Tên luật
+            else if (nk.includes("tenluat") || nk === "name" || (nk.includes("ten") && !nk.includes("benh") && !nk.includes("trieuchung")) || nk.includes("rulename")) {
+              rName = strVal;
             }
-            else if (nk.includes("mota") || nk.includes("description")) rDesc = String(v).trim();
+            // 3. Mã bệnh kết luận
+            else if (nk.includes("mabenh") || nk === "conclusion" || nk === "ketluan" || (nk.includes("ketluan") && !nk.includes("ten")) || nk.includes("then")) {
+              rConclusion = strVal;
+            }
+            // 4. Hệ số CF
+            else if (nk.includes("cf") || nk.includes("tincay") || nk.includes("heso") || nk.includes("certainty")) {
+              rRawCF = strVal;
+              const cleanVal = strVal.replace("%", "").replace(",", ".").trim();
+              const parsed = Number(cleanVal);
+              if (!isNaN(parsed) && cleanVal !== "") {
+                // Nếu người dùng nhập 85% hoặc 85 (>1 và <=100) -> quy đổi 0.85
+                rCF = (parsed > 1.0 && parsed <= 100) ? Number((parsed / 100).toFixed(4)) : parsed;
+              } else {
+                rCF = NaN; // Không phải định dạng số
+              }
+            }
+            // 5. Triệu chứng tiền đề
+            else if (nk.includes("matrieuchung") || nk.includes("danhsach") || (nk.includes("tiende") && !nk.includes("ten")) || (nk.includes("trieuchung") && !nk.includes("ten")) || nk.includes("premises") || nk === "if") {
+              rPremises = strVal.split(/[,;\n\r\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+            }
+            // 6. Mô tả
+            else if (nk.includes("mota") || nk.includes("description") || nk.includes("ghichu") || nk.includes("note")) {
+              rDesc = strVal;
+            }
+          }
+
+          // Dự phòng: Nếu kết luận là tên bệnh (VD: "Sốt xuất huyết Dengue") -> Tự động ánh xạ sang mã bệnh D01
+          if (rConclusion) {
+            const matchedDis = (kb.diseases || []).find(d => 
+              d.id.toUpperCase() === rConclusion.toUpperCase() || 
+              normalizeKey(d.name) === normalizeKey(rConclusion)
+            );
+            if (matchedDis) {
+              rConclusion = matchedDis.id;
+            }
           }
 
           return {
             stt: idx + 1,
-            id: rId || `R_ROW_${idx + 1}`,
-            name: rName || `Luật ${rId || idx + 1}`,
+            id: rId || "",
+            name: rName || (rId ? `Luật ${rId}` : `Luật dòng ${idx + 1}`),
             conclusion: rConclusion || "",
-            cf: isNaN(rCF) ? 0.85 : rCF,
-            premises: rPremises,
-            description: rDesc,
+            rawCF: rRawCF,
+            cf: rCF,
+            premises: rPremises || [],
+            description: rDesc || "",
             status: "PENDING", // PENDING, VALID, INVALID
             errorMessage: ""
           };
         });
+
+        // Reset trạng thái điều hướng lỗi
+        this.errorRowIndices = [];
+        this.currentErrorIndex = -1;
+        if (this.errorNavigatorGroup) {
+          this.errorNavigatorGroup.style.display = "none";
+        }
 
         // Hiển thị toàn bộ dữ liệu người dùng chọn ở dưới
         this.renderImportPreviewTable();
@@ -250,7 +365,9 @@ class KBController {
       return;
     }
 
-    this.importPreviewTableBody.innerHTML = this.importedParsedRows.map(row => {
+    const escapeHtml = (str) => String(str || "").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    this.importPreviewTableBody.innerHTML = this.importedParsedRows.map((row, idx) => {
       let badgeHtml = `<span class="import-badge-pending"><i class="fa-solid fa-clock"></i> Chưa kiểm tra</span>`;
       let rowClass = "";
 
@@ -262,27 +379,124 @@ class KBController {
         rowClass = "import-row-error";
       }
 
+      const nameText = row.name || `Luật ${row.id || row.stt}`;
+      const descText = row.description || "-";
+      const errorText = row.errorMessage || "-";
+      const premisesText = (row.premises || []).join(", ") || "[Trống]";
+
+      const tooltipError = row.status === "INVALID" ? `❌ Chi tiết lỗi:\n${errorText}` : "";
+      const tooltipName = `📝 Tên luật sinh:\n${nameText}`;
+      const tooltipPremises = `🔍 Triệu chứng tiền đề:\n${premisesText}`;
+      const tooltipDesc = descText !== "-" ? `ℹ️ Mô tả luật:\n${descText}` : "";
+
+      // Hiển thị badge CF: Hợp lệ (xanh) hoặc Không hợp lệ (đỏ)
+      let cfBadge = "";
+      const isCfValid = row.cf !== null && !isNaN(row.cf) && row.cf > 0 && row.cf <= 1.0;
+      if (isCfValid) {
+        cfBadge = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${row.cf}</span>`;
+      } else {
+        const displayVal = row.rawCF || (row.cf === null ? "[Trống]" : String(row.cf));
+        cfBadge = `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:700;" title="Sai định dạng CF">${displayVal}</span>`;
+      }
+      const tooltipCF = isCfValid ? `⚖️ Hệ số tin cậy CF: ${row.cf}` : `❌ Hệ số CF không đúng định dạng (yêu cầu từ 0.01 đến 1.0): ${row.rawCF || '[Trống]'}`;
+
       return `
-        <tr class="${rowClass}">
+        <tr class="${rowClass}" data-row-index="${idx}">
           <td style="text-align: center; font-weight: 600;">${row.stt}</td>
-          <td>${badgeHtml}</td>
-          <td style="color: ${row.status === 'INVALID' ? '#dc2626' : 'var(--text-muted)'}; font-weight: ${row.status === 'INVALID' ? '600' : 'normal'};">
-            ${row.errorMessage || '-'}
+          <td style="text-align: center;">${badgeHtml}</td>
+          <td ${tooltipError ? `data-tooltip="${escapeHtml(tooltipError)}"` : ""}>
+            <div class="cell-truncate text-error-detail" style="color: ${row.status === 'INVALID' ? '#dc2626' : 'var(--text-muted)'}; font-weight: ${row.status === 'INVALID' ? '600' : 'normal'};">
+              ${errorText}
+            </div>
           </td>
-          <td><strong style="color: var(--color-primary); font-family: 'JetBrains Mono';">${row.id}</strong></td>
-          <td style="font-weight: 600;">${row.name}</td>
-          <td><strong style="color: #ef4444;">${row.conclusion || '<em>[Trống]</em>'}</strong></td>
-          <td style="text-align: center;"><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${row.cf}</span></td>
-          <td style="font-family: 'JetBrains Mono'; font-size: 0.75rem;">${(row.premises || []).join(", ") || '<em>[Trống]</em>'}</td>
-          <td style="font-size: 0.75rem; color: var(--text-secondary);">${row.description || '-'}</td>
+          <td><strong style="color: var(--color-primary); font-family: 'JetBrains Mono';">${row.id || '<em style="color:#f87171;">[Trống]</em>'}</strong></td>
+          <td data-tooltip="${escapeHtml(tooltipName)}">
+            <div class="cell-truncate text-rule-name" style="font-weight: 600;">
+              ${nameText}
+            </div>
+          </td>
+          <td><strong style="color: #ef4444;">${row.conclusion || '<em style="color:#f87171;">[Trống]</em>'}</strong></td>
+          <td style="text-align: center;" data-tooltip="${escapeHtml(tooltipCF)}">${cfBadge}</td>
+          <td data-tooltip="${escapeHtml(tooltipPremises)}">
+            <div class="cell-truncate text-premises" style="font-family: 'JetBrains Mono'; font-size: 0.78rem;">
+              ${premisesText}
+            </div>
+          </td>
+          <td ${tooltipDesc ? `data-tooltip="${escapeHtml(tooltipDesc)}"` : ""}>
+            <div class="cell-truncate text-description" style="font-size: 0.78rem; color: var(--text-secondary);">
+              ${descText}
+            </div>
+          </td>
         </tr>
       `;
     }).join("");
   }
 
+  jumpToError(targetIndex) {
+    if (!this.errorRowIndices || this.errorRowIndices.length === 0) {
+      if (this.errorNavigatorGroup) this.errorNavigatorGroup.style.display = "none";
+      return;
+    }
+
+    const totalErrors = this.errorRowIndices.length;
+    if (targetIndex < 0) {
+      this.currentErrorIndex = totalErrors - 1;
+    } else if (targetIndex >= totalErrors) {
+      this.currentErrorIndex = 0;
+    } else {
+      this.currentErrorIndex = targetIndex;
+    }
+
+    if (this.errorNavIndex) {
+      this.errorNavIndex.textContent = `${this.currentErrorIndex + 1}/${totalErrors}`;
+    }
+
+    if (this.importPreviewTableBody) {
+      const allRows = this.importPreviewTableBody.querySelectorAll("tr");
+      allRows.forEach(r => r.classList.remove("row-focused"));
+
+      const targetRowIndex = this.errorRowIndices[this.currentErrorIndex];
+      const targetRow = this.importPreviewTableBody.querySelector(`tr[data-row-index="${targetRowIndex}"]`);
+      if (targetRow) {
+        targetRow.classList.add("row-focused");
+
+        // Cuộn chính xác container để dòng lỗi luôn hiển thị rõ ràng bên dưới Sticky Thead
+        const container = this.importPreviewTableBody.closest(".import-table-container");
+        if (container) {
+          const thead = container.querySelector("thead");
+          const theadHeight = thead ? thead.offsetHeight : 42;
+          
+          const rowTop = targetRow.offsetTop;
+          const rowHeight = targetRow.offsetHeight;
+          const currentScrollTop = container.scrollTop;
+          const visibleHeight = container.clientHeight;
+
+          // Vùng an toàn hiển thị
+          const safeTop = rowTop - theadHeight;
+          const safeBottom = rowTop + rowHeight;
+
+          // Nếu dòng lỗi bị thead che hoặc nằm ngoài tầm nhìn phía trên
+          if (safeTop < currentScrollTop) {
+            container.scrollTo({
+              top: Math.max(0, safeTop - 8),
+              behavior: "smooth"
+            });
+          }
+          // Nếu dòng lỗi nằm ngoài tầm nhìn phía dưới
+          else if (safeBottom > currentScrollTop + visibleHeight) {
+            container.scrollTo({
+              top: safeBottom - visibleHeight + 15,
+              behavior: "smooth"
+            });
+          }
+        }
+      }
+    }
+  }
+
   validateImportData() {
     if (!this.importedParsedRows || this.importedParsedRows.length === 0) {
-      alert("Vui lòng chọn tệp Excel trước khi kiểm tra!");
+      ThongBao.canhBao("Vui lòng chọn tệp Excel trước khi kiểm tra!");
       return;
     }
 
@@ -302,7 +516,10 @@ class KBController {
         errors.push("Mã luật không được để trống");
       } else {
         const uId = row.id.toUpperCase();
-        if (seenIds.has(uId)) {
+        // Kiểm tra định dạng mã luật: không chứa khoảng trắng hoặc ký tự đặc biệt lạ
+        if (!/^[a-zA-Z0-9_\-]+$/.test(row.id.trim())) {
+          errors.push(`Mã luật [${row.id}] không đúng định dạng (không chứa khoảng trắng/ký tự lạ, VD: R01, R15)`);
+        } else if (seenIds.has(uId)) {
           errors.push(`Mã luật [${row.id}] bị trùng lặp trong file`);
         } else {
           seenIds.add(uId);
@@ -316,9 +533,13 @@ class KBController {
         errors.push(`Mã bệnh [${row.conclusion}] không tồn tại trong danh mục bệnh`);
       }
 
-      // 3. Kiểm tra Hệ số tin cậy CF
-      if (isNaN(row.cf) || row.cf <= 0 || row.cf > 1.0) {
-        errors.push(`Hệ số CF (${row.cf}) không hợp lệ (yêu cầu từ 0.1 đến 1.0)`);
+      // 3. Kiểm tra Hệ số tin cậy CF (Định dạng số từ 0.01 đến 1.0)
+      if (row.cf === null && (!row.rawCF || row.rawCF.trim() === "")) {
+        errors.push("Hệ số CF không được để trống (yêu cầu từ 0.01 đến 1.0)");
+      } else if (isNaN(row.cf)) {
+        errors.push(`Hệ số CF [${row.rawCF}] không đúng định dạng số (ví dụ: 0.85, 0.1, 0.01)`);
+      } else if (row.cf <= 0 || row.cf > 1.0) {
+        errors.push(`Hệ số CF [${row.rawCF || row.cf}] nằm ngoài khoảng cho phép (yêu cầu từ 0.01 đến 1.0)`);
       }
 
       // 4. Kiểm tra Triệu chứng tiền đề
@@ -327,7 +548,7 @@ class KBController {
       } else {
         const invalidSyms = row.premises.filter(p => !validSymptoms.includes(p.toUpperCase()));
         if (invalidSyms.length > 0) {
-          errors.push(`Mã triệu chứng [${invalidSyms.join(', ')}] không tồn tại`);
+          errors.push(`Mã triệu chứng [${invalidSyms.join(', ')}] không tồn tại trong danh mục`);
         }
       }
 
@@ -343,15 +564,34 @@ class KBController {
       }
     }
 
+    // Cập nhật danh sách vị trí các dòng lỗi
+    this.errorRowIndices = [];
+    this.importedParsedRows.forEach((row, idx) => {
+      if (row.status === "INVALID") {
+        this.errorRowIndices.push(idx);
+      }
+    });
+
     // Cập nhật giao diện thống kê & bảng
     if (this.countValid) this.countValid.textContent = validCount;
     if (this.countInvalid) this.countInvalid.textContent = invalidCount;
     this.renderImportPreviewTable();
 
-    // Quy tắc: Chỉ khi toàn bộ dữ liệu hợp lệ (0 lỗi) thì mới kích hoạt nút Nạp dữ liệu
+    // Điều hướng đến lỗi đầu tiên nếu có
+    if (this.errorRowIndices.length > 0) {
+      if (this.errorNavigatorGroup) this.errorNavigatorGroup.style.display = "inline-flex";
+      this.jumpToError(0);
+    } else {
+      this.currentErrorIndex = -1;
+      if (this.errorNavigatorGroup) this.errorNavigatorGroup.style.display = "none";
+    }
+
+    // Thông báo nhanh góc màn hình
     if (invalidCount === 0 && validCount > 0) {
+      ThongBao.thanhCong(`Kiểm tra hoàn tất: Toàn bộ ${validCount} dòng dữ liệu đều hợp lệ! Bạn có thể nạp vào CSDL.`);
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = false;
     } else {
+      ThongBao.canhBao(`Phát hiện ${invalidCount} dòng dữ liệu không hợp lệ. Vui lòng sử dụng nút điều hướng (↑ / ↓) để xem chi tiết.`);
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = true;
     }
   }
@@ -361,7 +601,7 @@ class KBController {
 
     const invalidCount = this.importedParsedRows.filter(r => r.status !== "VALID").length;
     if (invalidCount > 0) {
-      alert("Không thể nạp dữ liệu do vẫn còn dòng bị lỗi!");
+      ThongBao.thatBai("Không thể nạp dữ liệu do vẫn còn dòng bị lỗi cú pháp!");
       return;
     }
 
@@ -396,9 +636,9 @@ class KBController {
       if (this.modalImportExcel) this.modalImportExcel.classList.remove("active");
       this.renderTables();
 
-      alert(`🎉 Chúc mừng! Đã nạp thành công ${this.importedParsedRows.length} luật sinh vào Cơ sở tri thức và đồng bộ CSDL.`);
+      ThongBao.thanhCong(`Đã nạp thành công ${this.importedParsedRows.length} luật sinh vào Cơ sở tri thức và đồng bộ CSDL!`);
     } catch (err) {
-      alert(`❌ Lỗi lưu dữ liệu: ${err.message}`);
+      ThongBao.thatBai(`Lỗi lưu dữ liệu: ${err.message}`);
     }
   }
 
@@ -555,7 +795,7 @@ class KBController {
     const premises = Array.from(checkedBoxes).map(cb => cb.value);
 
     if (premises.length === 0) {
-      alert("Vui lòng chọn ít nhất 1 triệu chứng tiền đề (IF) cho luật!");
+      ThongBao.canhBao("Vui lòng chọn ít nhất 1 triệu chứng tiền đề (IF) cho luật!");
       return;
     }
 
@@ -564,13 +804,14 @@ class KBController {
     try {
       if (ruleId) {
         this.kbManager.updateRule(ruleId, ruleData);
+        ThongBao.thanhCong(`Đã cập nhật luật [${ruleId}] thành công!`);
       } else {
         this.kbManager.addRule(ruleData);
+        ThongBao.thanhCong("Đã thêm luật sinh mới vào cơ sở tri thức!");
       }
       this.modalRuleForm.classList.remove("active");
-      alert("Lưu luật thành công!");
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      ThongBao.thatBai(`Lỗi: ${err.message}`);
     }
   }
 }
