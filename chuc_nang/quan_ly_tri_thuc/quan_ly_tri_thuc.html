@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quản Lý Cơ Sở Tri Thức - Hệ Cơ Sở Tri Thức</title>
-  
+
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../../css/tong_hop.css">
 </head>
+
 <body>
 
   <!-- ==================== APP HEADER ==================== -->
@@ -63,20 +65,21 @@
     <div class="kb-management-header">
       <div>
         <h2 style="font-size: 1.25rem; font-weight: 700;">Quản trị Cơ sở Tri thức Y tế</h2>
-        <p style="font-size: 0.82rem; color: var(--text-secondary);">Thêm, sửa, xóa luật sinh, triệu chứng, danh mục bệnh và Nhập/Xuất dữ liệu JSON</p>
+        <p style="font-size: 0.82rem; color: var(--text-secondary);">Thêm, sửa, xóa luật sinh, triệu chứng, danh mục
+          bệnh và Nhập / Xuất dữ liệu Excel (.xlsx)</p>
       </div>
-      <div style="display: flex; gap: 0.6rem;">
+      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
         <button id="btnAddNewRule" class="btn-primary">
           <i class="fa-solid fa-plus"></i> Thêm luật mới
         </button>
-        <button id="btnExportKB" class="btn-secondary">
-          <i class="fa-solid fa-download"></i> Xuất file JSON
+        <button id="btnExportExcel" class="btn-excel" title="Xuất toàn bộ Cơ sở tri thức ra file Excel đa trang tính">
+          <i class="fa-solid fa-file-excel"></i> Xuất file Excel (.xlsx)
         </button>
-        <label class="btn-secondary" style="cursor: pointer;">
-          <i class="fa-solid fa-upload"></i> Nhập file JSON
-          <input type="file" id="importJsonInput" accept=".json" style="display: none;">
-        </label>
-        <button id="btnResetKB" class="btn-danger" title="Khôi phục dữ liệu gốc chuẩn">
+        <button type="button" id="btnOpenImportModal" class="btn-excel-outline"
+          title="Mở hộp thoại nhập và kiểm tra dữ liệu Excel">
+          <i class="fa-solid fa-file-import"></i> Nhập file Excel
+        </button>
+        <button id="btnResetKB" class="btn-danger" title="Khôi phục dữ liệu gốc chuẩn Bộ Y Tế">
           <i class="fa-solid fa-arrows-rotate"></i> Khôi phục mặc định
         </button>
       </div>
@@ -156,15 +159,18 @@
 
       <form id="ruleForm">
         <input type="hidden" id="formRuleId">
-        
+
         <div class="form-group">
           <label class="form-label">Tên luật lâm sàng:</label>
-          <input type="text" id="formRuleName" class="form-control" required placeholder="Ví dụ: Luật chẩn đoán sốt xuất huyết thể nặng">
+          <input type="text" id="formRuleName" class="form-control" required
+            placeholder="Ví dụ: Luật chẩn đoán sốt xuất huyết thể nặng">
         </div>
 
         <div class="form-group">
           <label class="form-label">Các triệu chứng tiền đề (NẾU / IF):</label>
-          <div id="formRulePremisesList" style="max-height: 180px; overflow-y: auto; background: var(--bg-main); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color);"></div>
+          <div id="formRulePremisesList"
+            style="max-height: 180px; overflow-y: auto; background: var(--bg-main); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color);">
+          </div>
         </div>
 
         <div class="form-group">
@@ -174,12 +180,14 @@
 
         <div class="form-group">
           <label class="form-label">Hệ số tin cậy của luật (CF: 0.1 - 1.0):</label>
-          <input type="number" id="formRuleCF" class="form-control" step="0.05" min="0.1" max="1.0" value="0.85" required>
+          <input type="number" id="formRuleCF" class="form-control" step="0.05" min="0.1" max="1.0" value="0.85"
+            required>
         </div>
 
         <div class="form-group">
           <label class="form-label">Mô tả / Ghi chú phác đồ lâm sàng:</label>
-          <textarea id="formRuleDesc" class="form-control" rows="2" placeholder="Ghi chú thêm về điều kiện lâm sàng..."></textarea>
+          <textarea id="formRuleDesc" class="form-control" rows="2"
+            placeholder="Ghi chú thêm về điều kiện lâm sàng..."></textarea>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem;">
@@ -190,12 +198,130 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: NẠP DỮ LIỆU EXCEL (MODERN SAAS UI) ==================== -->
+  <div id="modalImportExcel" class="modal-backdrop">
+    <div class="modal-card modal-card-xl modern-import-modal">
+      <!-- Modern Header -->
+      <div class="import-modal-header">
+        <div class="import-modal-title-wrapper">
+          <div class="import-icon-badge">
+            <i class="fa-solid fa-file-excel"></i>
+          </div>
+          <div>
+            <h3 class="import-modal-heading">Nạp Dữ Liệu Cơ Sở Tri Thức từ Excel</h3>
+          </div>
+        </div>
+        <button class="import-modal-close" data-close="modalImportExcel" title="Đóng">&times;</button>
+      </div>
+
+      <div class="import-modal-body">
+        <!-- Modern File Upload Zone -->
+        <div class="import-top-card">
+          <div class="import-upload-header">
+            <div class="upload-title">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Chọn tệp dữ liệu nguồn
+            </div>
+            <a href="javascript:void(0)" id="modalDownloadTemplateLink" class="btn-download-template-pill"
+              title="Tải file Excel mẫu">
+              <i class="fa-solid fa-download"></i> Tải tệp mẫu chuẩn (.xlsx)
+            </a>
+          </div>
+
+          <div class="import-upload-box">
+            <div class="import-file-left">
+              <label class="btn-modern-browse" for="excelFileInput">
+                <i class="fa-solid fa-folder-open"></i> Chọn tệp Excel
+              </label>
+              <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
+              <div id="selectedFileName" class="selected-file-chip">
+                <i class="fa-regular fa-file"></i> <span>Chưa có tệp nào được chọn</span>
+              </div>
+            </div>
+
+            <button type="button" id="btnValidateExcel" class="btn-modern-validate" disabled>
+              <i class="fa-solid fa-shield-halved"></i> Kiểm tra tính hợp lệ
+            </button>
+          </div>
+        </div>
+
+        <!-- Middle section: Thống kê & Bảng dữ liệu -->
+        <div class="import-data-section">
+          <div class="import-status-bar">
+            <div class="status-left">
+              <span class="status-title"><i class="fa-solid fa-list-check"></i> Xem trước dữ liệu</span>
+              <span id="totalRowsBadge" class="badge-total-rows">0 dòng</span>
+            </div>
+            <div class="status-pills">
+              <div class="status-pill pill-valid">
+                <span class="pill-dot green"></span>
+                <span>Hợp lệ:</span>
+                <strong id="countValid">0</strong>
+              </div>
+              <div class="status-pill pill-invalid">
+                <span class="pill-dot red"></span>
+                <span>Không hợp lệ:</span>
+                <strong id="countInvalid">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="import-table-container">
+            <table class="import-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px; text-align: center;">STT</th>
+                  <th style="width: 130px;">Tình trạng</th>
+                  <th style="width: 250px;">Chi tiết kiểm tra / Lỗi</th>
+                  <th style="width: 85px;">Mã luật</th>
+                  <th style="width: 200px;">Tên luật sinh</th>
+                  <th style="width: 160px;">Bệnh kết luận</th>
+                  <th style="width: 90px; text-align: center;">Hệ số (CF)</th>
+                  <th style="width: 180px;">Tiền đề (Mã triệu chứng)</th>
+                  <th>Mô tả luật</th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewTableBody">
+                <tr id="importEmptyRow">
+                  <td colspan="9" class="import-empty-state">
+                    <div class="empty-icon-box">
+                      <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div class="empty-text">Chưa có dữ liệu nào được tải lên</div>
+                    <div class="empty-subtext">Hãy bấm <strong>"Chọn tệp Excel"</strong> ở trên để nạp và xem trước dữ
+                      liệu</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modern Footer -->
+      <div class="import-modal-footer">
+        <div class="footer-note">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Chỉ khi <strong>100% dòng dữ liệu hợp lệ</strong> thì hệ thống mới cho phép nạp vào CSDL.</span>
+        </div>
+        <div class="footer-actions">
+          <button type="button" class="btn-cancel-import" data-close="modalImportExcel">
+            Đóng
+          </button>
+          <button type="button" id="btnSubmitImport" class="btn-submit-import" disabled>
+            <i class="fa-solid fa-cloud-arrow-down"></i> Nạp dữ liệu vào CSDL
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
     <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
   </footer>
 
   <!-- ==================== SCRIPTS ==================== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="../../js/tien_ich_chung.js"></script>
   <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
   <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
@@ -205,7 +331,7 @@
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const dbEngine = new DatabaseEngine();
-      try { await dbEngine.init(); } catch (e) {}
+      try { await dbEngine.init(); } catch (e) { }
 
       const kbManager = new KnowledgeBaseManager(dbEngine);
       const kbController = new KBController({ kbManager });
@@ -242,4 +368,5 @@
     });
   </script>
 </body>
+
 </html>

@@ -200,29 +200,297 @@ class KnowledgeBaseManager {
     return diseaseData;
   }
 
-  // --- IMPORT / EXPORT JSON ---
-  exportJSON() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.kb, null, 2));
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `co_so_tri_thuc_y_te_${new Date().toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  // ============================================================================
+  // XUẤT / NHẬP EXCEL (.XLSX) BẰNG THƯ VIỆN SHEETJS
+  // ============================================================================
+
+  exportExcel() {
+    if (typeof XLSX === "undefined") {
+      throw new Error("Thư viện SheetJS chưa được tải. Vui lòng kiểm tra kết nối mạng!");
+    }
+
+    const kb = this.getKB();
+    const wb = XLSX.utils.book_new();
+
+    // 1. Sheet TẬP LUẬT SINH
+    const rulesRows = (kb.rules || []).map(r => {
+      const dis = (kb.diseases || []).find(d => d.id === r.conclusion);
+      const premsNames = (r.premises || []).map(pId => {
+        const s = (kb.symptoms || []).find(sym => sym.id === pId);
+        return s ? s.name : pId;
+      }).join("; ");
+
+      return {
+        "Mã Luật": r.id,
+        "Tên Luật Sinh": r.name || `Luật ${r.id}`,
+        "Mã Bệnh Kết Luận": r.conclusion,
+        "Tên Bệnh Kết Luận": dis ? dis.name : r.conclusion,
+        "Hệ Số Tin Cậy (CF)": Number(r.cf) || 0.8,
+        "Danh Sách Mã Triệu Chứng (Cách nhau dấu phẩy)": (r.premises || []).join(", "),
+        "Tên Triệu Chứng Tiền Đề": premsNames,
+        "Mô Tả Luật": r.description || ""
+      };
+    });
+    const wsRules = XLSX.utils.json_to_sheet(rulesRows);
+    wsRules["!cols"] = [
+      { wch: 10 }, { wch: 45 }, { wch: 18 }, { wch: 30 },
+      { wch: 18 }, { wch: 40 }, { wch: 60 }, { wch: 50 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+
+    // 2. Sheet DANH MỤC TRIỆU CHỨNG
+    const symsRows = (kb.symptoms || []).map(s => {
+      const grp = (kb.symptomGroups || []).find(g => g.id === s.groupId);
+      return {
+        "Mã Triệu Chứng": s.id,
+        "Mã Nhóm": s.groupId || "G01",
+        "Tên Nhóm": grp ? grp.name : s.groupId,
+        "Tên Triệu Chứng": s.name,
+        "Câu Hỏi Truy Vấn (WHY)": s.question || "",
+        "Mức Độ Cảnh Báo": s.severity || "Bình thường"
+      };
+    });
+    const wsSyms = XLSX.utils.json_to_sheet(symsRows);
+    wsSyms["!cols"] = [
+      { wch: 15 }, { wch: 12 }, { wch: 30 }, { wch: 45 }, { wch: 65 }, { wch: 18 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+
+    // 3. Sheet DANH MỤC BỆNH HỌC
+    const disRows = (kb.diseases || []).map(d => ({
+      "Mã Bệnh": d.id,
+      "Tên Bệnh Học": d.name,
+      "Tên Khoa Học": d.scientificName || "",
+      "Nhóm Bệnh": d.category || "",
+      "Mức Độ Nguy Hiểm": d.severity || "",
+      "Hướng Xử Trí & Phác Đồ": d.treatment || d.recommendation || "",
+      "Dấu Hiệu Cảnh Báo Nguy Hiểm": d.warningSigns || ""
+    }));
+    const wsDis = XLSX.utils.json_to_sheet(disRows);
+    wsDis["!cols"] = [
+      { wch: 12 }, { wch: 35 }, { wch: 30 }, { wch: 35 },
+      { wch: 30 }, { wch: 70 }, { wch: 70 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsDis, "DANH_MUC_BENH");
+
+    // 4. Sheet NHÓM TRIỆU CHỨNG
+    const grpRows = (kb.symptomGroups || []).map(g => ({
+      "Mã Nhóm": g.id,
+      "Tên Nhóm Triệu Chứng": g.name,
+      "Biểu Tượng FontAwesome": g.icon || "fa-notes-medical",
+      "Mô Tả Phân Loại": g.description || ""
+    }));
+    const wsGrp = XLSX.utils.json_to_sheet(grpRows);
+    wsGrp["!cols"] = [{ wch: 12 }, { wch: 35 }, { wch: 25 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, wsGrp, "NHOM_TRIEU_CHUNG");
+
+    // Tự động tải file Excel
+    const filename = `Co_So_Tri_Thuc_Y_Te_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    return filename;
   }
 
-  importJSON(jsonString) {
-    try {
-      const parsed = JSON.parse(jsonString);
-      if (!parsed.symptoms || !parsed.diseases || !parsed.rules) {
-        throw new Error("File JSON không đúng cấu trúc (thiếu symptoms, diseases hoặc rules)");
-      }
-      this.kb = parsed;
-      this.saveToStorage();
-      return true;
-    } catch (e) {
-      throw new Error(`Import thất bại: ${e.message}`);
+  downloadExcelTemplate() {
+    if (typeof XLSX === "undefined") {
+      throw new Error("Thư viện SheetJS chưa được tải!");
     }
+
+    const wb = XLSX.utils.book_new();
+
+    // Mẫu tập luật
+    const sampleRules = [
+      {
+        "Mã Luật": "R99",
+        "Tên Luật Sinh": "Luật phát hiện ca bệnh mẫu từ Excel",
+        "Mã Bệnh Kết Luận": "D01",
+        "Tên Bệnh Kết Luận": "Sốt xuất huyết Dengue",
+        "Hệ Số Tin Cậy (CF)": 0.90,
+        "Danh Sách Mã Triệu Chứng (Cách nhau dấu phẩy)": "S01, S04, S17",
+        "Mô Tả Luật": "Sốt cao + Đau đầu trán + Xuất huyết dưới da"
+      }
+    ];
+    const wsRules = XLSX.utils.json_to_sheet(sampleRules);
+    wsRules["!cols"] = [
+      { wch: 10 }, { wch: 40 }, { wch: 18 }, { wch: 30 },
+      { wch: 18 }, { wch: 45 }, { wch: 50 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+
+    // Mẫu triệu chứng
+    const sampleSyms = [
+      {
+        "Mã Triệu Chứng": "S99",
+        "Mã Nhóm": "G01",
+        "Tên Triệu Chứng": "Triệu chứng mẫu mới",
+        "Câu Hỏi Truy Vấn (WHY)": "Bệnh nhân có biểu hiện triệu chứng mẫu này không?",
+        "Mức Độ Cảnh Báo": "Bình thường"
+      }
+    ];
+    const wsSyms = XLSX.utils.json_to_sheet(sampleSyms);
+    XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+
+    // Mẫu hướng dẫn
+    const guideRows = [
+      { "Mục": "Quy tắc 1", "Nội dung": "Không đổi tên các Sheet: TAP_LUAT, TRIEU_CHUNG, DANH_MUC_BENH" },
+      { "Mục": "Quy tắc 2", "Nội dung": "Cột 'Danh Sách Mã Triệu Chứng': nhập các mã triệu chứng cách nhau bằng dấu phẩy (Ví dụ: S01, S04, S05)" },
+      { "Mục": "Quy tắc 3", "Nội dung": "Hệ số tin cậy CF là số thập phân từ 0.1 đến 1.0 (Ví dụ: 0.85 hoặc 0.9)" },
+      { "Mục": "Quy tắc 4", "Nội dung": "Mã bệnh kết luận phải khớp với mã trong sheet DANH_MUC_BENH (Ví dụ: D01, D02, D03...)" }
+    ];
+    const wsGuide = XLSX.utils.json_to_sheet(guideRows);
+    wsGuide["!cols"] = [{ wch: 15 }, { wch: 90 }];
+    XLSX.utils.book_append_sheet(wb, wsGuide, "HUONG_DAN");
+
+    XLSX.writeFile(wb, "Mau_Nhap_Lieu_Tri_Thuc.xlsx");
+  }
+
+  async importExcel(arrayBuffer) {
+    if (typeof XLSX === "undefined") {
+      throw new Error("Thư viện SheetJS chưa sẵn sàng!");
+    }
+
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error("Tệp Excel không chứa bất kỳ trang tính nào!");
+    }
+
+    let importedRules = 0;
+    let importedSyms = 0;
+    let importedDiseases = 0;
+
+    // Helper chuẩn hóa text key
+    const norm = (str) => String(str || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+    // 1. Phân tích Sheet Tập Luật
+    const ruleSheetName = workbook.SheetNames.find(name => /luat|rule/i.test(name)) || workbook.SheetNames[0];
+    if (ruleSheetName) {
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[ruleSheetName]);
+      if (rows && rows.length > 0) {
+        const existingRules = this.kb.rules || [];
+
+        for (const row of rows) {
+          // Tìm các trường linh hoạt
+          let rId = null, rName = null, rConclusion = null, rCF = 0.8, rPremises = [], rDesc = "";
+
+          for (const [k, v] of Object.entries(row)) {
+            const nk = norm(k);
+            if (nk.includes("maluat") || nk === "id" || nk === "ma") rId = String(v).trim();
+            else if (nk.includes("tenluat") || nk === "name" || nk === "ten") rName = String(v).trim();
+            else if (nk.includes("mabenh") || nk.includes("conclusion") || nk.includes("ketluan")) rConclusion = String(v).trim();
+            else if (nk.includes("cf") || nk.includes("tincay") || nk.includes("heso")) {
+              const val = String(v).replace("%", "").replace(",", ".");
+              rCF = parseFloat(val);
+              if (rCF > 1.0 && rCF <= 100) rCF = rCF / 100;
+            }
+            else if (nk.includes("trieuchung") || nk.includes("tiende") || nk.includes("premises") || nk.includes("danhsach")) {
+              const strVal = String(v || "");
+              rPremises = strVal.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+            }
+            else if (nk.includes("mota") || nk.includes("description")) rDesc = String(v).trim();
+          }
+
+          if (rId && rConclusion) {
+            const newRuleObj = {
+              id: rId,
+              name: rName || `Luật ${rId}`,
+              conclusion: rConclusion,
+              cf: isNaN(rCF) ? 0.85 : rCF,
+              premises: rPremises,
+              description: rDesc
+            };
+
+            const existIdx = existingRules.findIndex(r => r.id === rId);
+            if (existIdx >= 0) {
+              existingRules[existIdx] = newRuleObj;
+            } else {
+              existingRules.push(newRuleObj);
+            }
+            importedRules++;
+          }
+        }
+        this.kb.rules = existingRules;
+      }
+    }
+
+    // 2. Phân tích Sheet Triệu Chứng (nếu có)
+    const symSheetName = workbook.SheetNames.find(name => /trieu_chung|symptom/i.test(name));
+    if (symSheetName) {
+      const symRows = XLSX.utils.sheet_to_json(workbook.Sheets[symSheetName]);
+      const existingSyms = this.kb.symptoms || [];
+
+      for (const row of symRows) {
+        let sId = null, sGroupId = "G01", sName = null, sQuestion = null, sSeverity = "Bình thường";
+        for (const [k, v] of Object.entries(row)) {
+          const nk = norm(k);
+          if (nk.includes("matrieuchung") || nk === "id") sId = String(v).trim();
+          else if (nk.includes("manhom") || nk === "groupid") sGroupId = String(v).trim();
+          else if (nk.includes("tentrieuchung") || nk === "name") sName = String(v).trim();
+          else if (nk.includes("cauhoi") || nk.includes("question") || nk.includes("why")) sQuestion = String(v).trim();
+          else if (nk.includes("canhbao") || nk.includes("mucdo") || nk.includes("severity")) sSeverity = String(v).trim();
+        }
+
+        if (sId && sName) {
+          const sObj = {
+            id: sId,
+            groupId: sGroupId,
+            name: sName,
+            question: sQuestion || `Bệnh nhân có bị ${sName} không?`,
+            severity: sSeverity
+          };
+          const existIdx = existingSyms.findIndex(s => s.id === sId);
+          if (existIdx >= 0) existingSyms[existIdx] = sObj;
+          else existingSyms.push(sObj);
+          importedSyms++;
+        }
+      }
+      this.kb.symptoms = existingSyms;
+    }
+
+    // 3. Phân tích Sheet Bệnh (nếu có)
+    const disSheetName = workbook.SheetNames.find(name => /benh|disease/i.test(name));
+    if (disSheetName) {
+      const disRows = XLSX.utils.sheet_to_json(workbook.Sheets[disSheetName]);
+      const existingDis = this.kb.diseases || [];
+
+      for (const row of disRows) {
+        let dId = null, dName = null, dSci = "", dCat = "", dSev = "Trung bình", dTreat = "", dWarn = "";
+        for (const [k, v] of Object.entries(row)) {
+          const nk = norm(k);
+          if (nk.includes("mabenh") || nk === "id") dId = String(v).trim();
+          else if (nk.includes("tenbenh") || nk === "name") dName = String(v).trim();
+          else if (nk.includes("khoahoc") || nk.includes("scientific")) dSci = String(v).trim();
+          else if (nk.includes("nhombenh") || nk.includes("category")) dCat = String(v).trim();
+          else if (nk.includes("nguyhiem") || nk.includes("severity")) dSev = String(v).trim();
+          else if (nk.includes("xutri") || nk.includes("treatment") || nk.includes("phacdo")) dTreat = String(v).trim();
+          else if (nk.includes("canhbao") || nk.includes("warning")) dWarn = String(v).trim();
+        }
+
+        if (dId && dName) {
+          const dObj = {
+            id: dId,
+            name: dName,
+            scientificName: dSci,
+            category: dCat,
+            severity: dSev,
+            treatment: dTreat,
+            recommendation: dTreat,
+            warningSigns: dWarn
+          };
+          const existIdx = existingDis.findIndex(d => d.id === dId);
+          if (existIdx >= 0) existingDis[existIdx] = dObj;
+          else existingDis.push(dObj);
+          importedDiseases++;
+        }
+      }
+      this.kb.diseases = existingDis;
+    }
+
+    // Lưu vĩnh viễn vào CSDL (SQLite / IndexedDB) và cập nhật giao diện
+    await this.saveToStorage();
+    return {
+      importedRules,
+      importedSyms,
+      importedDiseases
+    };
   }
 }
 
