@@ -8,7 +8,8 @@ function khoiTaoTheme() {
   apDungTheme(savedTheme);
 
   const btnThemeToggle = document.getElementById("btnThemeToggle");
-  if (btnThemeToggle) {
+  if (btnThemeToggle && !btnThemeToggle.dataset.themeBound) {
+    btnThemeToggle.dataset.themeBound = "true";
     btnThemeToggle.addEventListener("click", () => {
       const isCurrentlyLight = document.documentElement.getAttribute("data-theme") === "light";
       apDungTheme(isCurrentlyLight ? "dark" : "light");

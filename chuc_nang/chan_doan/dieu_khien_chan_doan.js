@@ -47,6 +47,7 @@ class DiagnosisController {
     this.selectedCountNumber = document.getElementById("selectedCountNumber");
     this.btnRun = document.getElementById("btnRunForwardChaining");
     this.btnViewExplanation = document.getElementById("btnViewExplanation");
+    this.btnExportPDF = document.getElementById("btnExportPDF");
     this.modalExplanation = document.getElementById("modalExplanation");
     this.explanationContent = document.getElementById("explanationModalContent");
     this.modalBackward = document.getElementById("modalBackward");
@@ -130,6 +131,26 @@ class DiagnosisController {
     // 7. Nút Xem Vết Suy Luận HOW
     if (this.btnViewExplanation) {
       this.btnViewExplanation.addEventListener("click", () => this.openExplanationModal());
+    }
+
+    // 8. Nút Xuất Phiếu Kết Quả PDF Chuẩn Y Tế
+    if (this.btnExportPDF) {
+      this.btnExportPDF.addEventListener("click", () => {
+        if (!this.lastInferenceResult) return;
+        const topResult = (this.lastInferenceResult.results || [])[0];
+        const sessionData = {
+          id: "PHIEN_" + Date.now(),
+          timestamp: new Date().toISOString(),
+          inputSymptoms: this.currentSelectedSymptoms || {},
+          results: this.lastInferenceResult.results || [],
+          traceLogs: this.lastInferenceResult.traceLogs || [],
+          topDiseaseName: topResult ? topResult.diseaseName : "Không xác định",
+          topCF: topResult ? topResult.finalCF : 0
+        };
+        if (window.MauBaoCaoYTe) {
+          window.MauBaoCaoYTe.xuatBaoCaoPDF(sessionData, this.kbManager.getKB());
+        }
+      });
     }
   }
 
@@ -448,6 +469,9 @@ class DiagnosisController {
     this.updateBadges();
     this.applyFilter();
     this.renderEmptyResults();
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "none";
+    }
     if (this.onInferenceComplete) {
       this.onInferenceComplete(null, this.currentSelectedSymptoms);
     }
@@ -465,6 +489,9 @@ class DiagnosisController {
 
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "inline-flex";
+    }
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "inline-flex";
     }
 
     if (this.onInferenceComplete) {
@@ -485,6 +512,9 @@ class DiagnosisController {
     `;
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "none";
+    }
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "none";
     }
   }
 
