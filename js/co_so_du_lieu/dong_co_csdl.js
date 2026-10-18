@@ -16,7 +16,7 @@ class DatabaseEngine {
     this.apiBase = (typeof window !== 'undefined' && window.location.protocol.startsWith('http'))
       ? `${window.location.origin}/api`
       : 'http://localhost:3000/api';
-  }
+    }
 
   async init() {
     // 1. Thử kết nối tới Backend SQLite Server (may_chu.js)
@@ -296,6 +296,23 @@ class DatabaseEngine {
           const kbData = await res.json();
           if (kbData.ok) {
             const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            const defaultDiseases = defaultKB.diseases || [];
+            const normalizedDiseases = (kbData.diseases || []).map(disease => {
+              const defaultDisease = defaultDiseases.find(item => item.id === disease.id) || {};
+              const mergedDisease = {
+                ...defaultDisease,
+                ...disease,
+                recommendation: disease.recommendation || disease.treatment || defaultDisease.recommendation || "",
+                treatment: disease.treatment || disease.recommendation || defaultDisease.treatment || defaultDisease.recommendation || ""
+              };
+              if (typeof DiseaseFrame !== "undefined") {
+                mergedDisease.frame = DiseaseFrame.fromDisease(mergedDisease, {
+                  rules: kbData.rules || []
+                });
+              }
+              return mergedDisease;
+            });
+
             return {
               metadata: {
                 domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
@@ -305,7 +322,7 @@ class DatabaseEngine {
               },
               symptomGroups: kbData.symptomGroups,
               symptoms: kbData.symptoms,
-              diseases: kbData.diseases,
+              diseases: normalizedDiseases,
               rules: kbData.rules,
               testCases: defaultKB.testCases || []
             };

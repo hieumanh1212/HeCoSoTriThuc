@@ -59,6 +59,11 @@ $$\mathbf{R_k}: \text{IF } P_1 \land P_2 \land \dots \land P_m \text{ THEN } D_j
    Khi có $n$ luật độc lập cùng suy ra một bệnh $D$ với các độ tin cậy $CF_1, CF_2, \dots, CF_n$:
    $$CF_{\text{combine}}(CF_1, CF_2) = CF_1 + CF_2 - (CF_1 \times CF_2) \quad (\text{với } CF_1, CF_2 \ge 0)$$
 
+### 3.4. Định nghĩa Bệnh bằng Frames
+Khái niệm **Bệnh** được biểu diễn bằng một Frame có tên `DiseaseFrame`. Mỗi bệnh là một thể hiện của Frame và có các slot: mã bệnh, tên bệnh, tên khoa học, nhóm bệnh, mức độ nguy hiểm, mô tả lâm sàng, dấu hiệu cảnh báo, hướng xử trí, nguồn tham khảo và danh sách luật suy ra bệnh.
+
+Slot `luatSuyDien` liên kết trực tiếp với các luật có cùng mã kết luận, gồm mã luật, các tiền đề triệu chứng, CF luật và mô tả. Vì vậy Frame vừa mô tả ngữ nghĩa của bệnh vừa cho phép truy nguyên bệnh về cơ sở tri thức.
+
 ---
 
 ## 4. CƠ CHẾ SUY DIỄN & PHÂN HỆ GIẢI THÍCH (INFERENCE & EXPLANATION)
@@ -105,7 +110,9 @@ $$\mathbf{R_k}: \text{IF } P_1 \land P_2 \land \dots \land P_m \text{ THEN } D_j
 * Sau khi người dùng trả lời, hệ thống cập nhật $WM$ và tự động tái kích hoạt suy diễn tiến.
 
 ### 4.3. Phân hệ Giải thích (Explanation Facility)
-* **Giải thích HOW:** Cung cấp toàn bộ Execution Trace Log (chu kỳ quét, luật nào được kích hoạt, giá trị $CF$ vế trái, công thức nhân trọng số và công thức kết hợp tích lũy).
+* **Giải thích HOW:** Cung cấp toàn bộ Execution Trace Log (bộ nhớ triệu chứng ban đầu, chu kỳ quét, luật được kích hoạt, luật bị bỏ qua và các tiền đề còn thiếu, giá trị $CF$ vế trái, công thức nhân trọng số và công thức kết hợp tích lũy).
+* Với luật được kích hoạt, hệ thống hiển thị chuỗi `Triệu chứng đầu vào -> Tiền đề AND -> Luật -> Bệnh kết luận`, sau đó tính $CF(\text{Premise}) = \min(CF(S_i))$ và $CF(\text{Rule}) = CF(\text{Premise}) \times CF(\text{RuleBase})$.
+* Với luật bị bỏ qua, hệ thống chỉ rõ từng tiền đề chưa xuất hiện trong bộ nhớ làm việc; đây là lý do kết quả có thể chưa xuất hiện hoặc có CF thấp. Frame bệnh hiển thị tiếp các slot mô tả và các luật liên quan.
 * **Giải thích WHY:** Giải thích ngữ nghĩa lâm sàng của từng câu hỏi truy vấn bổ sung.
 
 ---

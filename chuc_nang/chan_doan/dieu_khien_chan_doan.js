@@ -143,6 +143,13 @@ class DiagnosisController {
       .toLowerCase();
   }
 
+  getDiseaseFrame(disease) {
+    if (typeof DiseaseFrame === "undefined") return null;
+    return disease && disease.frame
+      ? disease.frame
+      : DiseaseFrame.fromDisease(disease, this.kbManager.getKB());
+  }
+
   selectCategory(catId) {
     this.activeCategoryFilter = catId;
     if (this.dropdownContainer) this.dropdownContainer.classList.remove("open");
@@ -505,6 +512,8 @@ class DiagnosisController {
         ${result.results.map((item, index) => {
           const isTop = index === 0;
           const dis = item.disease || {};
+          const diseaseFrame = this.getDiseaseFrame(dis);
+          const frameSlots = diseaseFrame ? diseaseFrame.slots : {};
           const interp = item.interpretation;
           const cfPercent = interp.percentage;
           const diseaseColor = dis.color || '#3b82f6';
@@ -685,6 +694,22 @@ class DiagnosisController {
                 <div class="section-card-content">${dis.description || 'Chưa có mô tả chi tiết cho bệnh này.'}</div>
               </div>
 
+              <!-- 4b. Frame bệnh: các slot cấu thành khái niệm bệnh -->
+              ${diseaseFrame ? `
+                <div class="clinical-section-card section-card-frame">
+                  <div class="section-header-title">
+                    <i class="fa-solid fa-cubes-stacked" style="color: var(--color-purple);"></i> Frame khái niệm Bệnh:
+                  </div>
+                  <div class="frame-slot-grid">
+                    <div><strong>Nhóm:</strong> ${frameSlots.nhomBenh}</div>
+                    <div><strong>Tên khoa học:</strong> ${frameSlots.tenKhoaHoc}</div>
+                    <div><strong>Mức độ:</strong> ${frameSlots.mucDoNguyHiem}</div>
+                    <div><strong>Nguồn:</strong> ${frameSlots.nguonThamKhao}</div>
+                    <div class="frame-slot-wide"><strong>Định nghĩa:</strong> ${frameSlots.moTa}</div>
+                  </div>
+                </div>
+              ` : ''}
+
               <!-- 5. Khối Dấu Hiệu Cảnh Báo Nguy Hiểm (Red Flags) -->
               ${dis.warningSigns ? `
                 <div class="clinical-section-card section-card-warning">
@@ -860,6 +885,16 @@ class DiagnosisController {
                   <strong>• Các tiền đề:</strong> ${dt.premiseDetails.map(p => `[${p.id}] ${p.name} (CF=${p.userCF})`).join(" AND ")}<br>
                   <strong>• Công thức tính CF luật:</strong> <code>${dt.formulaStr}</code><br>
                   <strong>• Kết luận sinh ra:</strong> [${dt.conclusion}] ${dt.diseaseName} với CF = ${dt.outputCF}
+                </div>
+              </div>
+            `;
+          } else if (log.type === "RULE_SKIPPED") {
+            return `
+              <div class="trace-step-item" style="border-left-color: var(--color-amber);">
+                <div class="trace-step-title" style="color: var(--color-amber);">Bước ${log.step}: ${log.message}</div>
+                <div class="trace-step-body">
+                  <strong>Vì sao chưa áp dụng:</strong> luật này cần đủ tất cả tiền đề theo phép AND.<br>
+                  <strong>Tiền đề còn thiếu:</strong> ${(log.missing || []).map(p => `[${p.id}] ${p.name}`).join("; ") || "Không có"}
                 </div>
               </div>
             `;
