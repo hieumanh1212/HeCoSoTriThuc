@@ -50,6 +50,9 @@
           <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
             <i class="fa-solid fa-book-medical"></i> Lý thuyết
           </a>
+          <a href="../lich_su_chan_doan/lich_su_chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-clock-rotate-left"></i> Lịch sử
+          </a>
         </nav>
 
         <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
@@ -149,6 +152,9 @@
             <span>Kết quả Suy luận & Chẩn đoán</span>
           </div>
           <div class="card-actions">
+            <button id="btnExportPDF" class="btn-secondary" style="display: none;" title="Xuất phiếu kết quả chẩn đoán y tế (PDF)">
+              <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Xuất PDF
+            </button>
             <button id="btnViewExplanation" class="btn-secondary" style="display: none;" title="Xem phân tích cây suy luận (HOW)">
               <i class="fa-solid fa-code-fork"></i> Vết suy luận (HOW)
             </button>
@@ -223,6 +229,7 @@
   <script src="../../js/dong_co/suy_dien_tien.js"></script>
   <script src="../../js/dong_co/suy_dien_lui.js"></script>
   <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="../../js/mau_bao_cao_y_te.js"></script>
   <script src="dieu_khien_chan_doan.js"></script>
 
   <script>
@@ -239,8 +246,8 @@
         forwardEngine,
         backwardEngine,
         onInferenceComplete: (inferenceResult, selectedSymptoms) => {
-          if (dbEngine && dbEngine.isReady && inferenceResult && (inferenceResult.results || []).length > 0) {
-            dbEngine.saveInferenceSession(selectedSymptoms, inferenceResult.results, inferenceResult.traceLogs)
+          if (dbEngine && dbEngine.isReady && inferenceResult && Object.keys(selectedSymptoms || {}).length > 0) {
+            dbEngine.saveInferenceSession(selectedSymptoms, inferenceResult.results || [], inferenceResult.traceLogs || [])
               .catch(err => console.warn(err));
           }
         },
@@ -259,9 +266,22 @@
         diagnosisController.renderAll();
       });
 
-      // Kiểm tra nạp ca bệnh từ sessionStorage hoặc URL param
+      // Kiểm tra nạp ca bệnh từ sessionStorage (chẩn đoán lại từ lịch sử hoặc test case)
+      const reloadHistoryCase = sessionStorage.getItem("RELOAD_DIAGNOSIS_SYMPTOMS");
       const savedCase = sessionStorage.getItem("LOAD_TESTCASE_SYMPTOMS");
-      if (savedCase) {
+
+      if (reloadHistoryCase) {
+        sessionStorage.removeItem("RELOAD_DIAGNOSIS_SYMPTOMS");
+        try {
+          const symptomsMap = JSON.parse(reloadHistoryCase);
+          diagnosisController.setSymptoms(symptomsMap);
+          if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
+            ThongBao.thanhCong("Đã nạp lại dữ liệu ca chẩn đoán từ lịch sử!");
+          }
+        } catch (e) {
+          diagnosisController.renderAll();
+        }
+      } else if (savedCase) {
         sessionStorage.removeItem("LOAD_TESTCASE_SYMPTOMS");
         try {
           const symptomsMap = JSON.parse(savedCase);
