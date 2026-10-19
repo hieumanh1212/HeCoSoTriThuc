@@ -24,8 +24,8 @@ class KnowledgeBaseManager {
     try {
       const dbKB = await this.db.toKnowledgeBaseObject();
       if (dbKB && dbKB.rules && dbKB.rules.length > 0) {
-        this.kb = dbKB;
-        this.saveToStorage();
+        this.kb = this._mergeWithDefaults(dbKB, window.DEFAULT_KNOWLEDGE_BASE || {});
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
         this.notifyListeners();
       }
     } catch (e) {
@@ -33,11 +33,34 @@ class KnowledgeBaseManager {
     }
   }
 
+  _mergeWithDefaults(parsed, def) {
+    if (!parsed || !def || !Array.isArray(parsed.rules)) return parsed;
+
+    const existingRuleIds = new Set(parsed.rules.map(r => r.id));
+    (def.rules || []).forEach(r => {
+      if (!existingRuleIds.has(r.id)) parsed.rules.push(r);
+    });
+
+    const existingSymIds = new Set((parsed.symptoms || []).map(s => s.id));
+    (def.symptoms || []).forEach(s => {
+      if (!existingSymIds.has(s.id)) (parsed.symptoms = parsed.symptoms || []).push(s);
+    });
+
+    const existingGrpIds = new Set((parsed.symptomGroups || []).map(g => g.id));
+    (def.symptomGroups || []).forEach(g => {
+      if (!existingGrpIds.has(g.id)) (parsed.symptomGroups = parsed.symptomGroups || []).push(g);
+    });
+
+    return parsed;
+  }
+
   loadFromStorage() {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        const def = window.DEFAULT_KNOWLEDGE_BASE || {};
+        return this._mergeWithDefaults(parsed, def);
       }
     } catch (e) {
       console.warn("Lỗi đọc LocalStorage, sử dụng dữ liệu mặc định:", e);

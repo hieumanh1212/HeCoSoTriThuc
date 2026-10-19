@@ -66,10 +66,20 @@
   <main class="main-wrapper">
     <div class="graph-toolbar">
       <div class="graph-controls">
+        <!-- Chuyển đổi chế độ Đồ thị RPG vs FPG -->
+        <div style="display: flex; gap: 0.35rem; background: rgba(15, 23, 42, 0.4); padding: 0.2rem; border-radius: 8px; border: 1px solid var(--border-color); margin-right: 0.5rem;">
+          <button id="btnModeRPG" class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;" title="Mạng Petri Luật sinh: Place (Sự kiện) &harr; Transition (Luật)">
+            <i class="fa-solid fa-diagram-project"></i> Mạng RPG (Luật)
+          </button>
+          <button id="btnModeFPG" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;" title="Mạng Quan hệ Phụ thuộc Sự kiện: Fact &rarr; Fact">
+            <i class="fa-solid fa-network-wired"></i> Mạng FPG (Sự kiện)
+          </button>
+        </div>
+
         <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
           Lọc theo bệnh:
         </label>
-        <select id="rpgDiseaseFilter" class="form-control" style="width: 280px; padding: 0.45rem 0.75rem;">
+        <select id="rpgDiseaseFilter" class="form-control" style="width: 250px; padding: 0.45rem 0.75rem;">
           <option value="ALL">-- Toàn bộ mạng luật --</option>
         </select>
         <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i> Phóng to</button>
@@ -83,6 +93,10 @@
           <span>Sự kiện / Triệu chứng (Place)</span>
         </div>
         <div class="legend-item">
+          <span class="legend-shape shape-place" style="border-color: #a78bfa; background: rgba(139, 92, 246, 0.25);"></span>
+          <span>Hội chứng trung gian (Intermediate)</span>
+        </div>
+        <div class="legend-item" id="legendTransitionItem">
           <span class="legend-shape shape-trans"></span>
           <span>Luật sinh (Transition)</span>
         </div>
@@ -164,12 +178,36 @@
 
       populateFilters();
 
-      // Kiểm tra focus bệnh từ URL query (?focus=D01)
+      const btnModeRPG = document.getElementById("btnModeRPG");
+      const btnModeFPG = document.getElementById("btnModeFPG");
+      const legendTransitionItem = document.getElementById("legendTransitionItem");
+
+      function setMode(mode) {
+        if (mode === "RPG") {
+          btnModeRPG.className = "btn-primary";
+          btnModeFPG.className = "btn-secondary";
+          if (legendTransitionItem) legendTransitionItem.style.display = "flex";
+        } else {
+          btnModeRPG.className = "btn-secondary";
+          btnModeFPG.className = "btn-primary";
+          if (legendTransitionItem) legendTransitionItem.style.display = "none";
+        }
+        rpgVisualizer.setGraphMode(mode);
+      }
+
+      if (btnModeRPG) btnModeRPG.addEventListener("click", () => setMode("RPG"));
+      if (btnModeFPG) btnModeFPG.addEventListener("click", () => setMode("FPG"));
+
+      // Kiểm tra focus bệnh và chế độ đồ thị từ URL query (?focus=D01&mode=FPG)
       const urlParams = new URLSearchParams(window.location.search);
       const focusDisease = urlParams.get("focus");
       if (focusDisease) {
         const filterSelect = document.getElementById("rpgDiseaseFilter");
         if (filterSelect) filterSelect.value = focusDisease;
+      }
+      const modeParam = urlParams.get("mode");
+      if (modeParam === "FPG" || modeParam === "RPG") {
+        setMode(modeParam);
       }
 
       setTimeout(() => {

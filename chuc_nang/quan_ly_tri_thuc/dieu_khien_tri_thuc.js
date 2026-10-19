@@ -1306,23 +1306,49 @@ class KBController {
 
     const premisesContainer = document.getElementById("formRulePremisesList");
     if (premisesContainer) {
-      premisesContainer.innerHTML = (kb.symptoms || []).map(s => {
+      const intermediateList = (kb.symptoms || []).filter(s => s.isIntermediate || String(s.id).startsWith("HC"));
+      const primitiveList = (kb.symptoms || []).filter(s => !s.isIntermediate && !String(s.id).startsWith("HC"));
+
+      const renderCheckbox = (s, isInter = false) => {
         const isChecked = selectedPremises.includes(s.id);
+        const tagColor = isInter ? "#a78bfa" : "var(--color-cyan)";
+        const badge = isInter ? `<span style="font-size:0.7rem; background:rgba(139,92,246,0.2); color:#a78bfa; padding:1px 4px; border-radius:3px; margin-left:4px;">Hội chứng</span>` : "";
         return `
           <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; font-size: 0.8rem; cursor: pointer;">
             <input type="checkbox" name="premiseCheckbox" value="${s.id}" ${isChecked ? 'checked' : ''}>
-            <span><strong style="color: var(--color-cyan);">[${s.id}]</strong> ${s.name}</span>
+            <span><strong style="color: ${tagColor};">[${s.id}]</strong> ${s.name} ${badge}</span>
           </label>
         `;
-      }).join("");
+      };
+
+      let html = `<div style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); margin:4px 0 2px;">• TRIỆU CHỨNG CƠ SỞ:</div>`;
+      html += primitiveList.map(s => renderCheckbox(s, false)).join("");
+      if (intermediateList.length > 0) {
+        html += `<div style="font-size:0.75rem; font-weight:700; color:#a78bfa; margin:8px 0 2px;">• HỘI CHỨNG TRUNG GIAN (CHO LUẬT MẮT XÍCH C+D &rarr; E):</div>`;
+        html += intermediateList.map(s => renderCheckbox(s, true)).join("");
+      }
+      premisesContainer.innerHTML = html;
     }
 
     const conclusionSelect = document.getElementById("formRuleConclusion");
     if (conclusionSelect) {
-      conclusionSelect.innerHTML = (kb.diseases || []).map(d => {
+      const intermediateList = (kb.symptoms || []).filter(s => s.isIntermediate || String(s.id).startsWith("HC"));
+      let optHtml = `<optgroup label="1. Danh mục Bệnh đích (Goals)">`;
+      optHtml += (kb.diseases || []).map(d => {
         const isSelected = d.id === selectedConclusion;
         return `<option value="${d.id}" ${isSelected ? 'selected' : ''}>[${d.id}] ${d.name}</option>`;
       }).join("");
+      optHtml += `</optgroup>`;
+
+      if (intermediateList.length > 0) {
+        optHtml += `<optgroup label="2. Hội chứng trung gian (A+B &rarr; C)">`;
+        optHtml += intermediateList.map(hc => {
+          const isSelected = hc.id === selectedConclusion;
+          return `<option value="${hc.id}" ${isSelected ? 'selected' : ''}>[${hc.id}] ${hc.name} (Hội chứng)</option>`;
+        }).join("");
+        optHtml += `</optgroup>`;
+      }
+      conclusionSelect.innerHTML = optHtml;
     }
   }
 

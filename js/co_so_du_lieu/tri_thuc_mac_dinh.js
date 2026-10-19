@@ -37,7 +37,8 @@ const DEFAULT_KNOWLEDGE_BASE = {
     { id: "group_respiratory", name: "Triệu chứng Đường hô hấp", icon: "fas fa-lungs" },
     { id: "group_skin", name: "Triệu chứng Da & Niêm mạc", icon: "fas fa-allergies" },
     { id: "group_pain", name: "Triệu chứng Cơ - Xương - Đau nhức", icon: "fas fa-bone" },
-    { id: "group_digestive", name: "Triệu chứng Tiêu hóa & Khác", icon: "fas fa-stethoscope" }
+    { id: "group_digestive", name: "Triệu chứng Tiêu hóa & Khác", icon: "fas fa-stethoscope" },
+    { id: "group_syndrome", name: "Hội chứng Lâm sàng (Sự kiện Trung gian)", icon: "fas fa-network-wired" }
   ],
 
   // Danh mục triệu chứng (Sự kiện / Facts)
@@ -71,7 +72,13 @@ const DEFAULT_KNOWLEDGE_BASE = {
     { id: "S18", name: "Buồn nôn, nôn mửa hoặc đau bụng vùng gan", groupId: "group_digestive", question: "Bạn có cảm giác buồn nôn, nôn hoặc đau tức vùng bụng không?" },
     { id: "S19", name: "Tiêu chảy, phân lỏng nhiều lần", groupId: "group_digestive", question: "Bạn có bị đi ngoài phân lỏng nhiều lần trong ngày không?" },
     { id: "S20", name: "Mệt mỏi li bì, kiệt sức", groupId: "group_digestive", question: "Bạn có cảm thấy mệt lả, kiệt sức, không muốn ngồi dậy không?" },
-    { id: "S21", name: "Giật mình chới với khi ngủ", groupId: "group_digestive", question: "Khi nằm ngủ bạn (hoặc trẻ) có xuất hiện cơn giật mình chới với không?" }
+    { id: "S21", name: "Giật mình chới với khi ngủ", groupId: "group_digestive", question: "Khi nằm ngủ bạn (hoặc trẻ) có xuất hiện cơn giật mình chới với không?" },
+
+    // Hội chứng Lâm sàng (Sự kiện trung gian do hệ thống suy ra)
+    { id: "HC01", name: "Hội chứng sốt nhiễm virus cấp tính", groupId: "group_syndrome", isIntermediate: true, question: "Hội chứng sốt virus cấp tính (sốt cao, đau hốc mắt, đau đầu trán, đau mỏi cơ toàn thân)?" },
+    { id: "HC02", name: "Tam chứng viêm long đường hô hấp", groupId: "group_syndrome", isIntermediate: true, question: "Tam chứng viêm long hô hấp (ho, chảy nước mũi/nghẹt mũi, mắt đỏ sợ sáng)?" },
+    { id: "HC03", name: "Hội chứng viêm đường hô hấp trên", groupId: "group_syndrome", isIntermediate: true, question: "Hội chứng viêm hô hấp trên (ho, sổ mũi, đau rát họng khi nuốt)?" },
+    { id: "HC04", name: "Hội chứng bóng nước ngoại ban da - niêm mạc", groupId: "group_syndrome", isIntermediate: true, question: "Hội chứng bóng nước ngoại ban (phỏng nước lòng bàn tay/chân/miệng)?" }
   ],
 
   // Danh mục Kết luận / Bệnh (Goals/Conclusions)
@@ -291,6 +298,87 @@ const DEFAULT_KNOWLEDGE_BASE = {
       conclusion: "D07",
       cf: 0.65,
       description: "IF Đau rát họng (S10) AND Chảy nước mũi/nghẹt mũi (S09) THEN Nghi ngờ Viêm họng cấp (CF = 0.65)"
+    },
+
+    // --- CÁC LUẬT MẮT XÍCH NHIỀU BƯỚC (MULTI-STEP CHAINING: TIỀN ĐỀ -> HỘI CHỨNG TRUNG GIAN -> BỆNH ĐÍCH) ---
+    // Mắt xích 1: Sốt virus cấp tính -> Sốt xuất huyết
+    {
+      id: "R17",
+      name: "Luật xác định Hội chứng sốt virus cấp tính",
+      premises: ["S01", "S04", "S05", "S06"],
+      conclusion: "HC01",
+      cf: 0.90,
+      description: "IF Sốt cao đột ngột (S01) AND Đau đầu trán (S04) AND Đau nhức hốc mắt (S05) AND Đau mỏi cơ (S06) THEN Hội chứng sốt virus cấp tính (HC01) [CF = 0.90]"
+    },
+    {
+      id: "R18",
+      name: "Luật chẩn đoán Sốt xuất huyết từ Hội chứng sốt virus & Dấu hiệu xuất huyết",
+      premises: ["HC01", "S13"],
+      conclusion: "D01",
+      cf: 0.95,
+      description: "IF Hội chứng sốt virus cấp tính (HC01) AND Chấm xuất huyết dưới da/chảy máu cam (S13) THEN Chắc chắn cao Sốt xuất huyết Dengue (D01) [CF = 0.95]"
+    },
+
+    // Mắt xích 2: Tam chứng viêm long hô hấp -> Bệnh Sởi
+    {
+      id: "R19",
+      name: "Luật xác định Tam chứng viêm long đường hô hấp",
+      premises: ["S08", "S09", "S17"],
+      conclusion: "HC02",
+      cf: 0.92,
+      description: "IF Ho khan/đờm (S08) AND Sổ mũi nghẹt mũi (S09) AND Mắt đỏ sợ ánh sáng (S17) THEN Tam chứng viêm long đường hô hấp (HC02) [CF = 0.92]"
+    },
+    {
+      id: "R20",
+      name: "Luật chẩn đoán Sởi từ Tam chứng viêm long & Ban dát sẩn",
+      premises: ["HC02", "S01", "S14"],
+      conclusion: "D03",
+      cf: 0.98,
+      description: "IF Tam chứng viêm long hô hấp (HC02) AND Sốt cao đột ngột (S01) AND Phát ban dát sẩn mặt lan thân (S14) THEN Chẩn đoán xác định Bệnh Sởi (D03) [CF = 0.98]"
+    },
+
+    // Mắt xích 3: Viêm đường hô hấp trên -> Cúm mùa & COVID-19
+    {
+      id: "R21",
+      name: "Luật xác định Hội chứng viêm đường hô hấp trên",
+      premises: ["S08", "S09", "S10"],
+      conclusion: "HC03",
+      cf: 0.88,
+      description: "IF Ho (S08) AND Chảy nước mũi (S09) AND Đau rát họng khi nuốt (S10) THEN Hội chứng viêm đường hô hấp trên (HC03) [CF = 0.88]"
+    },
+    {
+      id: "R22",
+      name: "Luật chẩn đoán Cúm mùa từ Hội chứng hô hấp trên & Sốt rét run",
+      premises: ["HC03", "S01", "S03", "S06"],
+      conclusion: "D02",
+      cf: 0.92,
+      description: "IF Hội chứng viêm hô hấp trên (HC03) AND Sốt cao (S01) AND Rét run từng cơn (S03) AND Đau mỏi cơ (S06) THEN Khả năng cao Cúm mùa / Cúm A (D02) [CF = 0.92]"
+    },
+    {
+      id: "R23",
+      name: "Luật chẩn đoán COVID-19 từ Hội chứng hô hấp trên & Mất khứu giác",
+      premises: ["HC03", "S12"],
+      conclusion: "D04",
+      cf: 0.95,
+      description: "IF Hội chứng viêm hô hấp trên (HC03) AND Mất hoặc giảm khứu giác/vị giác (S12) THEN Khả năng rất cao COVID-19 (D04) [CF = 0.95]"
+    },
+
+    // Mắt xích 4: Hội chứng bóng nước ngoại ban -> Bệnh Tay Chân Miệng
+    {
+      id: "R24",
+      name: "Luật xác định Hội chứng bóng nước ngoại ban da - niêm mạc",
+      premises: ["S02", "S16"],
+      conclusion: "HC04",
+      cf: 0.92,
+      description: "IF Sốt nhẹ/vừa (S02) AND Phỏng nước/loét lòng bàn tay, bàn chân, miệng (S16) THEN Hội chứng bóng nước ngoại ban da - niêm mạc (HC04) [CF = 0.92]"
+    },
+    {
+      id: "R25",
+      name: "Luật chẩn đoán Tay Chân Miệng có biến chứng từ Hội chứng bóng nước",
+      premises: ["HC04", "S21"],
+      conclusion: "D05",
+      cf: 0.96,
+      description: "IF Hội chứng bóng nước ngoại ban (HC04) AND Giật mình chới với khi ngủ (S21) THEN Bệnh Tay Chân Miệng độ 2A có biến chứng (D05) [CF = 0.96]"
     }
   ],
 

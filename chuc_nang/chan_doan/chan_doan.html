@@ -247,6 +247,10 @@
         forwardEngine,
         backwardEngine,
         onInferenceComplete: (inferenceResult, selectedSymptoms) => {
+          sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(selectedSymptoms || {}));
+          if (inferenceResult) {
+            sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(inferenceResult.firedRules || []));
+          }
           if (dbEngine && dbEngine.isReady && inferenceResult && Object.keys(selectedSymptoms || {}).length > 0) {
             dbEngine.saveInferenceSession(selectedSymptoms, inferenceResult.results || [], inferenceResult.traceLogs || [])
               .catch(err => console.warn(err));

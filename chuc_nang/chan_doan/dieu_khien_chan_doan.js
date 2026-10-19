@@ -300,8 +300,11 @@ class DiagnosisController {
               return `
                 <div class="symptom-row ${isSelected ? 'selected' : ''}" data-symptom-id="${sym.id}" data-group-id="${group.id}">
                   <div class="symptom-info">
-                    <span class="symptom-id-badge">${sym.id}</span>
-                    <span class="symptom-name">${sym.name}</span>
+                    <span class="symptom-id-badge" style="${sym.isIntermediate ? 'background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4);' : ''}">${sym.id}</span>
+                    <span class="symptom-name">
+                      ${sym.name}
+                      ${sym.isIntermediate ? '<span style="font-size: 0.72rem; color: #a78bfa; font-weight: 700; margin-left: 4px; background: rgba(139, 92, 246, 0.15); padding: 1px 6px; border-radius: 4px;"><i class="fa-solid fa-network-wired"></i> Hội chứng</span>' : ''}
+                    </span>
                   </div>
                   <div class="symptom-control">
                     <select class="cf-select" data-id="${sym.id}">
@@ -518,6 +521,293 @@ class DiagnosisController {
     }
   }
 
+  _getSymptomMeta(sId, kb) {
+    const sym = (kb.symptoms || []).find(s => s.id === sId);
+    const userCF = this.currentSelectedSymptoms[sId] !== undefined ? this.currentSelectedSymptoms[sId] : 1.0;
+    return {
+      id: sId,
+      name: sym ? sym.name : sId,
+      userCF: Math.round(userCF * 100)
+    };
+  }
+
+  _collectChainInputs(imFiredRules, kb) {
+    const inputIds = new Set();
+    imFiredRules.forEach(r => (r.premises || []).forEach(p => inputIds.add(p)));
+    return Array.from(inputIds).map(id => this._getSymptomMeta(id, kb));
+  }
+
+  _collectDownstreamChains(imId, firedRules, kb, diseaseResults) {
+    const downstream = firedRules.filter(r => (r.premises || []).includes(imId));
+    return downstream.map(rule => {
+      const extraPremises = (rule.premises || [])
+        .filter(p => p !== imId)
+        .map(p => this._getSymptomMeta(p, kb));
+      const disResult = (diseaseResults || []).find(d => (d.diseaseId || (d.disease && d.disease.id)) === rule.conclusion);
+      const disMeta = (kb.diseases || []).find(d => d.id === rule.conclusion);
+      return {
+        ruleId: rule.ruleId,
+        ruleBaseCF: Math.round((rule.ruleBaseCF || 0.9) * 100),
+        extraPremises,
+        diseaseId: rule.conclusion,
+        diseaseName: disMeta ? disMeta.name : rule.conclusion,
+        finalCF: disResult ? Math.round(disResult.finalCF * 100) : Math.round((rule.outputCF || 0.9) * 100)
+      };
+    });
+  }
+
+  _buildChainStage1Html(inputSymptoms) {
+    return `
+      <div class="chain-stage-box chain-stage-input">
+        <div>
+          <div class="chain-stage-tag tag-input">
+            <i class="fa-solid fa-stethoscope"></i> TẦNG 1: TRIỆU CHỨNG KHÁM BAN ĐẦU
+          </div>
+          <div class="chain-pill-list">
+            ${inputSymptoms.map(s => `
+              <div class="chain-pill-item" title="${s.name}">
+                <span><strong>${s.id}:</strong> ${s.name}</span>
+                <span style="font-weight: 700; color: var(--color-cyan); margin-left: 6px;">${s.userCF}%</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="chain-meta-row" style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.6rem;">
+          <span>${inputSymptoms.length} dữ kiện lâm sàng</span>
+          <span style="font-weight: 700; color: var(--color-cyan);">Sự kiện F0</span>
+        </div>
+      </div>
+    `;
+  }
+
+  _buildChainStage2Html(im) {
+    const firedStr = im.firedRules.map(r => `[${r.ruleId}]`).join(', ');
+    const cycleStr = im.cycles && im.cycles.length > 0 ? im.cycles.join(', ') : '1';
+    return `
+      <div class="chain-stage-box chain-stage-intermediate">
+        <div>
+          <div class="chain-stage-tag tag-intermediate">
+            <i class="fa-solid fa-network-wired"></i> TẦNG 2: HỘI CHỨNG TRUNG GIAN
+          </div>
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.35rem;">
+            <span style="font-family: monospace; font-weight: 800; color: #8b5cf6; font-size: 0.85rem; background: rgba(139, 92, 246, 0.18); padding: 0.15rem 0.5rem; border-radius: 4px; border: 1px solid rgba(139, 92, 246, 0.3);">
+              ${im.id}
+            </span>
+            <span style="font-size: 1.15rem; font-weight: 900; color: #8b5cf6;">
+              ${Math.round(im.finalCF * 100)}%
+            </span>
+          </div>
+          <div class="chain-intermediate-heading">
+            ${im.name}
+          </div>
+          <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.4rem; line-height: 1.45;">
+            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Đã tự động nạp vào <strong>Bộ nhớ làm việc (Working Memory)</strong> để làm tiền đề cho chu kỳ tiếp theo.
+          </div>
+        </div>
+        <div class="chain-meta-row" style="margin-top: 0.6rem;">
+          <span style="font-size: 0.72rem; color: var(--text-muted);">
+            Kích hoạt từ: <strong>${firedStr}</strong>
+          </span>
+          <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; font-size: 0.7rem; padding: 2px 7px;">
+            Chu kỳ ${cycleStr} (F1)
+          </span>
+        </div>
+      </div>
+    `;
+  }
+
+  _buildChainStage3Html(downstreamTargets) {
+    if (!downstreamTargets || downstreamTargets.length === 0) {
+      return `
+        <div class="chain-stage-box chain-stage-goal">
+          <div class="chain-stage-tag tag-goal">
+            <i class="fa-solid fa-flag-checkered"></i> TẦNG 3: BỆNH ĐÍCH CHẨN ĐOÁN
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-muted); font-style: italic; line-height: 1.5;">
+            Hội chứng đã được xác lập vào bộ nhớ. Cần thêm triệu chứng đặc hiệu để kích hoạt bước suy diễn ra bệnh đích.
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="chain-stage-box chain-stage-goal">
+        <div>
+          <div class="chain-stage-tag tag-goal">
+            <i class="fa-solid fa-flag-checkered"></i> TẦNG 3: BỆNH ĐÍCH CHẨN ĐOÁN (F2)
+          </div>
+          ${downstreamTargets.map(target => `
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 0.65rem; margin-bottom: 0.45rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                <span style="font-family: monospace; font-weight: 800; color: #10b981; font-size: 0.85rem; background: rgba(16, 185, 129, 0.18); padding: 0.15rem 0.45rem; border-radius: 4px;">
+                  ${target.diseaseId}
+                </span>
+                <span style="font-size: 1.15rem; font-weight: 900; color: var(--color-emerald);">
+                  ${target.finalCF}%
+                </span>
+              </div>
+              <div style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.45rem;">
+                ${target.diseaseName}
+              </div>
+              <div class="chain-stage-actions">
+                <a href="../do_thi_rpg/do_thi_rpg.html?focus=${target.diseaseId}&mode=RPG" class="btn-stage-mini" title="Xem vị trí bệnh trên Mạng Petri RPG">
+                  <i class="fa-solid fa-project-diagram"></i> Mạng RPG
+                </a>
+                <a href="../do_thi_rpg/do_thi_rpg.html?focus=${target.diseaseId}&mode=FPG" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc sự kiện FPG">
+                  <i class="fa-solid fa-network-wired"></i> Mạng FPG
+                </a>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="chain-meta-row" style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.4rem;">
+          <span>Kết luận suy diễn tiến</span>
+          <span style="font-weight: 700; color: var(--color-emerald);">Mục tiêu F2</span>
+        </div>
+      </div>
+    `;
+  }
+
+  _buildChainConnector1(im) {
+    const rulesStr = im.firedRules.map(r => `[${r.ruleId}]`).join(' & ');
+    return `
+      <div class="chain-connector">
+        <span class="chain-rule-pill" title="Kích hoạt trong Chu kỳ suy diễn 1">
+          <i class="fa-solid fa-bolt"></i> Luật ${rulesStr}
+        </span>
+        <div class="chain-arrow-icon">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">
+          Suy diễn Chu kỳ 1
+        </span>
+      </div>
+    `;
+  }
+
+  _buildChainConnector2(downstreamTargets) {
+    if (!downstreamTargets || downstreamTargets.length === 0) {
+      return `
+        <div class="chain-connector">
+          <div class="chain-arrow-icon" style="opacity: 0.5;">
+            <i class="fa-solid fa-arrow-right"></i>
+          </div>
+        </div>
+      `;
+    }
+
+    const first = downstreamTargets[0];
+    const extraStr = first.extraPremises.length > 0
+      ? `+ [${first.extraPremises.map(p => p.id).join(', ')}]`
+      : '';
+
+    return `
+      <div class="chain-connector">
+        <span class="chain-rule-pill" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Kích hoạt trong Chu kỳ suy diễn 2">
+          <i class="fa-solid fa-bolt"></i> Luật [${first.ruleId}] ${extraStr}
+        </span>
+        <div class="chain-arrow-icon" style="color: #10b981;">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <span style="font-size: 0.7rem; color: #10b981; font-weight: 600;">
+          Suy diễn Chu kỳ 2
+        </span>
+      </div>
+    `;
+  }
+
+  _buildSingleChainHtml(im, result, kb) {
+    const inputSymptoms = this._collectChainInputs(im.firedRules, kb);
+    const downstreamTargets = this._collectDownstreamChains(im.id, result.firedRules || [], kb, result.results || []);
+
+    const stage1Html = this._buildChainStage1Html(inputSymptoms);
+    const conn1Html = this._buildChainConnector1(im);
+    const stage2Html = this._buildChainStage2Html(im);
+    const conn2Html = this._buildChainConnector2(downstreamTargets);
+    const stage3Html = this._buildChainStage3Html(downstreamTargets);
+
+    const sInputCodes = inputSymptoms.map(s => s.id).join(' ∧ ');
+    const rule1Code = im.firedRules.map(r => r.ruleId).join(', ');
+    const targetInfo = downstreamTargets.length > 0 ? downstreamTargets[0] : null;
+    const targetRule = targetInfo ? targetInfo.ruleId : '';
+    const targetExtra = targetInfo && targetInfo.extraPremises.length > 0 ? ` ∧ ${targetInfo.extraPremises.map(p => p.id).join(' ∧ ')}` : '';
+    const targetDis = targetInfo ? `${targetInfo.diseaseId} (${targetInfo.finalCF}%)` : 'Bệnh đích';
+
+    const formulaStr = `(${sInputCodes}) ➔ [${rule1Code}] ➔ [${im.id}: ${Math.round(im.finalCF * 100)}%] ➔ [${targetRule}${targetExtra}] ➔ [${targetDis}]`;
+
+    const inputNames = inputSymptoms.map(s => `"${s.name}"`).join(', ');
+    const extraNames = targetInfo && targetInfo.extraPremises.length > 0
+      ? ` và triệu chứng kết hợp ${targetInfo.extraPremises.map(s => `"${s.name}"`).join(', ')}`
+      : '';
+    const diseaseName = targetInfo
+      ? `chẩn đoán xác định bệnh <strong>"${targetInfo.diseaseName}" [${targetInfo.diseaseId}]</strong> với độ tin cậy <strong>${targetInfo.finalCF}%</strong>.`
+      : `tiếp tục chờ thêm dữ kiện đặc hiệu.`;
+
+    const narrativeStr = `Hệ thống ghi nhận bệnh nhân có các triệu chứng ban đầu: ${inputNames} ➔ kích hoạt <strong>Luật [${rule1Code}]</strong> để tổng hợp thành hội chứng lâm sàng trung gian <strong>"${im.name}" [${im.id}]</strong> (Độ tin cậy: ${Math.round(im.finalCF * 100)}%). Hội chứng này lập tức được nạp vào Bộ nhớ làm việc${extraNames} ➔ tiếp tục kích hoạt <strong>Luật [${targetRule || '...'}]</strong> để ${diseaseName}`;
+
+    return `
+      <div style="margin-bottom: 1.25rem;">
+        <div class="chain-flow-wrapper">
+          ${stage1Html}
+          ${conn1Html}
+          ${stage2Html}
+          ${conn2Html}
+          ${stage3Html}
+        </div>
+
+        <div class="chain-formula-ribbon">
+          <span style="font-weight: 700; color: #8b5cf6;"><i class="fa-solid fa-diagram-project"></i> Biểu diễn logic suy diễn:</span>
+          <span class="chain-formula-code">${formulaStr}</span>
+        </div>
+
+        <div class="chain-narrative-box">
+          <i class="fa-solid fa-comment-medical" style="color: var(--color-primary); margin-right: 0.4rem;"></i>
+          ${narrativeStr}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderIntermediateSyndromes(result, kb) {
+    const intermediateResults = result ? (result.intermediateResults || []) : [];
+    if (intermediateResults.length === 0) return "";
+
+    return `
+      <div class="chain-pipeline-banner">
+        <div class="chain-pipeline-header">
+          <div class="chain-header-left">
+            <div class="chain-icon-badge">
+              <i class="fa-solid fa-network-wired"></i>
+            </div>
+            <div>
+              <h3 class="chain-title">
+                SƠ ĐỒ CHUỖI SUY LUẬN ĐA TẦNG MẮT XÍCH
+                <span class="badge" style="background: rgba(139, 92, 246, 0.25); color: #8b5cf6; font-size: 0.72rem; padding: 2px 8px; border-radius: 999px;">
+                  Multi-Cycle Forward Chaining
+                </span>
+              </h3>
+              <div class="chain-subtitle">
+                Cơ chế tự động chuyển giao tri thức: <em>Tiền đề F0 &rarr; Hội chứng trung gian F1 &rarr; Kết luận bệnh đích F2</em>
+              </div>
+            </div>
+          </div>
+          <div class="chain-header-actions">
+            <a href="../do_thi_rpg/do_thi_rpg.html?mode=RPG" class="btn-chain-graph btn-chain-rpg" title="Mở đồ thị mạng Petri RPG">
+              <i class="fa-solid fa-project-diagram"></i> Xem Mạng RPG
+            </a>
+            <a href="../do_thi_rpg/do_thi_rpg.html?mode=FPG" class="btn-chain-graph btn-chain-fpg" title="Mở mạng phụ thuộc sự kiện FPG">
+              <i class="fa-solid fa-circle-nodes"></i> Xem Mạng FPG
+            </a>
+          </div>
+        </div>
+
+        <div>
+          ${intermediateResults.map(im => this._buildSingleChainHtml(im, result, kb)).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   /* --- 6. RENDER KẾT QUẢ CHẨN ĐOÁN CAO CẤP (CLINICAL SHOWCASE) --- */
   renderResults(result) {
     if (!this.resultsContainer) return;
@@ -536,8 +826,10 @@ class DiagnosisController {
     }
 
     const kb = this.kbManager.getKB();
+    const intermediateHtml = this._renderIntermediateSyndromes(result, kb);
 
     this.resultsContainer.innerHTML = `
+      ${intermediateHtml}
       <div class="result-card-list">
         ${result.results.map((item, index) => {
           const isTop = index === 0;
@@ -896,7 +1188,14 @@ class DiagnosisController {
 
       <div style="display: flex; flex-direction: column; gap: 0.75rem;">
         ${this.lastInferenceResult.traceLogs.map(log => {
-          if (log.type === "START") {
+          if (log.type === "CYCLE_START") {
+            return `
+              <div style="background: rgba(59, 130, 246, 0.12); border-left: 4px solid var(--color-primary); border-radius: 6px; padding: 0.65rem 0.9rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0;">
+                <i class="fa-solid fa-rotate"></i>
+                <span>${log.message}</span>
+              </div>
+            `;
+          } else if (log.type === "START") {
             return `
               <div class="trace-step-item">
                 <div class="trace-step-title">Bước ${log.step}: ${log.message}</div>
@@ -907,21 +1206,24 @@ class DiagnosisController {
             `;
           } else if (log.type === "RULE_FIRED") {
             const dt = log.details;
+            const targetTypeLabel = dt.isDisease ? "Bệnh đích kết luận" : "Hội chứng trung gian (Đã nạp vào Working Memory)";
             return `
-              <div class="trace-step-item" style="border-left-color: var(--color-emerald);">
-                <div class="trace-step-title" style="color: #34d399;">Bước ${log.step}: ${log.message}</div>
+              <div class="trace-step-item" style="border-left-color: ${dt.isDisease ? 'var(--color-emerald)' : '#8b5cf6'};">
+                <div class="trace-step-title" style="color: ${dt.isDisease ? '#34d399' : '#a78bfa'};">
+                  Bước ${log.step} [Chu kỳ ${dt.cycle}]: ${log.message}
+                </div>
                 <div class="trace-step-body">
                   <strong>• Luật:</strong> ${dt.ruleDescription}<br>
                   <strong>• Các tiền đề:</strong> ${dt.premiseDetails.map(p => `[${p.id}] ${p.name} (CF=${p.userCF})`).join(" AND ")}<br>
                   <strong>• Công thức tính CF luật:</strong> <code>${dt.formulaStr}</code><br>
-                  <strong>• Kết luận sinh ra:</strong> [${dt.conclusion}] ${dt.diseaseName} với CF = ${dt.outputCF}
+                  <strong>• Kết luận sinh ra:</strong> [${dt.conclusion}] ${dt.conclusionName} với CF = ${dt.outputCF} <em style="color: ${dt.isDisease ? '#34d399' : '#a78bfa'};">(${targetTypeLabel})</em>
                 </div>
               </div>
             `;
           } else if (log.type === "RULE_SKIPPED") {
             return `
               <div class="trace-step-item" style="border-left-color: var(--color-amber);">
-                <div class="trace-step-title" style="color: var(--color-amber);">Bước ${log.step}: ${log.message}</div>
+                <div class="trace-step-title" style="color: var(--color-amber);">Bước ${log.step} [Chu kỳ ${log.cycle}]: ${log.message}</div>
                 <div class="trace-step-body">
                   <strong>Vì sao chưa áp dụng:</strong> luật này cần đủ tất cả tiền đề theo phép AND.<br>
                   <strong>Tiền đề còn thiếu:</strong> ${(log.missing || []).map(p => `[${p.id}] ${p.name}`).join("; ") || "Không có"}

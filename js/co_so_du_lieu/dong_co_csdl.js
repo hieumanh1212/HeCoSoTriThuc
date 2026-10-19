@@ -122,10 +122,13 @@ class DatabaseEngine {
   }
 
   async seedInitialDataIfEmpty() {
+    const defaultKB = window.DEFAULT_KNOWLEDGE_BASE;
+    if (!defaultKB) return;
     const rulesCount = await this.count("tap_luat");
-    if (rulesCount === 0 && window.DEFAULT_KNOWLEDGE_BASE) {
-      console.log("Khởi tạo dữ liệu mẫu chuẩn y tế vào IndexedDB...");
-      await this.importFromKBObject(window.DEFAULT_KNOWLEDGE_BASE, "Hệ thống tự động khởi tạo dữ liệu mẫu");
+    const defRulesCount = (defaultKB.rules || []).length;
+    if (rulesCount < defRulesCount) {
+      console.log(`Đồng bộ bổ sung tri thức mới (${rulesCount} -> ${defRulesCount} luật) vào CSDL...`);
+      await this.importFromKBObject(defaultKB, "Hệ thống tự động cập nhật tri thức mới");
     }
   }
 
@@ -417,17 +420,26 @@ class DatabaseEngine {
 
     const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
 
+    const mergeList = (dbList, defProp) => {
+      const merged = [...(dbList || [])];
+      const existingIds = new Set(merged.map(item => item.id));
+      (defaultKB[defProp] || []).forEach(item => {
+        if (!existingIds.has(item.id)) merged.push(item);
+      });
+      return merged;
+    };
+
     return {
       metadata: {
         domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
-        version: "2.0.0",
+        version: "2.5.0",
         lastUpdated: new Date().toISOString(),
         author: "Hệ Cơ Sở Tri Thức (Thạc sĩ CNTT)"
       },
-      symptomGroups: symptomGroups.length > 0 ? symptomGroups : (defaultKB.symptomGroups || []),
-      symptoms: symptoms.length > 0 ? symptoms : (defaultKB.symptoms || []),
-      diseases: diseases.length > 0 ? diseases : (defaultKB.diseases || []),
-      rules: rulesWithPremises.length > 0 ? rulesWithPremises : (defaultKB.rules || []),
+      symptomGroups: mergeList(symptomGroups, "symptomGroups"),
+      symptoms: mergeList(symptoms, "symptoms"),
+      diseases: mergeList(diseases, "diseases"),
+      rules: mergeList(rulesWithPremises, "rules"),
       testCases: defaultKB.testCases || []
     };
   }
