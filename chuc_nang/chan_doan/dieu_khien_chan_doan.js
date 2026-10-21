@@ -47,6 +47,7 @@ class DiagnosisController {
     this.selectedCountNumber = document.getElementById("selectedCountNumber");
     this.btnRun = document.getElementById("btnRunForwardChaining");
     this.btnViewExplanation = document.getElementById("btnViewExplanation");
+    this.btnExportPDF = document.getElementById("btnExportPDF");
     this.modalExplanation = document.getElementById("modalExplanation");
     this.explanationContent = document.getElementById("explanationModalContent");
     this.modalBackward = document.getElementById("modalBackward");
@@ -131,6 +132,26 @@ class DiagnosisController {
     if (this.btnViewExplanation) {
       this.btnViewExplanation.addEventListener("click", () => this.openExplanationModal());
     }
+
+    // 8. Nút Xuất Phiếu Kết Quả PDF Chuẩn Y Tế
+    if (this.btnExportPDF) {
+      this.btnExportPDF.addEventListener("click", () => {
+        if (!this.lastInferenceResult) return;
+        const topResult = (this.lastInferenceResult.results || [])[0];
+        const sessionData = {
+          id: "PHIEN_" + Date.now(),
+          timestamp: new Date().toISOString(),
+          inputSymptoms: this.currentSelectedSymptoms || {},
+          results: this.lastInferenceResult.results || [],
+          traceLogs: this.lastInferenceResult.traceLogs || [],
+          topDiseaseName: topResult ? topResult.diseaseName : "Không xác định",
+          topCF: topResult ? topResult.finalCF : 0
+        };
+        if (window.MauBaoCaoYTe) {
+          window.MauBaoCaoYTe.xuatBaoCaoPDF(sessionData, this.kbManager.getKB());
+        }
+      });
+    }
   }
 
   _stripVN(str) {
@@ -141,6 +162,13 @@ class DiagnosisController {
       .replace(/đ/g, "d")
       .replace(/Đ/g, "D")
       .toLowerCase();
+  }
+
+  getDiseaseFrame(disease) {
+    if (typeof DiseaseFrame === "undefined") return null;
+    return disease && disease.frame
+      ? disease.frame
+      : DiseaseFrame.fromDisease(disease, this.kbManager.getKB());
   }
 
   selectCategory(catId) {
@@ -441,6 +469,9 @@ class DiagnosisController {
     this.updateBadges();
     this.applyFilter();
     this.renderEmptyResults();
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "none";
+    }
     if (this.onInferenceComplete) {
       this.onInferenceComplete(null, this.currentSelectedSymptoms);
     }
@@ -458,6 +489,9 @@ class DiagnosisController {
 
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "inline-flex";
+    }
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "inline-flex";
     }
 
     if (this.onInferenceComplete) {
@@ -478,6 +512,9 @@ class DiagnosisController {
     `;
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "none";
+    }
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "none";
     }
   }
 
@@ -505,6 +542,8 @@ class DiagnosisController {
         ${result.results.map((item, index) => {
           const isTop = index === 0;
           const dis = item.disease || {};
+          const diseaseFrame = this.getDiseaseFrame(dis);
+          const frameSlots = diseaseFrame ? diseaseFrame.slots : {};
           const interp = item.interpretation;
           const cfPercent = interp.percentage;
           const diseaseColor = dis.color || '#3b82f6';
@@ -685,6 +724,22 @@ class DiagnosisController {
                 <div class="section-card-content">${dis.description || 'Chưa có mô tả chi tiết cho bệnh này.'}</div>
               </div>
 
+              <!-- 4b. Frame bệnh: các slot cấu thành khái niệm bệnh -->
+              ${diseaseFrame ? `
+                <div class="clinical-section-card section-card-frame">
+                  <div class="section-header-title">
+                    <i class="fa-solid fa-cubes-stacked" style="color: var(--color-purple);"></i> Frame khái niệm Bệnh:
+                  </div>
+                  <div class="frame-slot-grid">
+                    <div><strong>Nhóm:</strong> ${frameSlots.nhomBenh}</div>
+                    <div><strong>Tên khoa học:</strong> ${frameSlots.tenKhoaHoc}</div>
+                    <div><strong>Mức độ:</strong> ${frameSlots.mucDoNguyHiem}</div>
+                    <div><strong>Nguồn:</strong> ${frameSlots.nguonThamKhao}</div>
+                    <div class="frame-slot-wide"><strong>Định nghĩa:</strong> ${frameSlots.moTa}</div>
+                  </div>
+                </div>
+              ` : ''}
+
               <!-- 5. Khối Dấu Hiệu Cảnh Báo Nguy Hiểm (Red Flags) -->
               ${dis.warningSigns ? `
                 <div class="clinical-section-card section-card-warning">
@@ -860,6 +915,16 @@ class DiagnosisController {
                   <strong>• Các tiền đề:</strong> ${dt.premiseDetails.map(p => `[${p.id}] ${p.name} (CF=${p.userCF})`).join(" AND ")}<br>
                   <strong>• Công thức tính CF luật:</strong> <code>${dt.formulaStr}</code><br>
                   <strong>• Kết luận sinh ra:</strong> [${dt.conclusion}] ${dt.diseaseName} với CF = ${dt.outputCF}
+                </div>
+              </div>
+            `;
+          } else if (log.type === "RULE_SKIPPED") {
+            return `
+              <div class="trace-step-item" style="border-left-color: var(--color-amber);">
+                <div class="trace-step-title" style="color: var(--color-amber);">Bước ${log.step}: ${log.message}</div>
+                <div class="trace-step-body">
+                  <strong>Vì sao chưa áp dụng:</strong> luật này cần đủ tất cả tiền đề theo phép AND.<br>
+                  <strong>Tiền đề còn thiếu:</strong> ${(log.missing || []).map(p => `[${p.id}] ${p.name}`).join("; ") || "Không có"}
                 </div>
               </div>
             `;

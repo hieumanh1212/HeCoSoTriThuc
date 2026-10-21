@@ -80,7 +80,8 @@ HeCoSoTriThuc/
 
 1. **Động cơ Suy diễn Tiến (Forward Chaining):** Tính toán độ tin cậy kết hợp theo chuẩn mô hình MYCIN ($CF \in [0, 1]$).
 2. **Động cơ Suy diễn Lùi (Backward Chaining):** Truy ngược cây luật khi chưa đủ dữ kiện, chủ động tương tác hỏi thêm kèm lời giải thích **WHY**.
-3. **Phân hệ Giải thích (HOW):** Minh bạch toàn bộ vết suy luận từng bước (Execution Trace Logs).
+3. **Phân hệ Giải thích (HOW):** Minh bạch toàn bộ vết suy luận từng bước (Execution Trace Logs), bao gồm cả các luật bị bỏ qua và tiền đề còn thiếu.
+4. **Biểu diễn Frame cho Bệnh:** Mỗi bệnh có các slot định danh, phân loại, mô tả, cảnh báo, xử trí, nguồn tham khảo và các luật suy ra bệnh.
 4. **Trực quan hóa Đồ thị Mạng luật RPG (Rule Petri Graph):** Trực quan hóa mạng lưới liên kết Sự kiện (tròn) $\rightarrow$ Luật (chữ nhật) $\rightarrow$ Bệnh (kết luận) kèm hiệu ứng phát sáng đường đi đã kích hoạt.
 5. **Cơ sở Dữ liệu Quan hệ Nhúng 3NF & SQL Console:** 
    - 7 bảng quan hệ trên nền IndexedDB.

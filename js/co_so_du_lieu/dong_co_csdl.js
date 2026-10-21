@@ -16,7 +16,7 @@ class DatabaseEngine {
     this.apiBase = (typeof window !== 'undefined' && window.location.protocol.startsWith('http'))
       ? `${window.location.origin}/api`
       : 'http://localhost:3000/api';
-  }
+    }
 
   async init() {
     // 1. Thử kết nối tới Backend SQLite Server (may_chu.js)
@@ -260,12 +260,14 @@ class DatabaseEngine {
       id: sessionId,
       timestamp: new Date().toISOString(),
       symptomCount: Object.keys(inputSymptoms || {}).length,
-      inputSymptoms,
+      inputSymptoms: inputSymptoms || {},
       topDiseaseId: topResult ? topResult.diseaseId : "KHÔNG_XÁC_ĐỊNH",
       topDiseaseName: topResult ? topResult.diseaseName : "Không xác định",
       topCF: topResult ? topResult.finalCF : 0,
       matchedDiseasesCount: (results || []).length,
+      results: results || [],
       resultsSummary: (results || []).map(r => ({ diseaseId: r.diseaseId, name: r.diseaseName, cf: r.finalCF })),
+      traceLogs: traceLogs || [],
       traceStepCount: (traceLogs || []).length
     };
 
@@ -288,6 +290,72 @@ class DatabaseEngine {
     return sessionId;
   }
 
+  async getInferenceSessions() {
+    if (this.isServerMode) {
+      try {
+        const res = await fetch(`${this.apiBase}/lich_su`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.ok) {
+            return data.sessions || [];
+          }
+        }
+      } catch (e) {
+        console.warn("Lỗi đọc lịch sử từ SQLite Server, fallback sang IndexedDB:", e);
+      }
+    }
+
+    if (this.db) {
+      try {
+        const rows = await this.getAll("lich_su_chan_doan");
+        rows.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        return rows;
+      } catch (e) {
+        console.warn("Lỗi đọc lịch sử từ IndexedDB:", e);
+      }
+    }
+    return [];
+  }
+
+  async deleteInferenceSession(sessionId) {
+    if (this.isServerMode) {
+      try {
+        const res = await fetch(`${this.apiBase}/lich_su/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+        if (res.ok) return true;
+      } catch (e) {
+        console.warn("Lỗi xóa phiên từ SQLite Server:", e);
+      }
+    }
+
+    if (this.db) {
+      await this.delete("lich_su_chan_doan", sessionId, false);
+      await this.logAudit("XÓA_PHIÊN", "lich_su_chan_doan", sessionId, `Xóa phiên chẩn đoán ${sessionId}`);
+      return true;
+    }
+    return false;
+  }
+
+  async clearAllInferenceSessions() {
+    if (this.isServerMode) {
+      try {
+        const res = await fetch(`${this.apiBase}/lich_su`, { method: 'DELETE' });
+        if (res.ok) return true;
+      } catch (e) {
+        console.warn("Lỗi xóa toàn bộ lịch sử từ SQLite Server:", e);
+      }
+    }
+
+    if (this.db) {
+      const all = await this.getAll("lich_su_chan_doan");
+      for (const item of all) {
+        await this.delete("lich_su_chan_doan", item.id || item.keyPath, false);
+      }
+      await this.logAudit("XÓA_TOÀN_BỘ", "lich_su_chan_doan", "*", "Xóa toàn bộ lịch sử chẩn đoán");
+      return true;
+    }
+    return false;
+  }
+
   async toKnowledgeBaseObject() {
     if (this.isServerMode) {
       try {
@@ -296,6 +364,23 @@ class DatabaseEngine {
           const kbData = await res.json();
           if (kbData.ok) {
             const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            const defaultDiseases = defaultKB.diseases || [];
+            const normalizedDiseases = (kbData.diseases || []).map(disease => {
+              const defaultDisease = defaultDiseases.find(item => item.id === disease.id) || {};
+              const mergedDisease = {
+                ...defaultDisease,
+                ...disease,
+                recommendation: disease.recommendation || disease.treatment || defaultDisease.recommendation || "",
+                treatment: disease.treatment || disease.recommendation || defaultDisease.treatment || defaultDisease.recommendation || ""
+              };
+              if (typeof DiseaseFrame !== "undefined") {
+                mergedDisease.frame = DiseaseFrame.fromDisease(mergedDisease, {
+                  rules: kbData.rules || []
+                });
+              }
+              return mergedDisease;
+            });
+
             return {
               metadata: {
                 domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
@@ -305,7 +390,7 @@ class DatabaseEngine {
               },
               symptomGroups: kbData.symptomGroups,
               symptoms: kbData.symptoms,
-              diseases: kbData.diseases,
+              diseases: normalizedDiseases,
               rules: kbData.rules,
               testCases: defaultKB.testCases || []
             };

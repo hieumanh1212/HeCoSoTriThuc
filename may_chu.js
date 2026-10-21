@@ -231,22 +231,94 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 6. Lưu phiên chẩn đoán vào SQLite
+  // 6. Lịch sử chẩn đoán (Lấy danh sách, Lưu phiên, Xóa phiên, Xóa tất cả)
+  if (pathname === '/api/lich_su' && req.method === 'GET') {
+    try {
+      const rows = db.prepare("SELECT * FROM lich_su_chan_doan ORDER BY thoi_gian DESC, id DESC;").all();
+      const sessions = rows.map(r => {
+        let details = {};
+        try { details = JSON.parse(r.chi_tiet_ket_qua_json || '{}'); } catch (e) {}
+        let inputSymptoms = {};
+        try { inputSymptoms = JSON.parse(r.cac_trieu_chung_dau_vao || '{}'); } catch (e) {}
+
+        const results = Array.isArray(details) ? details : (details.results || []);
+        const traceLogs = details.traceLogs || [];
+
+        return {
+          id: r.ma_phien,
+          dbId: r.id,
+          timestamp: r.thoi_gian,
+          inputSymptoms,
+          symptomCount: Object.keys(inputSymptoms).length,
+          topDiseaseName: r.benh_chinh || 'Không xác định',
+          topCF: Number(r.he_so_tin_cay_chinh || 0),
+          results,
+          traceLogs,
+          traceStepCount: traceLogs.length
+        };
+      });
+
+      return sendJSON(res, 200, { ok: true, sessions, total: sessions.length });
+    } catch (e) {
+      return sendJSON(res, 500, { ok: false, error: e.message });
+    }
+  }
+
   if (pathname === '/api/lich_su' && req.method === 'POST') {
     try {
       const session = await parseRequestBody(req);
+      const sessionId = session.id || session.ma_phien || `PHIEN_${Date.now()}`;
+      const inputSymptoms = session.inputSymptoms || {};
+      const topDiseaseName = session.topDiseaseName || 'Không xác định';
+      const topCF = Number(session.topCF || 0);
+      const detailPayload = {
+        results: session.results || session.resultsSummary || [],
+        traceLogs: session.traceLogs || []
+      };
+
       db.prepare(`
         INSERT INTO lich_su_chan_doan (ma_phien, cac_trieu_chung_dau_vao, benh_chinh, he_so_tin_cay_chinh, chi_tiet_ket_qua_json)
         VALUES (?, ?, ?, ?, ?);
       `).run(
-        session.id || `PHIEN_${Date.now()}`,
-        JSON.stringify(session.inputSymptoms || {}),
-        session.topDiseaseName || 'Không xác định',
-        Number(session.topCF || 0),
-        JSON.stringify(session.resultsSummary || [])
+        sessionId,
+        JSON.stringify(inputSymptoms),
+        topDiseaseName,
+        topCF,
+        JSON.stringify(detailPayload)
       );
 
-      return sendJSON(res, 200, { ok: true, message: 'Đã lưu lịch sử chẩn đoán vào SQLite.' });
+      // Ghi audit log
+      db.prepare("INSERT INTO nhat_ky_csdl (loai_thao_tac, ten_bang, chi_tiet) VALUES ('LƯU_PHIÊN', 'lich_su_chan_doan', ?);")
+        .run(`Lưu phiên chẩn đoán ${sessionId}: [${topDiseaseName}] (CF = ${topCF})`);
+
+      return sendJSON(res, 200, { ok: true, message: 'Đã lưu lịch sử chẩn đoán vào SQLite.', id: sessionId });
+    } catch (e) {
+      return sendJSON(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  if (pathname.startsWith('/api/lich_su/') && req.method === 'DELETE') {
+    try {
+      const maPhien = pathname.replace('/api/lich_su/', '').trim();
+      if (!maPhien) {
+        return sendJSON(res, 400, { ok: false, error: 'Mã phiên không hợp lệ.' });
+      }
+      db.prepare("DELETE FROM lich_su_chan_doan WHERE ma_phien = ?;").run(maPhien);
+      db.prepare("INSERT INTO nhat_ky_csdl (loai_thao_tac, ten_bang, chi_tiet) VALUES ('XÓA_PHIÊN', 'lich_su_chan_doan', ?);")
+        .run(`Xóa phiên chẩn đoán ${maPhien}`);
+
+      return sendJSON(res, 200, { ok: true, message: `Đã xóa phiên chẩn đoán ${maPhien} khỏi SQLite.` });
+    } catch (e) {
+      return sendJSON(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  if (pathname === '/api/lich_su' && req.method === 'DELETE') {
+    try {
+      db.prepare("DELETE FROM lich_su_chan_doan;").run();
+      db.prepare("INSERT INTO nhat_ky_csdl (loai_thao_tac, ten_bang, chi_tiet) VALUES ('XÓA_TOÀN_BỘ', 'lich_su_chan_doan', 'Xóa toàn bộ lịch sử chẩn đoán');").run();
+
+      return sendJSON(res, 200, { ok: true, message: 'Đã xóa toàn bộ lịch sử chẩn đoán khỏi SQLite.' });
     } catch (e) {
       return sendJSON(res, 500, { ok: false, error: e.message });
     }
