@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Đồ Thị Mạng Luật RPG - Hệ Cơ Sở Tri Thức</title>
-  
+
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../../css/tong_hop.css">
   <link rel="stylesheet" href="do_thi_rpg.css">
 </head>
+
 <body>
 
   <!-- ==================== APP HEADER ==================== -->
@@ -37,6 +39,9 @@
           </a>
           <a href="do_thi_rpg.html" class="nav-btn active">
             <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="../do_thi_fpg/do_thi_fpg.html" class="nav-btn">
+            <i class="fa-solid fa-diagram-successor"></i> Đồ thị FPG
           </a>
           <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
             <i class="fa-solid fa-database"></i> Quản lý Tri thức
@@ -74,7 +79,8 @@
         </select>
         <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i> Phóng to</button>
         <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i> Thu nhỏ</button>
-        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa tự động"><i class="fa-solid fa-expand"></i> Căn giữa</button>
+        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa tự động"><i class="fa-solid fa-expand"></i> Căn
+          giữa</button>
       </div>
 
       <div class="graph-legend">
@@ -97,8 +103,35 @@
       </div>
     </div>
 
-    <div class="canvas-container">
-      <canvas id="rpgCanvas"></canvas>
+    <!-- Layout 2 Cột: Canvas bên trái & Fact Inspector bên phải -->
+    <div class="rpg-layout">
+      <div class="canvas-container">
+        <canvas id="rpgCanvas"></canvas>
+      </div>
+
+      <!-- Sidebar Inspector: Phân tích Sự kiện & CF -->
+      <aside class="rpg-inspector">
+        <div class="inspector-header">
+          <h3><i class="fa-solid fa-circle-nodes"></i> Phân tích Sự kiện & CF</h3>
+        </div>
+
+        <div id="inspectorContent" class="inspector-body">
+          <p style="margin-bottom: 0.75rem;">
+            Nhấp chuột vào bất kỳ <strong>Sự kiện (Place)</strong>, <strong>Luật sinh (Transition)</strong> hoặc
+            <strong>Bệnh (Goal)</strong> trên đồ thị để kiểm tra chi tiết công thức và vết tính toán lan truyền.
+          </p>
+
+          <div class="stat-pill success" style="margin-bottom: 0.5rem;">
+            <i class="fa-solid fa-check-circle"></i> Đồ thị Mạng luật RPG (Rule Petri Graph)
+          </div>
+          <!-- <div style="margin-top: 0.8rem; font-size: 0.82rem; color: var(--text-muted); line-height: 1.6;">
+            <strong>Mô hình toán học MYCIN:</strong><br>
+            • Tiền đề AND: $CF(\\text{Premise}) = \\min(CF_1, CF_2, \\dots)$<br>
+            • Luật kích hoạt: $CF(\\text{Rule}) = CF(\\text{Premise}) \\times CF(r)$<br>
+            • Kết hợp chứng cứ: $CF_1 + CF_2 - CF_1 \\times CF_2$
+          </div> -->
+        </div>
+      </aside>
     </div>
   </main>
 
@@ -117,10 +150,126 @@
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const dbEngine = new DatabaseEngine();
-      try { await dbEngine.init(); } catch (e) {}
+      try { await dbEngine.init(); } catch (e) { }
 
       const kbManager = new KnowledgeBaseManager(dbEngine);
-      const rpgVisualizer = new RPGVisualizer("rpgCanvas");
+      const inspectorContent = document.getElementById("inspectorContent");
+
+      const rpgVisualizer = new RPGVisualizer("rpgCanvas", {
+        onNodeSelect: (node) => {
+          renderInspector(node);
+        },
+        onNodeHover: (node) => {
+          renderInspector(node || rpgVisualizer.selectedNode);
+        }
+      });
+
+      function renderInspector(node) {
+        if (!node) {
+          inspectorContent.innerHTML = `
+            <p style="margin-bottom: 0.75rem;">
+              Nhấp chuột vào bất kỳ <strong>Sự kiện (Place)</strong>, <strong>Luật sinh (Transition)</strong> hoặc <strong>Bệnh (Goal)</strong> trên đồ thị để kiểm tra chi tiết công thức và vết tính toán lan truyền.
+            </p>
+            <div class="stat-pill success" style="margin-bottom: 0.5rem;">
+              <i class="fa-solid fa-check-circle"></i> Đồ thị Mạng luật RPG (Rule Petri Graph)
+            </div>
+            
+          `;
+          return;
+        }
+
+        const kb = kbManager.getKB();
+        let html = `
+          <div style="margin-bottom: 0.75rem;">
+            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">
+              [${node.id}] ${node.subLabel ? `<span style="font-size: 0.85rem; font-weight: normal; color: var(--text-secondary);">- ${node.subLabel}</span>` : ''}
+            </div>
+            <div style="margin-top: 0.35rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+              <span class="stat-pill ${node.isActive ? 'success' : 'warning'}">
+                ${node.isActive ? 'Đang kích hoạt' : 'Chưa kích hoạt'}
+              </span>
+              <span class="stat-pill">
+                ${node.type === 'FACT' ? 'Place (Sự kiện)' : (node.type === 'RULE' ? 'Transition (Luật)' : 'Goal (Kết luận)')}
+              </span>
+            </div>
+          </div>
+        `;
+
+        if (node.type === "FACT" && node.data) {
+          const s = node.data;
+          const relatedRulesMap = new Map();
+          (kb.rules || []).forEach(r => {
+            const prems = Array.from(new Set(r.premises || []));
+            if (prems.includes(s.id) && !relatedRulesMap.has(r.id)) {
+              relatedRulesMap.set(r.id, { ...r, premises: prems });
+            }
+          });
+          const relatedRules = Array.from(relatedRulesMap.values());
+          html += `
+            <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+              <strong>Tên triệu chứng:</strong> ${s.name}<br>
+              <strong>Câu hỏi truy vấn:</strong><br>
+              <em>"${s.question || 'Bạn có triệu chứng này không?'}"</em>
+            </div>
+            <div class="formula-card">
+              Tham gia vào tiền đề của ${relatedRules.length} luật:<br>
+              ${relatedRules.map(r => `• <strong>${r.id}</strong>: NẾU ... ${s.id} ... THÌ ${r.conclusion}`).join('<br>')}
+            </div>
+          `;
+        } else if (node.type === "RULE" && node.data) {
+          const r = node.data;
+          const { activeFacts } = getActiveState();
+          const uniquePremises = Array.from(new Set(r.premises || []));
+          const activePremises = uniquePremises.filter(pId => activeFacts.has(pId));
+
+          html += `
+            <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+              <strong>Tên luật:</strong> ${r.name || r.id}<br>
+              <strong>Độ đặc hiệu lâm sàng:</strong> CF = ${r.cf}<br>
+              <strong>Số tiền đề:</strong> ${activePremises.length} / ${uniquePremises.length} thỏa mãn
+            </div>
+            <div class="formula-card">
+              <strong>Luật ${r.id}:</strong><br>
+              IF ${uniquePremises.join(' ∧ ')}<br>
+              THEN ${r.conclusion} [CF=${r.cf}]<br><br>
+              CF(Tiền đề) = min(${uniquePremises.map(p => `CF(${p})`).join(', ')})<br>
+              CF(Kích hoạt) = CF(Tiền đề) × ${r.cf}
+            </div>
+          `;
+        } else if (node.type === "DISEASE" && node.data) {
+          const d = node.data;
+          const incomingRulesMap = new Map();
+          (kb.rules || []).forEach(r => {
+            if (r && r.conclusion === d.id && r.id && !incomingRulesMap.has(r.id)) {
+              incomingRulesMap.set(r.id, {
+                ...r,
+                premises: Array.from(new Set(r.premises || []))
+              });
+            }
+          });
+          const incomingRules = Array.from(incomingRulesMap.values());
+          html += `
+            <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+              <strong>Tên bệnh:</strong> ${d.name}<br>
+              <strong>Mức độ nguy hiểm:</strong> ${d.severity || 'Cần theo dõi y tế'}<br>
+              <strong>Số luật dẫn tới:</strong> ${incomingRules.length} luật sinh
+            </div>
+            ${d.warningSigns ? `
+              <div style="font-size: 0.8rem; color: #f87171; margin-top: 0.4rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i> <strong>Cảnh báo:</strong> ${d.warningSigns}
+              </div>
+            ` : ''}
+            <div class="formula-card">
+              <strong>Các luật kết luận về bệnh này:</strong><br>
+              ${incomingRules.map(r => `• <strong>${r.id}</strong> [CF=${r.cf}]: IF ${(r.premises || []).join(' ∧ ')}`).join('<br>')}<br><br>
+              <strong>Hàm kết hợp MYCIN:</strong><br>
+              CF_combine(CF1, CF2) = CF1 + CF2 - (CF1 × CF2)
+            </div>
+          `;
+        }
+
+        inspectorContent.innerHTML = html;
+      }
 
       function populateFilters() {
         const filterSelect = document.getElementById("rpgDiseaseFilter");
@@ -160,6 +309,7 @@
         const diseaseFilter = filterSelect ? filterSelect.value : "ALL";
         const { activeFacts, firedRules } = getActiveState();
         rpgVisualizer.setData(kbManager.getKB(), activeFacts, firedRules, diseaseFilter);
+        renderInspector(null);
       }
 
       populateFilters();
@@ -191,4 +341,5 @@
     });
   </script>
 </body>
+
 </html>

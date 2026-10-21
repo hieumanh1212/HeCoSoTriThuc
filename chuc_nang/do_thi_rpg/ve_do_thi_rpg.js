@@ -22,6 +22,9 @@ class RPGVisualizer {
     this.dragStartX = 0;
     this.dragStartY = 0;
     this.hoveredNode = null;
+    this.selectedNode = null;
+    this.onNodeSelect = options.onNodeSelect || null;
+    this.onNodeHover = options.onNodeHover || null;
 
     this.nodes = [];
     this.edges = [];
@@ -54,6 +57,19 @@ class RPGVisualizer {
       this.autoFit();
     });
 
+    this.canvas.addEventListener("click", (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left - this.offsetX) / this.scale;
+      const mouseY = (e.clientY - rect.top - this.offsetY) / this.scale;
+
+      const clicked = this.findNodeAt(mouseX, mouseY);
+      this.selectedNode = clicked;
+      if (this.onNodeSelect) {
+        this.onNodeSelect(clicked);
+      }
+      this.render();
+    });
+
     this.canvas.addEventListener("mousedown", (e) => {
       this.isDragging = true;
       this.dragStartX = e.clientX - this.offsetX;
@@ -71,32 +87,25 @@ class RPGVisualizer {
         this.offsetY = e.clientY - this.dragStartY;
         this.render();
       } else {
-        let found = null;
-        for (const node of this.nodes) {
-          if (node.type === "FACT") {
-            const dist = Math.hypot(mouseX - node.x, mouseY - node.y);
-            if (dist <= node.radius + 6) {
-              found = node;
-              break;
-            }
-          } else {
-            if (
-              mouseX >= node.x - node.width / 2 - 4 &&
-              mouseX <= node.x + node.width / 2 + 4 &&
-              mouseY >= node.y - node.height / 2 - 4 &&
-              mouseY <= node.y + node.height / 2 + 4
-            ) {
-              found = node;
-              break;
-            }
-          }
-        }
-
+        const found = this.findNodeAt(mouseX, mouseY);
         if (this.hoveredNode !== found) {
           this.hoveredNode = found;
           this.canvas.style.cursor = found ? "pointer" : "grab";
+          if (this.onNodeHover) {
+            this.onNodeHover(found);
+          }
           this.render();
         }
+      }
+    });
+
+    this.canvas.addEventListener("mouseleave", () => {
+      if (this.hoveredNode) {
+        this.hoveredNode = null;
+        if (this.onNodeHover) {
+          this.onNodeHover(null);
+        }
+        this.render();
       }
     });
 
@@ -119,6 +128,27 @@ class RPGVisualizer {
 
       this.render();
     });
+  }
+
+  findNodeAt(x, y) {
+    for (const node of this.nodes) {
+      if (node.type === "FACT") {
+        const dist = Math.hypot(x - node.x, y - node.y);
+        if (dist <= node.radius + 6) return node;
+      } else {
+        const halfW = (node.width ? node.width / 2 : 44) + 4;
+        const halfH = (node.height ? node.height / 2 : 19) + 4;
+        if (
+          x >= node.x - halfW &&
+          x <= node.x + halfW &&
+          y >= node.y - halfH &&
+          y <= node.y + halfH
+        ) {
+          return node;
+        }
+      }
+    }
+    return null;
   }
 
   zoomIn() {
@@ -189,12 +219,33 @@ class RPGVisualizer {
     this.nodes = [];
     this.edges = [];
 
-    let targetRules = this.kb.rules || [];
-    let targetDiseases = this.kb.diseases || [];
+    // Khử trùng lặp tập luật sinh và tập triệu chứng tiền đề
+    const uniqueRulesMap = new Map();
+    (this.kb.rules || []).forEach(r => {
+      if (r && r.id && !uniqueRulesMap.has(r.id)) {
+        uniqueRulesMap.set(r.id, {
+          ...r,
+          premises: Array.from(new Set((r.premises || []).filter(Boolean)))
+        });
+      }
+    });
+    const allRules = Array.from(uniqueRulesMap.values());
+
+    // Khử trùng lặp danh mục bệnh
+    const uniqueDiseasesMap = new Map();
+    (this.kb.diseases || []).forEach(d => {
+      if (d && d.id && !uniqueDiseasesMap.has(d.id)) {
+        uniqueDiseasesMap.set(d.id, d);
+      }
+    });
+    const allDiseases = Array.from(uniqueDiseasesMap.values());
+
+    let targetRules = allRules;
+    let targetDiseases = allDiseases;
 
     if (this.selectedDiseaseFilter !== "ALL") {
-      targetRules = (this.kb.rules || []).filter(r => r.conclusion === this.selectedDiseaseFilter);
-      targetDiseases = (this.kb.diseases || []).filter(d => d.id === this.selectedDiseaseFilter);
+      targetRules = allRules.filter(r => r.conclusion === this.selectedDiseaseFilter);
+      targetDiseases = allDiseases.filter(d => d.id === this.selectedDiseaseFilter);
     }
 
     const usedSymptomIds = new Set();
@@ -277,12 +328,13 @@ class RPGVisualizer {
       nodeMap.set(d.id, node);
     });
 
-    // 4. Tạo các cung nối có hướng (Edges)
+    // 4. Tạo các cung nối có hướng (chắc chắn mỗi cặp Place -> Transition chỉ có 1 cung duy nhất)
     targetRules.forEach(r => {
       const ruleNode = nodeMap.get(r.id);
       if (!ruleNode) return;
 
-      (r.premises || []).forEach(pId => {
+      const uniquePremises = Array.from(new Set(r.premises || []));
+      uniquePremises.forEach(pId => {
         const symNode = nodeMap.get(pId);
         if (symNode) {
           this.edges.push({
@@ -413,6 +465,7 @@ class RPGVisualizer {
 
   drawNode(ctx, node, isLight = false) {
     ctx.save();
+    const isSelected = this.selectedNode === node;
 
     if (node.type === "FACT") {
       ctx.beginPath();
@@ -430,6 +483,12 @@ class RPGVisualizer {
         ctx.lineWidth = 2;
         ctx.shadowBlur = 0;
       }
+
+      if (isSelected) {
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 3.5;
+      }
+
       ctx.fill();
       ctx.stroke();
 
@@ -452,7 +511,11 @@ class RPGVisualizer {
       const y = node.y - node.height / 2;
 
       ctx.beginPath();
-      ctx.roundRect(x, y, node.width, node.height, 8);
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(x, y, node.width, node.height, 8);
+      } else {
+        ctx.rect(x, y, node.width, node.height);
+      }
 
       if (node.isActive) {
         ctx.fillStyle = "#2563eb";
@@ -466,6 +529,12 @@ class RPGVisualizer {
         ctx.lineWidth = 1.5;
         ctx.shadowBlur = 0;
       }
+
+      if (isSelected) {
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 3.5;
+      }
+
       ctx.fill();
       ctx.stroke();
 
@@ -484,7 +553,11 @@ class RPGVisualizer {
       const y = node.y - node.height / 2;
 
       ctx.beginPath();
-      ctx.roundRect(x, y, node.width, node.height, 10);
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(x, y, node.width, node.height, 10);
+      } else {
+        ctx.rect(x, y, node.width, node.height);
+      }
 
       if (node.isActive) {
         ctx.fillStyle = "#dc2626";
@@ -498,6 +571,12 @@ class RPGVisualizer {
         ctx.lineWidth = 1.5;
         ctx.shadowBlur = 0;
       }
+
+      if (isSelected) {
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 3.5;
+      }
+
       ctx.fill();
       ctx.stroke();
 
