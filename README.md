@@ -42,6 +42,11 @@ HeCoSoTriThuc/
 │   │   ├── do_thi_rpg.css                     # CSS riêng cho toolbar & canvas đồ thị
 │   │   └── ve_do_thi_rpg.js                   # Engine vẽ Canvas & trực quan hóa mạng luật RPG
 │   │
+│   ├── do_thi_fpg/                            # 🌿 Màn hình Đồ thị Ưu tiên Sự kiện FPG (Fact Precedence Graph)
+│   │   ├── do_thi_fpg.html                    # Giao diện FPG & Mô phỏng Slide Tuần 6
+│   │   ├── do_thi_fpg.css                     # CSS riêng cho toolbar, legend & inspector
+│   │   └── ve_do_thi_fpg.js                   # Engine vẽ Mạng ngữ nghĩa luật & Lan truyền CF
+│   │
 │   ├── quan_ly_tri_thuc/                      # 📚 Màn hình Quản lý Cơ sở tri thức
 │   │   ├── quan_ly_tri_thuc.css               # CSS riêng cho bảng quản trị luật
 │   │   ├── mo_hinh_tri_thuc.js                # Lớp quản lý lưu trữ tri thức (KB Manager)
@@ -82,8 +87,9 @@ HeCoSoTriThuc/
 2. **Động cơ Suy diễn Lùi (Backward Chaining):** Truy ngược cây luật khi chưa đủ dữ kiện, chủ động tương tác hỏi thêm kèm lời giải thích **WHY**.
 3. **Phân hệ Giải thích (HOW):** Minh bạch toàn bộ vết suy luận từng bước (Execution Trace Logs), bao gồm cả các luật bị bỏ qua và tiền đề còn thiếu.
 4. **Biểu diễn Frame cho Bệnh:** Mỗi bệnh có các slot định danh, phân loại, mô tả, cảnh báo, xử trí, nguồn tham khảo và các luật suy ra bệnh.
-4. **Trực quan hóa Đồ thị Mạng luật RPG (Rule Petri Graph):** Trực quan hóa mạng lưới liên kết Sự kiện (tròn) $\rightarrow$ Luật (chữ nhật) $\rightarrow$ Bệnh (kết luận) kèm hiệu ứng phát sáng đường đi đã kích hoạt.
-5. **Cơ sở Dữ liệu Quan hệ Nhúng 3NF & SQL Console:** 
+5. **Trực quan hóa Đồ thị Mạng luật RPG (Rule Petri Graph):** Trực quan hóa mạng lưới liên kết Sự kiện (tròn) $\rightarrow$ Luật (chữ nhật) $\rightarrow$ Bệnh (kết luận) kèm hiệu ứng phát sáng đường đi đã kích hoạt.
+6. **Trực quan hóa Đồ thị Ưu tiên Sự kiện FPG (Fact Precedence Graph):** Biểu diễn mạng ngữ nghĩa luật theo chuẩn bài giảng Slide Tuần 5 - Tuần 6 (Thầy Phạm Văn Hải), hiển thị cổng logic hội AND ($\land$), tuyển OR ($\lor$), phủ định NOT ($\neg$), lan truyền độ tin cậy $CF$, kèm bộ giải mẫu chuẩn xác bài tập về nhà trong slide.
+7. **Cơ sở Dữ liệu Quan hệ Nhúng 3NF & SQL Console:** 
    - 7 bảng quan hệ trên nền IndexedDB.
    - **SQL Console:** Hỗ trợ viết và thực thi truy vấn SQL trực tiếp (`SELECT * FROM tap_luat WHERE cf >= 0.85`).
    - Tự động lưu vết phiên chẩn đoán (`lich_su_chan_doan`) và nhật ký kiểm toán (`nhat_ky_csdl`).

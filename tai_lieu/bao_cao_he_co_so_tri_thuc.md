@@ -136,6 +136,14 @@ Hệ thống được thiết kế dạng Single Page Application không phụ t
 * **Directed Arcs (Cung có hướng):** Nối từ Fact Place $\rightarrow$ Rule Transition $\rightarrow$ Goal Place.
 * **Active Tokens:** Khi suy diễn thành công, các nút và đường đi tham gia vào kết luận sẽ tự động phát sáng (Emerald Glow), cho phép người dùng trực quan hóa chính xác đường đi suy luận logic.
 
+### 5.3. Biểu diễn Đồ thị Ưu tiên Sự kiện FPG (Fact Precedence Graph) & Mạng Ngữ Nghĩa Luật
+Bên cạnh mạng luật RPG tập trung vào luật sinh, hệ thống tích hợp phân hệ **Đồ thị FPG** dựa trên cấu trúc lý thuyết học phần (Slide Tuần 5 - Tuần 6 của Thầy Phạm Văn Hải):
+* **Bản chất mô hình:** $FPG = (F, A)$ với các đỉnh là tập sự kiện $F$. Cung có hướng $(e_i \to e_j)$ thể hiện quan hệ dẫn xuất nhân quả giữa các sự kiện qua các luật sinh.
+* **Cổng logic hội AND ($\land$):** Hội tụ các triệu chứng tiền đề của cùng một luật sinh, tính toán độ tin cậy $CF(\text{Premise}) = \min(CF_1, CF_2, \dots)$.
+* **Cổng logic tuyển OR ($\lor$):** Cho phép kết hợp các nguồn chứng cứ độc lập cùng suy ra một kết luận, tính $CF$ theo công thức tích lũy MYCIN.
+* **Xử lý sự kiện phủ định NOT ($\neg$):** Tuân theo quy tắc đảo dấu $CF(\neg e) = -CF(e)$.
+* **Bộ kiểm thử bài tập mẫu (Slide Tuần 6):** Tích hợp kiểm thử mô phỏng trực tiếp bài tập trong slide ($R_1: A \to B$, $R_2: C \to D$, $R_3: \neg F \to G$, $R_4: (B \land \neg D) \lor I \to J$), cho ra kết quả nghiệm chính xác $CF(J) = 0.100$.
+
 ---
 
 ## 6. MÔ TẢ CƠ SỞ DỮ LIỆU QUAN HỆ & CẤU TRÚC DỮ LIỆU (DATABASE DESIGN)
