@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Mạng Luật RPG</title>
-  
+
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/tong_hop.css">
 </head>
+
 <body>
 
   <!-- ==================== APP HEADER ==================== -->
@@ -66,7 +68,7 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="main-wrapper">
-    
+
     <!-- 1. HERO BANNER -->
     <section class="hero-banner">
       <div class="hero-title">
@@ -74,13 +76,16 @@
         <span>Hệ Chuyên Gia Chẩn Đoán Bệnh Truyền Nhiễm & Sốt Cấp Tính</span>
       </div>
       <p class="hero-subtitle">
-        Ứng dụng trí tuệ nhân tạo biểu diễn tri thức dạng <strong>Luật sinh (Production Rules)</strong> kết hợp <strong>Hệ số tin cậy (Certainty Factor - MYCIN)</strong>, động cơ <strong>Suy diễn Tiến & Suy diễn Lùi</strong>, trực quan hóa <strong>Đồ thị Mạng luật RPG</strong> và <strong>CSDL Quan hệ nhúng 3NF (IndexedDB)</strong>.
+        Ứng dụng trí tuệ nhân tạo biểu diễn tri thức dạng <strong>Luật sinh (Production Rules)</strong> kết hợp
+        <strong>Hệ số tin cậy (Certainty Factor - MYCIN)</strong>, động cơ <strong>Suy diễn Tiến & Suy diễn
+          Lùi</strong>, trực quan hóa <strong>Đồ thị Mạng luật RPG</strong> và <strong>CSDL Quan hệ nhúng 3NF
+          (IndexedDB)</strong>.
       </p>
       <div class="hero-tags">
         <span class="hero-tag"><i class="fa-solid fa-check"></i> Chuẩn Bộ Y Tế & WHO</span>
         <span class="hero-tag"><i class="fa-solid fa-square-root-variable"></i> MYCIN Certainty Factor</span>
-        <span class="hero-tag"><i class="fa-solid fa-diagram-project"></i> Rule Petri Graph (RPG)</span>
-        <span class="hero-tag"><i class="fa-solid fa-diagram-successor"></i> Fact Precedence Graph (FPG)</span>
+        <span class="hero-tag"><i class="fa-solid fa-diagram-project"></i> Rules Precedence Graph (RPG)</span>
+        <span class="hero-tag"><i class="fa-solid fa-diagram-successor"></i> Facts Precedence Graph (FPG)</span>
         <span class="hero-tag"><i class="fa-solid fa-database"></i> IndexedDB 3NF & SQL Console</span>
         <span class="hero-tag"><i class="fa-solid fa-eye"></i> Phân hệ Giải thích HOW & WHY</span>
       </div>
@@ -89,28 +94,32 @@
     <!-- 2. THỐNG KÊ CSDL NHANH -->
     <div class="db-stats-grid">
       <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--color-primary);"><i class="fa-solid fa-scroll"></i></div>
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--color-primary);"><i
+            class="fa-solid fa-scroll"></i></div>
         <div>
           <div class="stat-value" id="dbStatRules">16</div>
           <div class="stat-label">Luật sinh có CF (tap_luat)</div>
         </div>
       </div>
       <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--color-cyan);"><i class="fa-solid fa-virus"></i></div>
+        <div class="stat-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--color-cyan);"><i
+            class="fa-solid fa-virus"></i></div>
         <div>
           <div class="stat-value" id="dbStatSymptoms">21</div>
           <div class="stat-label">Triệu chứng lâm sàng (trieu_chung)</div>
         </div>
       </div>
       <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;"><i class="fa-solid fa-disease"></i></div>
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;"><i
+            class="fa-solid fa-disease"></i></div>
         <div>
           <div class="stat-value" id="dbStatDiseases">7</div>
           <div class="stat-label">Bệnh truyền nhiễm (danh_muc_benh)</div>
         </div>
       </div>
       <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--color-emerald);"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--color-emerald);"><i
+            class="fa-solid fa-clock-rotate-left"></i></div>
         <div>
           <div class="stat-value" id="dbStatSessions">0</div>
           <div class="stat-label">Lịch sử phiên chẩn đoán</div>
@@ -130,7 +139,7 @@
     </div>
 
     <div class="portal-grid">
-      
+
       <!-- Card 1: Chẩn đoán -->
       <a href="chuc_nang/chan_doan/chan_doan.html" class="portal-card">
         <div>
@@ -142,7 +151,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Nhập triệu chứng lâm sàng, gán độ tin cậy $CF(E)$, kích hoạt động cơ suy diễn tiến MYCIN, xem phân hệ giải thích vết suy luận (HOW) và suy diễn lùi (WHY).
+            Nhập triệu chứng lâm sàng, gán độ tin cậy CF(E), kích hoạt động cơ suy diễn tiến MYCIN, xem phân hệ giải
+            thích vết suy luận (HOW) và suy diễn lùi (WHY).
           </p>
         </div>
         <div class="portal-footer">
@@ -162,7 +172,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Trực quan hóa cấu trúc mạng luật Rule Petri Graph trên Canvas 2D: Sự kiện (Place) &rarr; Luật (Transition) &rarr; Kết luận (Goal), hỗ trợ phóng to, thu nhỏ, phát sáng đường đi.
+            Đồ thị liên hệ trước giữa các luật Rules Precedence Graph: Đỉnh là các luật R<sub>i</sub>, cung R<sub>i</sub> &rarr; R<sub>j</sub>, xác
+            định R<sub>GT</sub>, R<sub>KL</sub> và hàm lượng giá heuristic h&#770;(R) = KC(R, R<sub>KL</sub>) &rarr; min.
           </p>
         </div>
         <div class="portal-footer">
@@ -178,11 +189,12 @@
             <i class="fa-solid fa-diagram-successor"></i>
           </div>
           <div class="portal-title">
-            <span>Đồ Thị Ưu Tiên Sự Kiện FPG</span>
+            <span>Đồ Thị Liên Hệ Trước Sự Kiện FPG</span>
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Trực quan hóa mạng ngữ nghĩa luật, lan truyền sự kiện từ triệu chứng &rarr; Cổng hội AND/Tuyển OR &rarr; Bệnh, kèm chế độ mô phỏng bài tập chuẩn Slide Tuần 6 (Thầy Phạm Văn Hải).
+            Đồ thị liên hệ trước sự kiện Facts Precedence Graph: Đỉnh là các sự kiện <i>f</i>, cung có nhãn luật R<sub>i</sub>, tính
+            hàm lượng giá h&#770;(R) = KC<sub>FPG</sub>(q, KL) &rarr; min và mô phỏng vết suy diễn từng bước loại bỏ luật dư thừa.
           </p>
         </div>
         <div class="portal-footer">
@@ -202,7 +214,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Quản trị CRUD tập luật sinh, danh mục triệu chứng, danh mục bệnh và phác đồ điều trị. Hỗ trợ Xuất (Export) và Nhập (Import) tập tin tri thức chuẩn JSON.
+            Quản trị CRUD tập luật sinh, danh mục triệu chứng, danh mục bệnh và phác đồ điều trị. Hỗ trợ Xuất (Export)
+            và Nhập (Import) tập tin tri thức chuẩn JSON.
           </p>
         </div>
         <div class="portal-footer">
@@ -222,7 +235,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Bảng điều khiển thực thi truy vấn SQL trực tiếp trên CSDL quan hệ 3NF IndexedDB (7 bảng), trình duyệt cấu trúc bảng và nhật ký kiểm toán (Audit Logs).
+            Bảng điều khiển thực thi truy vấn SQL trực tiếp trên CSDL quan hệ 3NF IndexedDB (7 bảng), trình duyệt cấu
+            trúc bảng và nhật ký kiểm toán (Audit Logs).
           </p>
         </div>
         <div class="portal-footer">
@@ -242,7 +256,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Bộ 5 ca bệnh lâm sàng thực tế đối sánh kết quả suy diễn của hệ chuyên gia với chẩn đoán chuẩn xác của bác sĩ chuyên khoa (Sốt xuất huyết, Cúm A, Sởi, COVID-19, Tay Chân Miệng).
+            Bộ 5 ca bệnh lâm sàng thực tế đối sánh kết quả suy diễn của hệ chuyên gia với chẩn đoán chuẩn xác của bác sĩ
+            chuyên khoa (Sốt xuất huyết, Cúm A, Sởi, COVID-19, Tay Chân Miệng).
           </p>
         </div>
         <div class="portal-footer">
@@ -262,7 +277,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Trích lục danh mục các Quyết định quy chuẩn quốc gia của Bộ Y Tế, tài liệu hướng dẫn WHO và công thức toán học đại số bất định Certainty Factor (MYCIN).
+            Trích lục danh mục các Quyết định quy chuẩn quốc gia của Bộ Y Tế, tài liệu hướng dẫn WHO và công thức toán
+            học đại số bất định Certainty Factor (MYCIN).
           </p>
         </div>
         <div class="portal-footer">
@@ -282,7 +298,8 @@
             <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
           </div>
           <p class="portal-desc">
-            Xem lại các ca chẩn đoán đã thực hiện, bộ lọc theo ngày/bệnh, xem chi tiết chứng cứ lâm sàng, xuất phiếu kết quả PDF chuẩn y tế và chẩn đoán lại.
+            Xem lại các ca chẩn đoán đã thực hiện, bộ lọc theo ngày/bệnh, xem chi tiết chứng cứ lâm sàng, xuất phiếu kết
+            quả PDF chuẩn y tế và chẩn đoán lại.
           </p>
         </div>
         <div class="portal-footer">
@@ -297,7 +314,8 @@
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
     <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
-    <p style="margin-top: 0.25rem; opacity: 0.7;">Động cơ suy diễn: Mô hình Hệ số tin cậy MYCIN, Suy diễn Tiến & Suy diễn Lùi • CSDL IndexedDB 3NF</p>
+    <p style="margin-top: 0.25rem; opacity: 0.7;">Động cơ suy diễn: Mô hình Hệ số tin cậy MYCIN, Suy diễn Tiến & Suy
+      diễn Lùi • CSDL IndexedDB 3NF</p>
   </footer>
 
   <!-- ==================== SCRIPTS ==================== -->
@@ -325,4 +343,5 @@
     });
   </script>
 </body>
+
 </html>
