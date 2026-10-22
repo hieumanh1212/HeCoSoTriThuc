@@ -512,6 +512,102 @@ class MedicalGraphAlgorithms {
       isGoalReached: success
     };
   }
+
+  /**
+   * Mô phỏng thuật toán suy diễn tiến y tế theo hàm lượng giá Heuristic RPG (Slide 22 - 23)
+   * h^(R) = KC(R, R_KL) -> min
+   */
+  static simulateForwardChainingWithRPG(selectedCase) {
+    const rpg = this.buildMedicalRPG(selectedCase);
+    let TG = new Set(selectedCase.gt || []);
+    const KL = new Set(selectedCase.kl || []);
+    let R = [...MEDICAL_KB_GRAPH_DATA.rules];
+    let VET = [];
+    const steps = [];
+
+    function LOC(currentTG, currentR) {
+      return currentR.filter(r => (r.premises || []).every(p => currentTG.has(p)));
+    }
+
+    function isKLSubOfTG(currentTG, currentKL) {
+      return Array.from(currentKL).every(k => currentTG.has(k));
+    }
+
+    let THOA = LOC(TG, R);
+    let cycle = 0;
+
+    steps.push({
+      cycle: 0,
+      stepName: "Khởi tạo",
+      TG: Array.from(TG),
+      R: R.map(r => r.id),
+      THOA: THOA.map(r => r.id),
+      VET: [...VET],
+      evaluations: THOA.map(r => ({
+        ruleId: r.id,
+        ruleName: r.name,
+        conclusion: r.conclusion,
+        kc: MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rpg.rKlIds, rpg.edges)
+      })),
+      selectedRule: null,
+      message: `Khởi tạo ca bệnh: Đã nạp ${TG.size} triệu chứng ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
+    });
+
+    while (THOA.length > 0 && !isKLSubOfTG(TG, KL)) {
+      cycle++;
+
+      const evaluations = THOA.map(r => {
+        const kc = MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rpg.rKlIds, rpg.edges);
+        return {
+          rule: r,
+          ruleId: r.id,
+          ruleName: r.name,
+          conclusion: r.conclusion,
+          kc,
+          formulaStr: `h^(${r.id}) = KC(${r.id}, R_KL) = ${kc === Infinity ? "∞" : kc}`
+        };
+      });
+
+      // Chọn luật có khoảng cách heuristic ngắn nhất tới R_KL trên đồ thị RPG
+      evaluations.sort((a, b) => {
+        if (a.kc !== b.kc) return a.kc - b.kc;
+        return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
+      });
+
+      const best = evaluations[0];
+      const chosenRule = best.rule;
+
+      VET.push(chosenRule.id);
+      R = R.filter(r => r.id !== chosenRule.id);
+      TG.add(chosenRule.conclusion);
+      THOA = LOC(TG, R);
+
+      steps.push({
+        cycle,
+        stepName: `Chu kỳ ${cycle}`,
+        selectedRule: chosenRule.id,
+        selectedRuleObj: chosenRule,
+        evaluations,
+        chosenBest: best,
+        TG: Array.from(TG),
+        R: R.map(r => r.id),
+        THOA: THOA.map(r => r.id),
+        VET: [...VET],
+        isGoalReached: isKLSubOfTG(TG, KL),
+        message: `Kích hoạt [${chosenRule.id}]: "${chosenRule.name}". Suy ra "${chosenRule.conclusion}". Cập nhật TG và VET.`
+      });
+    }
+
+    const success = isKLSubOfTG(TG, KL);
+
+    return {
+      success,
+      steps,
+      finalVET: VET,
+      finalTG: Array.from(TG),
+      isGoalReached: success
+    };
+  }
 }
 
 if (typeof window !== "undefined") {

@@ -164,16 +164,16 @@
       </aside>
     </div>
 
-    <!-- BẢNG THEO DÕI VẾT SUY DIỄN TIẾN Y TẾ TỪNG BƯỚC (THEO GIẢI THUẬT SLIDE 20, 21) -->
+    <!-- BẢNG NHẬT KÝ DIỄN BIẾN SUY DIỄN TIẾN TRÊN ĐỒ THỊ FPG TỪNG BƯỚC (THEO SLIDE 9-10 & 20-21) -->
     <div class="card" style="margin-top: 1.5rem; padding: 1.25rem;">
       <h3
         style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
         <i class="fa-solid fa-list-check" style="color: #10b981;"></i> Bảng Nhật Ký Diễn Biến Suy Diễn Tiến Chẩn Đoán
-        (Theo Bảng Slide 20, 21)
+        (Đồ Thị FPG)
       </h3>
       <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
-        Tại mỗi chu kỳ chẩn đoán, hệ thống đánh giá hàm lượng giá <strong>h&#770;(R) = KC<sub>FPG</sub>(q, KL) &rarr;
-          min</strong> cho từng luật y tế <strong>R &isin; THOA</strong> và chọn luật có đường đi tới bệnh kết luận ngắn
+        Tại mỗi chu kỳ chẩn đoán, hệ thống đánh giá hàm lượng giá <strong>h&#770;(r) = KC<sub>FPG</sub>(q, KL) &rarr;
+          min</strong> cho từng luật y tế <strong>r &isin; THOA</strong> và chọn luật có đường đi tới bệnh kết luận ngắn
         nhất để nạp vào <strong>VET</strong>, giúp chẩn đoán chính xác mà không kích hoạt các luật dư thừa.
       </p>
 
@@ -182,15 +182,49 @@
           <thead>
             <tr>
               <th style="width: 70px; text-align: center;">Chu kỳ</th>
-              <th style="width: 110px; text-align: center;">Luật chọn (R)</th>
+              <th style="width: 110px; text-align: center;">Luật chọn (r)</th>
               <th style="width: 180px;">Tập thỏa mãn (THOA)</th>
-              <th>Đánh giá Heuristic h&#770;(R) = KC<sub>FPG</sub>(q, KL)</th>
+              <th>Đánh giá Heuristic: h&#770;(r) = KC<sub>FPG</sub>(q, KL)</th>
               <th style="width: 200px;">Bộ nhớ sự kiện (TG)</th>
-              <th style="width: 170px;">Luật còn lại (R)</th>
-              <th style="width: 190px;">Vết chẩn đoán (VET)</th>
+              <th style="width: 170px;">Tập luật còn lại (R)</th>
+              <th style="width: 190px;">Vết suy diễn (VET)</th>
             </tr>
           </thead>
           <tbody id="traceTableBody">
+            <!-- Render động bằng JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BẢNG TỔNG HỢP HÀM LƯỢNG GIÁ HEURISTIC TRÊN ĐỒ THỊ SỰ KIỆN FPG (THEO SLIDE 18) -->
+    <div class="card" style="margin-top: 1.5rem; padding: 1.25rem;">
+      <h3
+        style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-table-list" style="color: #38bdf8;"></i> Bảng Đánh Giá Hàm Lượng Giá Heuristic Trên Đồ Thị
+        FPG: h&#770;(r) = KC<sub>FPG</sub>(q, KL) &rarr; min
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+        Áp dụng lý thuyết <em>"Mô tơ suy diễn"</em>: Luật y tế <strong>r: left &rarr; q</strong> được ưu tiên chọn
+        khi khoảng cách trên đồ thị sự kiện FPG từ kết luận vế phải <strong>q</strong> tới tập bệnh kết luận mục tiêu
+        <strong>KL</strong> là ngắn nhất (giúp chẩn đoán đúng đích và loại bỏ các xét nghiệm, hội chứng không liên
+        quan).
+      </p>
+      <div class="table-responsive">
+        <table class="data-table" id="fpgAnalysisTable">
+          <thead>
+            <tr>
+              <th style="width: 75px;">Mã luật (r)</th>
+              <th>Tên luật y tế & Nội dung</th>
+              <th>Tiền đề (NẾU)</th>
+              <th>Kết luận (q)</th>
+              <th style="width: 140px; text-align: center;">Thỏa ban đầu (left &sube; GT)</th>
+              <th style="width: 130px; text-align: center;">Đích kết luận (q &sube; KL)</th>
+              <th style="width: 160px; text-align: center;">KC<sub>FPG</sub>(q, KL) [h&#770;]</th>
+              <th style="width: 160px; text-align: center;">Trạng thái / Mức ưu tiên</th>
+            </tr>
+          </thead>
+          <tbody id="fpgAnalysisTableBody">
             <!-- Render động bằng JS -->
           </tbody>
         </table>
@@ -200,8 +234,7 @@
 
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
-    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Đồ Thị FPG • Dựa trên lý thuyết mô tơ suy diễn (TS. Nguyễn Quốc
-      Tuấn)</p>
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Đồ Thị FPG • Dựa trên lý thuyết mô tơ suy diễn</p>
   </footer>
 
   <!-- ==================== SCRIPTS ==================== -->
@@ -221,6 +254,7 @@
       const bannerTHOA = document.getElementById("bannerTHOA");
       const bannerVET = document.getElementById("bannerVET");
       const traceTableBody = document.getElementById("traceTableBody");
+      const fpgAnalysisTableBody = document.getElementById("fpgAnalysisTableBody");
 
       const btnStepSim = document.getElementById("btnStepSim");
       const btnAutoSim = document.getElementById("btnAutoSim");
@@ -274,6 +308,79 @@
         );
 
         renderTraceTable();
+        renderAnalysisTable(currentCase, currentStep);
+      }
+
+      function renderAnalysisTable(clinicalCase, currentStep) {
+        if (!clinicalCase) return;
+        const rules = window.MEDICAL_KB_GRAPH_DATA.rules || [];
+        const facts = window.MEDICAL_KB_GRAPH_DATA.facts || {};
+        const gtSet = new Set(clinicalCase.gt || []);
+        const klSet = new Set(clinicalCase.kl || []);
+        const fpgData = window.MedicalGraphAlgorithms.buildMedicalFPG(clinicalCase);
+        const edges = fpgData.edges || [];
+
+        const activeRule = currentStep ? currentStep.selectedRule : null;
+        const vetSet = new Set(currentStep ? currentStep.VET || [] : []);
+        const thoaSet = new Set(currentStep ? currentStep.THOA || [] : []);
+
+        const rowData = rules.map(r => {
+          const isInitialTHOA = (r.premises || []).every(p => gtSet.has(p));
+          const isDirectKL = klSet.has(r.conclusion);
+          const isFired = vetSet.has(r.id);
+          const isSelected = activeRule === r.id;
+          const isInTHOA = thoaSet.has(r.id);
+          const kc = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, klSet, edges);
+          return { rule: r, isInitialTHOA, isDirectKL, isFired, isSelected, isInTHOA, kc };
+        });
+
+        fpgAnalysisTableBody.innerHTML = rowData.map(item => {
+          const r = item.rule;
+          const premsStr = (r.premises || []).map(p => `${p} (${(facts[p] || {}).name || p})`).join(" ∧ ");
+          const concName = (facts[r.conclusion] || {}).name || r.conclusion;
+
+          const kcDisplay = item.kc === Infinity
+            ? "<span style='color: var(--text-muted);'>&infin; (Không dẫn tới KL)</span>"
+            : (item.kc === 0
+              ? "<span style='color: #10b981; font-weight: bold;'>0 (Đích chẩn đoán)</span>"
+              : `<span style='color: #38bdf8; font-weight: bold;'>${item.kc} bước</span>`);
+
+          let priorityBadge = "";
+          if (item.isSelected) {
+            priorityBadge = `<span class="stat-pill" style="background: rgba(16,185,129,0.25); color: #10b981; border-color: #10b981; font-weight: bold;">⚡ Đang chọn (Kích hoạt)</span>`;
+          } else if (item.isFired) {
+            priorityBadge = `<span class="stat-pill success"><i class="fa-solid fa-check"></i> Đã nạp vào VET</span>`;
+          } else if (item.isInTHOA) {
+            priorityBadge = `<span class="stat-pill warning"><i class="fa-solid fa-bolt"></i> Thỏa tiền đề (THOA)</span>`;
+          } else if (item.isInitialTHOA && item.kc !== Infinity) {
+            priorityBadge = `<span class="stat-pill success">Ưu tiên (Thỏa GT)</span>`;
+          } else if (item.kc === 0) {
+            priorityBadge = `<span class="stat-pill" style="color: #f43f5e; border-color: rgba(244,63,94,0.4);">Kết luận bệnh</span>`;
+          } else if (item.kc === 1) {
+            priorityBadge = `<span class="stat-pill warning">Kế cận kết luận</span>`;
+          } else {
+            priorityBadge = `<span class="stat-pill" style="opacity: 0.5;">Khác</span>`;
+          }
+
+          const rowClass = item.isSelected ? 'active-step-row' : '';
+
+          return `
+            <tr class="${rowClass}">
+              <td><strong style="color: ${item.isFired ? '#10b981' : '#38bdf8'}; font-family: monospace;">${r.id}</strong></td>
+              <td><strong>${r.name}</strong><br><small style="color: var(--text-secondary);">${r.description || ''}</small></td>
+              <td><small>${premsStr}</small></td>
+              <td><strong style="color: ${r.conclusion.startsWith('D') ? '#f43f5e' : '#10b981'};">${r.conclusion}</strong> (${concName})</td>
+              <td style="text-align: center;">
+                ${item.isInitialTHOA ? '<span class="badge-tag r-gt"><i class="fa-solid fa-check"></i> Thỏa GT</span>' : '<span style="color: var(--text-muted);">-</span>'}
+              </td>
+              <td style="text-align: center;">
+                ${item.isDirectKL ? '<span class="badge-tag r-kl"><i class="fa-solid fa-flag-checkered"></i> Đích KL</span>' : '<span style="color: var(--text-muted);">-</span>'}
+              </td>
+              <td style="text-align: center; font-family: monospace;">${kcDisplay}</td>
+              <td style="text-align: center;">${priorityBadge}</td>
+            </tr>
+          `;
+        }).join("");
       }
 
       function renderTraceTable() {

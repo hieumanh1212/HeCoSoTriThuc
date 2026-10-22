@@ -25,6 +25,11 @@ class RPGVisualizer {
     this.onNodeSelect = options.onNodeSelect || null;
     this.onNodeHover = options.onNodeHover || null;
 
+    // Trạng thái mô phỏng suy diễn tiến y tế trên mạng luật RPG
+    this.firedRules = new Set();
+    this.activeRuleId = null;
+    this.currentTG = new Set();
+
     this.nodes = [];
     this.edges = [];
 
@@ -187,9 +192,21 @@ class RPGVisualizer {
 
   setCase(clinicalCase) {
     this.selectedCase = clinicalCase;
+    this.firedRules = new Set();
+    this.activeRuleId = null;
+    this.currentTG = new Set(clinicalCase.gt || []);
     this.rpgData = window.MedicalGraphAlgorithms.buildMedicalRPG(clinicalCase);
     this.buildGraph();
     this.autoFit();
+  }
+
+  setSimulationState(firedRules, activeRuleId = null, tgSet = null) {
+    this.firedRules = firedRules instanceof Set ? firedRules : new Set(firedRules || []);
+    this.activeRuleId = activeRuleId;
+    if (tgSet) {
+      this.currentTG = tgSet instanceof Set ? tgSet : new Set(tgSet || []);
+    }
+    this.render();
   }
 
   buildGraph() {
@@ -362,7 +379,9 @@ class RPGVisualizer {
     const isSelectedEdge = this.selectedNode && (edge.from.id === this.selectedNode.id || edge.to.id === this.selectedNode.id);
     const isHoveredEdge = this.hoveredNode && (edge.from.id === this.hoveredNode.id || edge.to.id === this.hoveredNode.id);
     const isPathToGoal = from.isR_GT && to.isR_KL;
-    const isHighlighted = isSelectedEdge || isHoveredEdge || isPathToGoal;
+    const isFromFired = this.firedRules.has(edge.from.id);
+    const isEdgeActive = isFromFired && (this.activeRuleId === edge.to.id || this.firedRules.has(edge.to.id));
+    const isHighlighted = isSelectedEdge || isHoveredEdge || isPathToGoal || isEdgeActive;
 
     ctx.save();
 
@@ -380,7 +399,12 @@ class RPGVisualizer {
     ctx.moveTo(startX, startY);
     ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
 
-    if (isHighlighted) {
+    if (isEdgeActive) {
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 3.2;
+      ctx.shadowColor = "rgba(16, 185, 129, 0.85)";
+      ctx.shadowBlur = 10;
+    } else if (isHighlighted) {
       ctx.strokeStyle = "#38bdf8";
       ctx.lineWidth = 3.2;
       ctx.shadowColor = "rgba(56, 189, 248, 0.75)";
@@ -395,13 +419,14 @@ class RPGVisualizer {
 
     // Mũi tên
     const arrowAngle = Math.atan2(endY - cp2Y, endX - cp2X);
-    this.drawArrowHeadAt(ctx, endX, endY, arrowAngle, isHighlighted ? "#38bdf8" : (isLight ? "#475569" : "#94a3b8"));
+    const arrowColor = isEdgeActive ? "#10b981" : (isHighlighted ? "#38bdf8" : (isLight ? "#475569" : "#94a3b8"));
+    this.drawArrowHeadAt(ctx, endX, endY, arrowAngle, arrowColor);
 
     // Nhãn hội chứng cầu nối trên cung
     if (edge.connectorFact) {
       const midX = (startX + endX) / 2;
       const midY = (startY + endY) / 2;
-      this.drawEdgeLabel(ctx, edge.connectorFact, midX, midY, isLight, isHighlighted);
+      this.drawEdgeLabel(ctx, edge.connectorFact, midX, midY, isLight, isHighlighted, isEdgeActive);
     }
 
     ctx.restore();
@@ -426,7 +451,7 @@ class RPGVisualizer {
     ctx.restore();
   }
 
-  drawEdgeLabel(ctx, text, x, y, isLight, isHighlighted) {
+  drawEdgeLabel(ctx, text, x, y, isLight, isHighlighted, isEdgeActive = false) {
     ctx.save();
     ctx.font = "bold 11px 'JetBrains Mono', Consolas, monospace";
     const textWidth = ctx.measureText(text).width;
@@ -434,7 +459,7 @@ class RPGVisualizer {
     const padY = 3;
 
     ctx.fillStyle = isLight ? "#ffffff" : "#1e293b";
-    ctx.strokeStyle = isHighlighted ? "#38bdf8" : (isLight ? "#cbd5e1" : "#475569");
+    ctx.strokeStyle = isEdgeActive ? "#10b981" : (isHighlighted ? "#38bdf8" : (isLight ? "#cbd5e1" : "#475569"));
     ctx.lineWidth = 1;
 
     ctx.beginPath();
@@ -442,7 +467,7 @@ class RPGVisualizer {
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = isHighlighted ? "#0284c7" : (isLight ? "#334155" : "#cbd5e1");
+    ctx.fillStyle = isEdgeActive ? "#10b981" : (isHighlighted ? "#0284c7" : (isLight ? "#334155" : "#cbd5e1"));
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, x, y);
@@ -453,6 +478,8 @@ class RPGVisualizer {
   drawNode(ctx, node, isLight = false) {
     const isSelected = this.selectedNode && this.selectedNode.id === node.id;
     const isHovered = this.hoveredNode && this.hoveredNode.id === node.id;
+    const isFired = this.firedRules.has(node.id);
+    const isActive = this.activeRuleId === node.id;
 
     ctx.save();
 
@@ -460,7 +487,10 @@ class RPGVisualizer {
     ctx.beginPath();
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
 
-    if (node.isR_GT) {
+    if (isFired) {
+      // Luật đã kích hoạt trong tiến trình suy diễn
+      ctx.fillStyle = isLight ? "#ecfdf5" : "#064e3b";
+    } else if (node.isR_GT) {
       // Luật thỏa mãn ngay từ triệu chứng ban đầu (Slide 23: Sọc ngang vàng)
       ctx.fillStyle = isLight ? "#fef3c7" : "#3b2a0c";
     } else if (node.isR_KL) {
@@ -472,18 +502,30 @@ class RPGVisualizer {
     ctx.fill();
 
     // 2. Vẽ HATCHING PATTERN chuẩn Slide 23 TS. Nguyễn Quốc Tuấn
-    if (node.isR_GT) {
-      this.drawHatchLines(ctx, node, "HORIZONTAL", isLight ? "#d97706" : "#f59e0b");
-    }
-    if (node.isR_KL) {
-      this.drawHatchLines(ctx, node, "DIAGONAL", isLight ? "#e11d48" : "#f43f5e");
+    if (!isFired) {
+      if (node.isR_GT) {
+        this.drawHatchLines(ctx, node, "HORIZONTAL", isLight ? "#d97706" : "#f59e0b");
+      }
+      if (node.isR_KL) {
+        this.drawHatchLines(ctx, node, "DIAGONAL", isLight ? "#e11d48" : "#f43f5e");
+      }
     }
 
     // 3. Viền
     ctx.beginPath();
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
 
-    if (isSelected || isHovered) {
+    if (isActive) {
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 4;
+      ctx.shadowColor = "rgba(16, 185, 129, 0.95)";
+      ctx.shadowBlur = 18;
+    } else if (isFired) {
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "rgba(16, 185, 129, 0.65)";
+      ctx.shadowBlur = 10;
+    } else if (isSelected || isHovered) {
       ctx.strokeStyle = "#38bdf8";
       ctx.lineWidth = 3.5;
       ctx.shadowColor = "rgba(56, 189, 248, 0.8)";
@@ -505,7 +547,10 @@ class RPGVisualizer {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    if (node.isR_GT || node.isR_KL) {
+    if (isFired) {
+      ctx.fillStyle = "#10b981";
+      ctx.fillText(node.label, node.x, node.y);
+    } else if (node.isR_GT || node.isR_KL) {
       ctx.strokeStyle = isLight ? "#ffffff" : "#000000";
       ctx.lineWidth = 3.5;
       ctx.strokeText(node.label, node.x, node.y);
@@ -519,12 +564,14 @@ class RPGVisualizer {
     // 5. Badge khoảng cách heuristic KC(R, R_KL)
     const kcText = node.kcToR_KL === Infinity ? "h^ = ∞" : `h^ = ${node.kcToR_KL}`;
     ctx.font = "bold 10px 'Segoe UI Symbol', 'Segoe UI', Arial, sans-serif";
-    ctx.fillStyle = node.kcToR_KL === 0 ? "#10b981" : (node.kcToR_KL === Infinity ? "#94a3b8" : "#38bdf8");
+    ctx.fillStyle = isFired ? "#10b981" : (node.kcToR_KL === 0 ? "#10b981" : (node.kcToR_KL === Infinity ? "#94a3b8" : "#38bdf8"));
     ctx.textAlign = "center";
     ctx.fillText(kcText, node.x, node.y + node.radius + 15);
 
-    // Badge r in R_GT hoặc r in R_KL
-    if (node.isR_GT) {
+    // Badge r in R_GT hoặc r in R_KL hoặc VET
+    if (isFired) {
+      this.drawBadgeText(ctx, "✓ VET", node.x, node.y - node.radius - 8, "#10b981", isLight);
+    } else if (node.isR_GT) {
       this.drawBadgeText(ctx, "R ∈ R_GT", node.x, node.y - node.radius - 8, "#f59e0b", isLight);
     } else if (node.isR_KL) {
       this.drawBadgeText(ctx, "R ∈ R_KL", node.x, node.y - node.radius - 8, "#f43f5e", isLight);

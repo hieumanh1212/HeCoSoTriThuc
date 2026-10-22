@@ -97,7 +97,8 @@
       </h2>
       <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
         <p><strong>1. Biểu diễn tri thức bất định:</strong> Mỗi luật sinh có dạng:
-          <code>NẾU &lt;Tiền đề&gt; THÌ &lt;Kết luận&gt; [CF]</code> với <i>CF</i> &isin; (0, 1].</p>
+          <code>NẾU &lt;Tiền đề&gt; THÌ &lt;Kết luận&gt; [CF]</code> với <i>CF</i> &isin; (0, 1].
+        </p>
         <p><strong>2. Độ tin cậy của tiền đề phức hợp dạng hội (AND):</strong></p>
         <pre class="math-formula-box">CF(E1 ∧ E2 ∧ ... ∧ En) = min(CF(E1), CF(E2), ..., CF(En))</pre>
 
@@ -122,31 +123,39 @@ CF_combine(CF1, CF2) = (CF1 + CF2) / (1 - min(|CF1|, |CF2|))  (khi CF1 và CF2 k
       <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
         <p>
           Trong mô hình suy diễn tiến (Forward Chaining) và giải quyết xung đột (Conflict Resolution), lý thuyết hệ cơ
-          sở tri thức (Học phần IT4361 - Thầy Phạm Văn Hải & TS. Nguyễn Quốc Tuấn) định nghĩa hai cấu trúc đồ thị tương hỗ:
+          sở tri thức định nghĩa hai cấu trúc đồ thị tương hỗ:
         </p>
         <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
           <li>
             <strong>FPG (Facts Precedence Graph - Đồ thị liên hệ trước sự kiện, Slide 18 - 21):</strong>
-            Mỗi sự kiện là một đỉnh (<i>f</i> &isin; F). Mỗi luật <i>r</i>: left &rarr; <i>q</i> tương ứng một tập cung <i>f</i> &rarr; <i>q</i> mang
-            nhãn luật <i>r</i> (với <i>f</i> &isin; left). Đỉnh <i>f</i> &isin; GT biểu thị sự kiện giả thiết ban đầu, <i>f</i> &isin; KL biểu
+            Mỗi sự kiện là một đỉnh (<i>f</i> &isin; F). Mỗi luật <i>r</i>: left &rarr; <i>q</i> tương ứng một tập cung
+            <i>f</i> &rarr; <i>q</i> mang
+            nhãn luật <i>r</i> (với <i>f</i> &isin; left). Đỉnh <i>f</i> &isin; GT biểu thị sự kiện giả thiết ban đầu,
+            <i>f</i> &isin; KL biểu
             thị sự kiện kết luận mục tiêu.
             <br>
-            • <em>Hàm lượng giá suy diễn tiến:</em> <code>h&#770;(r) = KC<sub>FPG</sub>(q, KL) &rarr; min</code> (chọn luật có vế phải tới
+            • <em>Hàm lượng giá suy diễn tiến:</em> <code>h&#770;(r) = KC<sub>FPG</sub>(q, KL) &rarr; min</code> (chọn
+            luật có vế phải tới
             kết luận ngắn nhất).
             <br>
-            • <em>Hàm lượng giá suy diễn lùi (Slide 28):</em> <code>h(r, GT) = max<sub>f &isin; left</sub> d(f, GT) &rarr; min</code>.
+            • <em>Hàm lượng giá suy diễn lùi (Slide 28):</em>
+            <code>h(r, GT) = max<sub>f &isin; left</sub> d(f, GT) &rarr; min</code>.
           </li>
           <li>
             <strong>RPG (Rules Precedence Graph - Đồ thị liên hệ trước giữa các luật, Slide 22 - 23):</strong>
-            Mỗi đỉnh là một luật trong tập luật (<i>R</i> &isin; R). Cung R<sub>i</sub> &rarr; R<sub>j</sub> khi và chỉ khi tồn tại sự kiện <i>f</i> sao
-            cho R<sub>i</sub> suy ra <i>f</i> và <i>f</i> &isin; left<sub>j</sub> (R<sub>i</sub> là liên hệ trước của R<sub>j</sub>).
+            Mỗi đỉnh là một luật trong tập luật (<i>R</i> &isin; R). Cung R<sub>i</sub> &rarr; R<sub>j</sub> khi và chỉ
+            khi tồn tại sự kiện <i>f</i> sao
+            cho R<sub>i</sub> suy ra <i>f</i> và <i>f</i> &isin; left<sub>j</sub> (R<sub>i</sub> là liên hệ trước của
+            R<sub>j</sub>).
             <br>
             • <em>Tập R<sub>GT</sub>:</em> { <i>r</i>: left &rarr; <i>q</i> | left &sube; GT } (Luật thỏa mãn ngay từ
             đầu).
             <br>
-            • <em>Tập R<sub>KL</sub>:</em> { <i>r</i>: left &rarr; <i>q</i> | <i>q</i> &sube; KL } (Luật thỏa mãn kết luận).
+            • <em>Tập R<sub>KL</sub>:</em> { <i>r</i>: left &rarr; <i>q</i> | <i>q</i> &sube; KL } (Luật thỏa mãn kết
+            luận).
             <br>
-            • <em>Hàm lượng giá:</em> <code>h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr; min</code> (khoảng cách ngắn nhất từ <i>r</i> tới tập luật
+            • <em>Hàm lượng giá:</em> <code>h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr; min</code> (khoảng cách ngắn nhất
+            từ <i>r</i> tới tập luật
             kết luận R<sub>KL</sub>).
           </li>
         </ul>
