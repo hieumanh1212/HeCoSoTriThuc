@@ -52,6 +52,8 @@ class DiagnosisController {
     this.explanationContent = document.getElementById("explanationModalContent");
     this.modalBackward = document.getElementById("modalBackward");
     this.backwardContent = document.getElementById("backwardModalContent");
+    this.modalChainPipeline = document.getElementById("modalChainPipeline");
+    this.chainModalContent = document.getElementById("chainModalContent");
   }
 
   bindEvents() {
@@ -152,6 +154,180 @@ class DiagnosisController {
         }
       });
     }
+
+    // 9. Khởi tạo Rich Rule Hover Tooltip
+    this._initRuleHoverTooltips();
+  }
+
+  /* --- RICH CLINICAL RULE HOVER TOOLTIP (TRỰC QUAN HÓA QUY TẮC R1, R2...) --- */
+  _initRuleHoverTooltips() {
+    let tooltip = document.getElementById("globalRuleHoverTooltip");
+    if (!tooltip) {
+      tooltip = document.createElement("div");
+      tooltip.id = "globalRuleHoverTooltip";
+      tooltip.className = "rule-hover-tooltip";
+      document.body.appendChild(tooltip);
+    }
+
+    document.body.addEventListener("mouseover", (e) => this._handleRuleMouseOver(e));
+    document.body.addEventListener("mouseout", (e) => this._handleRuleMouseOut(e));
+  }
+
+  _handleRuleMouseOver(e) {
+    const target = e.target.closest("[data-rule-id]");
+    if (!target) return;
+
+    const ruleId = target.getAttribute("data-rule-id");
+    if (!ruleId) return;
+
+    const ruleInfo = this._resolveRuleInfo(ruleId);
+    if (!ruleInfo) return;
+
+    const tooltip = document.getElementById("globalRuleHoverTooltip");
+    if (!tooltip) return;
+
+    tooltip.innerHTML = this._buildRuleTooltipHtml(ruleInfo);
+    this._positionRuleTooltip(tooltip, target);
+    tooltip.classList.add("visible");
+  }
+
+  _handleRuleMouseOut(e) {
+    const target = e.target.closest("[data-rule-id]");
+    if (!target) return;
+    const tooltip = document.getElementById("globalRuleHoverTooltip");
+    if (tooltip) {
+      tooltip.classList.remove("visible");
+    }
+  }
+
+  _resolveRuleInfo(ruleId) {
+    const fired = (this.lastInferenceResult?.firedRules || []).find(r => r.ruleId === ruleId);
+    const kb = this.kbManager.getKB();
+    const kbRule = (kb.rules || []).find(r => r.id === ruleId);
+    if (!fired && !kbRule) return null;
+
+    const name = fired ? fired.ruleName : (kbRule ? kbRule.name : ruleId);
+    const desc = fired ? fired.ruleDescription : (kbRule ? kbRule.description : "");
+    const baseCF = fired ? Math.round((fired.ruleBaseCF || 0.9) * 100) : Math.round(((kbRule && kbRule.cf) || 0.9) * 100);
+    const conclusion = fired ? fired.conclusion : (kbRule ? kbRule.conclusion : "");
+    const outputCF = fired ? fired.outputCF : null;
+
+    const premises = this._resolvePremisesList(fired, kbRule, kb);
+    const conclusionName = this._resolveConclusionName(conclusion, kb, fired);
+
+    return {
+      ruleId,
+      name,
+      desc,
+      baseCF,
+      conclusion,
+      conclusionName,
+      outputCF,
+      premises
+    };
+  }
+
+  _resolvePremisesList(fired, kbRule, kb) {
+    if (fired && fired.premiseDetails && fired.premiseDetails.length > 0) {
+      return fired.premiseDetails.map(p => ({
+        id: p.id,
+        name: p.name,
+        userCF: Math.round((p.userCF || 0) * 100)
+      }));
+    }
+
+    const rawPremises = kbRule ? (kbRule.premises || []) : [];
+    return rawPremises.map(pId => {
+      const sym = (kb.symptoms || []).find(s => s.id === pId);
+      const userCF = this.currentSelectedSymptoms[pId];
+      return {
+        id: pId,
+        name: sym ? sym.name : pId,
+        userCF: userCF !== undefined ? Math.round(userCF * 100) : 0
+      };
+    });
+  }
+
+  _resolveConclusionName(conclusionId, kb, fired) {
+    if (fired && fired.conclusionName) return fired.conclusionName;
+    const dis = (kb.diseases || []).find(d => d.id === conclusionId);
+    if (dis) return dis.name;
+    const sym = (kb.symptoms || []).find(s => s.id === conclusionId);
+    if (sym) return sym.name;
+    return conclusionId;
+  }
+
+  _buildRuleTooltipHtml(info) {
+    const premisesHtml = info.premises.map(p => `
+      <div class="rtt-premise-item">
+        <span><strong>${p.id}:</strong> ${p.name}</span>
+        <span style="font-weight: 700; color: ${p.userCF > 0 ? 'var(--color-emerald)' : 'var(--text-muted)'};">
+          ${p.userCF > 0 ? `${p.userCF}%` : 'Chưa chọn'}
+        </span>
+      </div>
+    `).join('');
+
+    const cfCalculated = info.outputCF !== null
+      ? `<span style="margin-left: auto; color: #10b981; font-size: 0.75rem;">(CF suy ra: ${Math.round(info.outputCF * 100)}%)</span>`
+      : '';
+
+    const descHtml = info.desc ? `
+      <div class="rtt-desc-text">
+        <i class="fa-solid fa-circle-info"></i> ${info.desc}
+      </div>
+    ` : '';
+
+    return `
+      <div class="rtt-header">
+        <div>
+          <div style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 700;">
+            Quy tắc suy luận lâm sàng
+          </div>
+          <div class="rtt-title">
+            <i class="fa-solid fa-bolt" style="color: #8b5cf6;"></i> [${info.ruleId}] ${info.name}
+          </div>
+        </div>
+        <span class="rtt-cf-badge">Độ tin cậy: ${info.baseCF}%</span>
+      </div>
+
+      <div class="rtt-section-title">
+        <i class="fa-solid fa-list-check" style="color: var(--color-cyan);"></i> ĐIỀU KIỆN (NẾU CÓ TRIỆU CHỨNG):
+      </div>
+      <div class="rtt-premises-list">
+        ${premisesHtml}
+      </div>
+
+      <div class="rtt-section-title">
+        <i class="fa-solid fa-arrow-turn-down" style="color: #10b981;"></i> KẾT LUẬN (THÌ SUY RA):
+      </div>
+      <div class="rtt-conclusion-box">
+        <i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+        <span><strong>[${info.conclusion}]</strong> ${info.conclusionName}</span>
+        ${cfCalculated}
+      </div>
+
+      ${descHtml}
+    `;
+  }
+
+  _positionRuleTooltip(tooltip, target) {
+    const rect = target.getBoundingClientRect();
+    const tooltipWidth = 360;
+    const tooltipHeight = 220;
+
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    if (left < 10) left = 10;
+    if (left + tooltipWidth > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipWidth - 10;
+    }
+
+    let top = rect.top - tooltipHeight - 12;
+    if (top < 10) {
+      top = rect.bottom + 12;
+    }
+
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.style.top = `${Math.round(top)}px`;
   }
 
   _stripVN(str) {
@@ -545,8 +721,10 @@ class DiagnosisController {
         .map(p => this._getSymptomMeta(p, kb));
       const disResult = (diseaseResults || []).find(d => (d.diseaseId || (d.disease && d.disease.id)) === rule.conclusion);
       const disMeta = (kb.diseases || []).find(d => d.id === rule.conclusion);
+      const kbRule = (kb.rules || []).find(r => r.id === rule.ruleId);
       return {
         ruleId: rule.ruleId,
+        ruleName: rule.ruleName || (kbRule ? kbRule.name : ''),
         ruleBaseCF: Math.round((rule.ruleBaseCF || 0.9) * 100),
         extraPremises,
         diseaseId: rule.conclusion,
@@ -561,7 +739,7 @@ class DiagnosisController {
       <div class="chain-stage-box chain-stage-input">
         <div>
           <div class="chain-stage-tag tag-input">
-            <i class="fa-solid fa-stethoscope"></i> TẦNG 1: TRIỆU CHỨNG KHÁM BAN ĐẦU
+            <i class="fa-solid fa-stethoscope"></i> TẦNG 1: DẤU HIỆU LÂM SÀNG BAN ĐẦU
           </div>
           <div class="chain-pill-list">
             ${inputSymptoms.map(s => `
@@ -574,15 +752,19 @@ class DiagnosisController {
         </div>
         <div class="chain-meta-row" style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.6rem;">
           <span>${inputSymptoms.length} dữ kiện lâm sàng</span>
-          <span style="font-weight: 700; color: var(--color-cyan);">Sự kiện F0</span>
+          <span style="font-weight: 700; color: var(--color-cyan);">Dữ liệu ghi nhận</span>
         </div>
       </div>
     `;
   }
 
   _buildChainStage2Html(im) {
-    const firedStr = im.firedRules.map(r => `[${r.ruleId}]`).join(', ');
-    const cycleStr = im.cycles && im.cycles.length > 0 ? im.cycles.join(', ') : '1';
+    const firedChips = im.firedRules.map(r => `
+      <span class="clinical-rule-chip" data-rule-id="${r.ruleId}" style="cursor: pointer;" title="Rê chuột xem chi tiết quy tắc ${r.ruleId}">
+        <i class="fa-solid fa-bolt"></i> [${r.ruleId}]
+      </span>
+    `).join(' ');
+
     return `
       <div class="chain-stage-box chain-stage-intermediate">
         <div>
@@ -601,15 +783,12 @@ class DiagnosisController {
             ${im.name}
           </div>
           <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.4rem; line-height: 1.45;">
-            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Đã tự động nạp vào <strong>Bộ nhớ làm việc (Working Memory)</strong> để làm tiền đề cho chu kỳ tiếp theo.
+            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Đã xác lập vào hồ sơ chẩn đoán để làm căn cứ xác định bệnh lý tiếp theo.
           </div>
         </div>
-        <div class="chain-meta-row" style="margin-top: 0.6rem;">
-          <span style="font-size: 0.72rem; color: var(--text-muted);">
-            Kích hoạt từ: <strong>${firedStr}</strong>
-          </span>
-          <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; font-size: 0.7rem; padding: 2px 7px;">
-            Chu kỳ ${cycleStr} (F1)
+        <div class="chain-meta-row" style="margin-top: 0.6rem; flex-wrap: wrap; gap: 0.35rem;">
+          <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+            Căn cứ từ: ${firedChips}
           </span>
         </div>
       </div>
@@ -624,7 +803,7 @@ class DiagnosisController {
             <i class="fa-solid fa-flag-checkered"></i> TẦNG 3: BỆNH ĐÍCH CHẨN ĐOÁN
           </div>
           <div style="font-size: 0.82rem; color: var(--text-muted); font-style: italic; line-height: 1.5;">
-            Hội chứng đã được xác lập vào bộ nhớ. Cần thêm triệu chứng đặc hiệu để kích hoạt bước suy diễn ra bệnh đích.
+            Hội chứng đã được xác lập. Cần bổ sung thêm triệu chứng đặc hiệu để kích hoạt bước xác định bệnh đích.
           </div>
         </div>
       `;
@@ -634,7 +813,7 @@ class DiagnosisController {
       <div class="chain-stage-box chain-stage-goal">
         <div>
           <div class="chain-stage-tag tag-goal">
-            <i class="fa-solid fa-flag-checkered"></i> TẦNG 3: BỆNH ĐÍCH CHẨN ĐOÁN (F2)
+            <i class="fa-solid fa-flag-checkered"></i> TẦNG 3: BỆNH ĐÍCH CHẨN ĐOÁN
           </div>
           ${downstreamTargets.map(target => `
             <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 0.65rem; margin-bottom: 0.45rem;">
@@ -661,26 +840,26 @@ class DiagnosisController {
           `).join('')}
         </div>
         <div class="chain-meta-row" style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.4rem;">
-          <span>Kết luận suy diễn tiến</span>
-          <span style="font-weight: 700; color: var(--color-emerald);">Mục tiêu F2</span>
+          <span>Kết luận suy diễn lâm sàng</span>
+          <span style="font-weight: 700; color: var(--color-emerald);">Mục tiêu chẩn đoán</span>
         </div>
       </div>
     `;
   }
 
   _buildChainConnector1(im) {
-    const rulesStr = im.firedRules.map(r => `[${r.ruleId}]`).join(' & ');
+    const firstRule = (im.firedRules && im.firedRules[0]) || {};
+    const rId = firstRule.ruleId || 'R17';
+
     return `
       <div class="chain-connector">
-        <span class="chain-rule-pill" title="Kích hoạt trong Chu kỳ suy diễn 1">
-          <i class="fa-solid fa-bolt"></i> Luật ${rulesStr}
+        <span class="chain-rule-pill clinical-rule-chip" data-rule-id="${rId}" title="Rê chuột xem chi tiết quy tắc ${rId}">
+          <i class="fa-solid fa-bolt"></i> [${rId}]
         </span>
         <div class="chain-arrow-icon">
           <i class="fa-solid fa-arrow-right"></i>
         </div>
-        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">
-          Suy diễn Chu kỳ 1
-        </span>
+        <div class="chain-step-label">Bước 1: Hội chứng</div>
       </div>
     `;
   }
@@ -689,7 +868,7 @@ class DiagnosisController {
     if (!downstreamTargets || downstreamTargets.length === 0) {
       return `
         <div class="chain-connector">
-          <div class="chain-arrow-icon" style="opacity: 0.5;">
+          <div class="chain-arrow-icon" style="opacity: 0.4;">
             <i class="fa-solid fa-arrow-right"></i>
           </div>
         </div>
@@ -697,21 +876,21 @@ class DiagnosisController {
     }
 
     const first = downstreamTargets[0];
-    const extraStr = first.extraPremises.length > 0
-      ? `+ [${first.extraPremises.map(p => p.id).join(', ')}]`
+    const rId = first.ruleId || 'R18';
+    const extraBadge = first.extraPremises.length > 0
+      ? `<span class="chain-extra-badge" title="Dấu hiệu kết hợp: ${first.extraPremises.map(p => `[${p.id}] ${p.name}`).join(', ')}">+ ${first.extraPremises.length} dấu hiệu phụ</span>`
       : '';
 
     return `
       <div class="chain-connector">
-        <span class="chain-rule-pill" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Kích hoạt trong Chu kỳ suy diễn 2">
-          <i class="fa-solid fa-bolt"></i> Luật [${first.ruleId}] ${extraStr}
+        <span class="chain-rule-pill clinical-rule-chip" data-rule-id="${rId}" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc ${rId}">
+          <i class="fa-solid fa-bolt"></i> [${rId}]
         </span>
         <div class="chain-arrow-icon" style="color: #10b981;">
           <i class="fa-solid fa-arrow-right"></i>
         </div>
-        <span style="font-size: 0.7rem; color: #10b981; font-weight: 600;">
-          Suy diễn Chu kỳ 2
-        </span>
+        <div class="chain-step-label" style="color: #10b981;">Bước 2: Bệnh đích</div>
+        ${extraBadge}
       </div>
     `;
   }
@@ -726,24 +905,29 @@ class DiagnosisController {
     const conn2Html = this._buildChainConnector2(downstreamTargets);
     const stage3Html = this._buildChainStage3Html(downstreamTargets);
 
-    const sInputCodes = inputSymptoms.map(s => s.id).join(' ∧ ');
-    const rule1Code = im.firedRules.map(r => r.ruleId).join(', ');
     const targetInfo = downstreamTargets.length > 0 ? downstreamTargets[0] : null;
-    const targetRule = targetInfo ? targetInfo.ruleId : '';
-    const targetExtra = targetInfo && targetInfo.extraPremises.length > 0 ? ` ∧ ${targetInfo.extraPremises.map(p => p.id).join(' ∧ ')}` : '';
-    const targetDis = targetInfo ? `${targetInfo.diseaseId} (${targetInfo.finalCF}%)` : 'Bệnh đích';
 
-    const formulaStr = `(${sInputCodes}) ➔ [${rule1Code}] ➔ [${im.id}: ${Math.round(im.finalCF * 100)}%] ➔ [${targetRule}${targetExtra}] ➔ [${targetDis}]`;
+    const r1Chips = im.firedRules.map(r => `
+      <span class="clinical-rule-chip" data-rule-id="${r.ruleId}" style="cursor: pointer;" title="Rê chuột xem chi tiết quy tắc">
+        <i class="fa-solid fa-bolt"></i> [${r.ruleId}] Nhận diện hội chứng
+      </span>
+    `).join(', ');
+
+    const r2Chips = targetInfo ? `
+      <span class="clinical-rule-chip" data-rule-id="${targetInfo.ruleId}" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc">
+        <i class="fa-solid fa-bolt"></i> [${targetInfo.ruleId}] Chẩn đoán xác định
+      </span>
+    ` : '...';
 
     const inputNames = inputSymptoms.map(s => `"${s.name}"`).join(', ');
     const extraNames = targetInfo && targetInfo.extraPremises.length > 0
-      ? ` và triệu chứng kết hợp ${targetInfo.extraPremises.map(s => `"${s.name}"`).join(', ')}`
+      ? ` và dấu hiệu chuyên biệt ${targetInfo.extraPremises.map(s => `"${s.name}"`).join(', ')}`
       : '';
     const diseaseName = targetInfo
-      ? `chẩn đoán xác định bệnh <strong>"${targetInfo.diseaseName}" [${targetInfo.diseaseId}]</strong> với độ tin cậy <strong>${targetInfo.finalCF}%</strong>.`
+      ? `chẩn đoán xác định bệnh <strong>"${targetInfo.diseaseName}"</strong> với độ tin cậy <strong>${targetInfo.finalCF}%</strong>.`
       : `tiếp tục chờ thêm dữ kiện đặc hiệu.`;
 
-    const narrativeStr = `Hệ thống ghi nhận bệnh nhân có các triệu chứng ban đầu: ${inputNames} ➔ kích hoạt <strong>Luật [${rule1Code}]</strong> để tổng hợp thành hội chứng lâm sàng trung gian <strong>"${im.name}" [${im.id}]</strong> (Độ tin cậy: ${Math.round(im.finalCF * 100)}%). Hội chứng này lập tức được nạp vào Bộ nhớ làm việc${extraNames} ➔ tiếp tục kích hoạt <strong>Luật [${targetRule || '...'}]</strong> để ${diseaseName}`;
+    const narrativeStr = `Hệ thống ghi nhận bệnh nhân có các dấu hiệu lâm sàng ban đầu: ${inputNames} ➔ kích hoạt quy tắc nhận diện hội chứng để tổng hợp thành <strong>"${im.name}"</strong> (Độ tin cậy: ${Math.round(im.finalCF * 100)}%). Hội chứng này kết hợp cùng các dấu hiệu lâm sàng khác${extraNames} ➔ tiếp tục kích hoạt quy tắc chẩn đoán để ${diseaseName}`;
 
     return `
       <div style="margin-bottom: 1.25rem;">
@@ -756,8 +940,19 @@ class DiagnosisController {
         </div>
 
         <div class="chain-formula-ribbon">
-          <span style="font-weight: 700; color: #8b5cf6;"><i class="fa-solid fa-diagram-project"></i> Biểu diễn logic suy diễn:</span>
-          <span class="chain-formula-code">${formulaStr}</span>
+          <span style="font-weight: 700; color: #8b5cf6;"><i class="fa-solid fa-route"></i> Tiến trình suy diễn trực quan:</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+            <span>Triệu chứng ban đầu</span>
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            ${r1Chips}
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            <strong style="color: #8b5cf6;">${im.name}</strong> (${Math.round(im.finalCF * 100)}%)
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            ${r2Chips}
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            <strong style="color: var(--color-emerald);">${targetInfo ? targetInfo.diseaseName : 'Bệnh đích'}</strong>
+            ${targetInfo ? `(${targetInfo.finalCF}%)` : ''}
+          </span>
         </div>
 
         <div class="chain-narrative-box">
@@ -772,37 +967,37 @@ class DiagnosisController {
     const intermediateResults = result ? (result.intermediateResults || []) : [];
     if (intermediateResults.length === 0) return "";
 
+    const syndromeNames = intermediateResults.map(im => `"${im.name}"`).join(', ');
+
     return `
-      <div class="chain-pipeline-banner">
-        <div class="chain-pipeline-header">
-          <div class="chain-header-left">
+      <div class="chain-pipeline-banner" style="padding: 0.95rem 1.15rem; margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
             <div class="chain-icon-badge">
               <i class="fa-solid fa-network-wired"></i>
             </div>
             <div>
-              <h3 class="chain-title">
-                SƠ ĐỒ CHUỖI SUY LUẬN ĐA TẦNG MẮT XÍCH
-                <span class="badge" style="background: rgba(139, 92, 246, 0.25); color: #8b5cf6; font-size: 0.72rem; padding: 2px 8px; border-radius: 999px;">
-                  Multi-Cycle Forward Chaining
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">
+                  Chẩn Đoán Qua Hội Chứng Lâm Sàng
+                </h4>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.74rem; padding: 2px 8px; border-radius: 999px; font-weight: 700;">
+                  <i class="fa-solid fa-circle-check"></i> Đã nhận diện hội chứng
                 </span>
-              </h3>
-              <div class="chain-subtitle">
-                Cơ chế tự động chuyển giao tri thức: <em>Tiền đề F0 &rarr; Hội chứng trung gian F1 &rarr; Kết luận bệnh đích F2</em>
+              </div>
+              <div style="margin-top: 0.25rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">
+                Từ các triệu chứng ban đầu, hệ thống đã nhận diện được <strong>${syndromeNames}</strong> để làm căn cứ suy luận tiếp ra bệnh đích.
               </div>
             </div>
           </div>
-          <div class="chain-header-actions">
-            <a href="../do_thi_rpg/do_thi_rpg.html?mode=RPG" class="btn-chain-graph btn-chain-rpg" title="Mở đồ thị mạng Petri RPG">
-              <i class="fa-solid fa-project-diagram"></i> Xem Mạng RPG
-            </a>
-            <a href="../do_thi_rpg/do_thi_rpg.html?mode=FPG" class="btn-chain-graph btn-chain-fpg" title="Mở mạng phụ thuộc sự kiện FPG">
-              <i class="fa-solid fa-circle-nodes"></i> Xem Mạng FPG
-            </a>
-          </div>
-        </div>
 
-        <div>
-          ${intermediateResults.map(im => this._buildSingleChainHtml(im, result, kb)).join('')}
+          <div>
+            <button type="button" class="btn-toggle-chain-detail btn-open-chain-modal" style="cursor: pointer;" title="Xem chi tiết các bước từ triệu chứng đến hội chứng và bệnh đích">
+              <i class="fa-solid fa-diagram-project"></i>
+              <span>Xem chi tiết sơ đồ suy luận</span>
+              <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem; margin-left: 2px;"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -946,8 +1141,18 @@ class DiagnosisController {
                         <i class="fa-solid fa-chart-line"></i> ${interp.label}
                       </span>
                       <span class="cf-fired-rules-tag">
-                        <i class="fa-solid fa-bolt-lightning"></i> ${item.firedRules.length} luật kích hoạt
+                        <i class="fa-solid fa-bolt-lightning"></i> ${item.firedRules.length} quy tắc suy luận
                       </span>
+                    </div>
+
+                    <!-- Danh sách các quy tắc suy luận (Rê chuột để xem chi tiết) -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.45rem 0 0.35rem 0; align-items: center;">
+                      <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">Căn cứ quy tắc:</span>
+                      ${item.firedRules.map(r => `
+                        <span class="clinical-rule-chip" data-rule-id="${r.ruleId}" style="cursor: pointer;" title="Rê chuột để xem chi tiết quy tắc ${r.ruleId}">
+                          <i class="fa-solid fa-bolt"></i> [${r.ruleId}] ${r.ruleName || 'Quy tắc'}
+                        </span>
+                      `).join('')}
                     </div>
 
                     <!-- Thanh Đo Tiến Trình Gradient -->
@@ -1088,6 +1293,23 @@ class DiagnosisController {
         if (this.onFocusGraph) this.onFocusGraph(disId);
       });
     });
+
+    const btnOpenChain = this.resultsContainer.querySelector(".btn-open-chain-modal");
+    if (btnOpenChain) {
+      btnOpenChain.addEventListener("click", () => {
+        this.openChainPipelineModal();
+      });
+    }
+  }
+
+  openChainPipelineModal() {
+    if (!this.lastInferenceResult || !this.modalChainPipeline || !this.chainModalContent) return;
+    const kb = this.kbManager.getKB();
+    const intermediateResults = this.lastInferenceResult.intermediateResults || [];
+    this.chainModalContent.innerHTML = intermediateResults
+      .map(im => this._buildSingleChainHtml(im, this.lastInferenceResult, kb))
+      .join('');
+    this.modalChainPipeline.classList.add("active");
   }
 
   openBackwardInquiryModal(targetDiseaseId) {

@@ -450,6 +450,38 @@ const DEFAULT_KNOWLEDGE_BASE = {
       ],
       expectedDisease: "D05",
       clinicalNote: "Tay chân miệng có dấu hiệu cảnh báo độ 2A (giật mình khi ngủ), cần nhập viện ngay."
+    },
+    {
+      id: "TC06",
+      name: "Ca bệnh 6: Suy diễn đa tầng mắt xích (A+B→C & C+D→E: Sốt xuất huyết)",
+      patientInfo: "Nam, 26 tuổi, sốt cao ngày 3, đau hốc mắt dữ dội, có chấm xuất huyết",
+      selectedSymptoms: [
+        { id: "S01", cf: 1.0 }, // Sốt cao đột ngột liên tục
+        { id: "S04", cf: 1.0 }, // Đau đầu dữ dội vùng trán
+        { id: "S05", cf: 1.0 }, // Đau nhức hai hốc mắt
+        { id: "S06", cf: 1.0 }, // Đau mỏi cơ - khớp
+        { id: "S13", cf: 1.0 }  // Chấm xuất huyết dưới da tự nhiên
+      ],
+      expectedDisease: "D01",
+      isChainingBenchmark: true,
+      chainingPath: "Chu kỳ 1: (S01 ∧ S04 ∧ S05 ∧ S06) → [R17] → HC01 (90%) | Chu kỳ 2: (HC01 ∧ S13) → [R18] → D01 (99.8%)",
+      clinicalNote: "Ca kiểm thử chuyên biệt cho Suy diễn tiến đa tầng mắt xích: Chu kỳ 1 kích hoạt Luật R17 sinh ra Hội chứng sốt virus cấp tính (HC01: 90%) nạp vào Working Memory; Chu kỳ 2 kết hợp cùng S13 kích hoạt tiếp Luật R18 chẩn đoán Sốt xuất huyết Dengue (D01: 99.8%)."
+    },
+    {
+      id: "TC07",
+      name: "Ca bệnh 7: Suy diễn đa tầng mắt xích (Tam chứng viêm long → Bệnh Sởi)",
+      patientInfo: "Bé gái, 5 tuổi, sốt cao, mắt đỏ sợ sáng, ho sổ mũi, phát ban dát sẩn",
+      selectedSymptoms: [
+        { id: "S01", cf: 1.0 }, // Sốt cao đột ngột
+        { id: "S08", cf: 1.0 }, // Ho khan hoặc có đờm
+        { id: "S09", cf: 1.0 }, // Chảy nước mũi, nghẹt mũi
+        { id: "S14", cf: 1.0 }, // Phát ban dát sẩn dạng sởi
+        { id: "S17", cf: 1.0 }  // Mắt đỏ, chảy nước mắt, sợ ánh sáng
+      ],
+      expectedDisease: "D03",
+      isChainingBenchmark: true,
+      chainingPath: "Chu kỳ 1: (S08 ∧ S09 ∧ S17) → [R19] → HC02 (92%) | Chu kỳ 2: (HC02 ∧ S01 ∧ S14) → [R20] → D03 (98%)",
+      clinicalNote: "Kiểm thử đa tầng Mắt xích 2: Chu kỳ 1 kích hoạt Luật R19 sinh ra Tam chứng viêm long hô hấp (HC02: 92%); Chu kỳ 2 kết hợp S01 và S14 kích hoạt Luật R20 chẩn đoán xác định Bệnh Sởi (D03)."
     }
   ]
 };
