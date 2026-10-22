@@ -1002,4 +1002,73 @@
   box-shadow: 0 6px 22px rgba(59, 130, 246, 0.65);
 }
 
+/* ==========================================================================
+   BẢO VỆ HIỂN THỊ BIỂU TƯỢNG (FONT-AWESOME SAFEGUARD KHI MỞ FILE:/// HOẶC OFFLINE)
+   ========================================================================== */
+.fa-fallback [class*="fa-"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Segoe UI Emoji", "Segoe UI Symbol", sans-serif !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.fa-fallback .fa-brain::before { content: "🧠" !important; }
+.fa-fallback .fa-house::before { content: "🏠" !important; }
+.fa-fallback .fa-stethoscope::before { content: "🩺" !important; }
+.fa-fallback .fa-project-diagram::before,
+.fa-fallback .fa-diagram-project::before { content: "🔀" !important; }
+.fa-fallback .fa-diagram-successor::before { content: "🔄" !important; }
+.fa-fallback .fa-database::before { content: "🗄️" !important; }
+.fa-fallback .fa-server::before { content: "🖥️" !important; }
+.fa-fallback .fa-vial-circle-check::before { content: "🧪" !important; }
+.fa-fallback .fa-book-medical::before { content: "📖" !important; }
+.fa-fallback .fa-clock-rotate-left::before { content: "🕒" !important; }
+.fa-fallback .fa-moon::before { content: "🌙" !important; }
+.fa-fallback .fa-sun::before { content: "☀️" !important; }
+.fa-fallback .fa-plus::before { content: "+" !important; }
+.fa-fallback .fa-minus::before { content: "−" !important; }
+.fa-fallback .fa-expand::before { content: "⛶" !important; }
+.fa-fallback .fa-play::before { content: "▶" !important; }
+.fa-fallback .fa-forward-fast::before { content: "⏩" !important; }
+.fa-fallback .fa-rotate-left::before,
+.fa-fallback .fa-arrows-rotate::before { content: "↺" !important; }
+.fa-fallback .fa-arrow-right::before { content: "→" !important; }
+.fa-fallback .fa-list-check::before { content: "📋" !important; }
+.fa-fallback .fa-file-medical::before { content: "📄" !important; }
+.fa-fallback .fa-circle-nodes::before { content: "🔘" !important; }
+.fa-fallback .fa-circle-check::before,
+.fa-fallback .fa-check::before { content: "✓" !important; }
+.fa-fallback .fa-star::before { content: "★" !important; }
+.fa-fallback .fa-flag-checkered::before { content: "🏁" !important; }
+.fa-fallback .fa-triangle-exclamation::before { content: "⚠️" !important; }
+.fa-fallback .fa-circle-info::before { content: "ℹ️" !important; }
+.fa-fallback .fa-circle-question::before { content: "❓" !important; }
+.fa-fallback .fa-circle-xmark::before,
+.fa-fallback .fa-xmark::before { content: "✕" !important; }
+.fa-fallback .fa-hospital-user::before { content: "👤" !important; }
+.fa-fallback .fa-table-list::before { content: "📊" !important; }
+.fa-fallback .fa-trash-can::before { content: "🗑️" !important; }
+.fa-fallback .fa-layer-group::before { content: "🗂️" !important; }
+.fa-fallback .fa-magnifying-glass::before,
+.fa-fallback .fa-search::before { content: "🔍" !important; }
+.fa-fallback .fa-filter::before { content: "⚡" !important; }
+.fa-fallback .fa-shield-virus::before { content: "🛡️" !important; }
+.fa-fallback .fa-square-root-variable::before { content: "√x" !important; }
+
+/* Định dạng công thức toán học chuyên nghiệp */
+.math-formula-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--border-focus);
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', Consolas, 'Segoe UI Symbol', monospace;
+  font-size: 0.88rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+
 

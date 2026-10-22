@@ -489,5 +489,34 @@ class SmartTooltipHeThong {
 
 window.SmartTooltip = new SmartTooltipHeThong();
 
+// ============================================================================
+// BẢO VỆ HIỂN THỊ BIỂU TƯỢNG (FONT-AWESOME SAFEGUARD KHI MỞ FILE:/// HOẶC OFFLINE)
+// ============================================================================
+function kiemTraVaBaoVeFontAwesome() {
+  if (typeof document === "undefined") return;
+
+  function kiemTra() {
+    if (document.fonts && document.fonts.check) {
+      const isAvailable = document.fonts.check('900 16px "Font Awesome 6 Free"');
+      if (!isAvailable) {
+        setTimeout(() => {
+          if (!document.fonts.check('900 16px "Font Awesome 6 Free"')) {
+            document.documentElement.classList.add("fa-fallback");
+          }
+        }, 800);
+      }
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", kiemTra);
+  } else {
+    kiemTra();
+  }
+}
+
+kiemTraVaBaoVeFontAwesome();
+
 // Khởi chạy khi DOM sẵn sàng
 document.addEventListener("DOMContentLoaded", khoiTaoTheme);
+

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đồ Thị Mạng Luật RPG - Hệ Cơ Sở Tri Thức</title>
+  <title>Đồ Thị Liên Hệ Trước Giữa Các Luật RPG - Hệ Cơ Sở Tri Thức Y Tế</title>
 
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -24,7 +24,7 @@
           </div>
           <div class="brand-text">
             <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
-            <p>Trực quan hóa Đồ thị mạng luật RPG (Rule Petri Graph)</p>
+            <p>Trực quan hóa Đồ thị liên hệ trước giữa các luật RPG (Rules Precedence Graph)</p>
           </div>
         </a>
       </div>
@@ -69,275 +69,481 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="main-wrapper">
+    <!-- TOOLBAR ĐIỀU KHIỂN & BỘ CHỌN CA BỆNH LÂM SÀNG Y TẾ -->
     <div class="graph-toolbar">
       <div class="graph-controls">
-        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
-          Lọc theo bệnh:
+        <label
+          style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem;">
+          <i class="fa-solid fa-hospital-user" style="color: #38bdf8;"></i> Ca bệnh lâm sàng:
         </label>
-        <select id="rpgDiseaseFilter" class="form-control" style="width: 280px; padding: 0.45rem 0.75rem;">
-          <option value="ALL">-- Toàn bộ mạng luật --</option>
+        <select id="rpgCaseSelect" class="form-control"
+          style="width: 380px; padding: 0.45rem 0.75rem; font-weight: 600;">
+          <!-- Nạp động danh sách ca bệnh y tế -->
         </select>
-        <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i> Phóng to</button>
-        <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i> Thu nhỏ</button>
-        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa tự động"><i class="fa-solid fa-expand"></i> Căn
+
+        <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i></button>
+        <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i></button>
+        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa"><i class="fa-solid fa-expand"></i> Căn
           giữa</button>
       </div>
 
+      <!-- CHÚ THÍCH (LEGEND) CHUẨN LÝ THUYẾT TS. NGUYỄN QUỐC TUẤN CHO BÀI TOÁN Y TẾ -->
       <div class="graph-legend">
-        <div class="legend-item">
-          <span class="legend-shape shape-place"></span>
-          <span>Sự kiện / Triệu chứng (Place)</span>
+        <div class="legend-item" title="Luật thỏa mãn ngay từ triệu chứng ban đầu: left ⊆ GT">
+          <span class="legend-shape shape-r-gt"></span>
+          <span>Luật <i>R</i> &isin; R<sub>GT</sub> (Thỏa triệu chứng)</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-shape shape-trans"></span>
-          <span>Luật sinh (Transition)</span>
+        <div class="legend-item" title="Luật trực tiếp kết luận bệnh mục tiêu: q ⊆ KL">
+          <span class="legend-shape shape-r-kl"></span>
+          <span>Luật <i>R</i> &isin; R<sub>KL</sub> (Đích chẩn đoán)</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-shape shape-place" style="border-radius: 4px; border-color: #f87171;"></span>
-          <span>Kết luận / Bệnh (Goal)</span>
+        <div class="legend-item" title="Luật đã được kích hoạt trong tiến trình suy diễn và nạp vào VET">
+          <span class="legend-shape shape-r-fired"></span>
+          <span>Đã kích hoạt (VET)</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-shape shape-active"></span>
-          <span>Đã kích hoạt suy luận (Active)</span>
+        <div class="legend-item" title="Luật trung gian trong mạng luật y tế">
+          <span class="legend-shape shape-r-mid"></span>
+          <span>Luật trung gian <i>R</i> &isin; R</span>
+        </div>
+        <div class="legend-item" title="Cung R_i → R_j: kết luận hội chứng của R_i là tiền đề của R_j">
+          <span class="legend-arrow">R<sub>i</sub> <i class="fa-solid fa-arrow-right"></i> R<sub>j</sub></span>
+          <span>Liên hệ trước (Cầu nối HC)</span>
         </div>
       </div>
     </div>
 
-    <!-- Layout 2 Cột: Canvas bên trái & Fact Inspector bên phải -->
+    <!-- KHUNG THÔNG TIN CA BỆNH HIỆN TẠI & BỘ ĐIỀU KHIỂN SUY DIỄN TIẾN -->
+    <div id="problemInfoBanner" class="problem-banner">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div class="banner-title">
+          <i class="fa-solid fa-file-medical"></i>
+          <strong id="bannerName">Ca lâm sàng</strong>
+        </div>
+
+        <!-- BỘ ĐIỀU KHIỂN BƯỚC SUY DIỄN CHẨN ĐOÁN -->
+        <div class="sim-controls">
+          <button id="btnStepSim" class="btn-primary" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;">
+            <i class="fa-solid fa-play"></i> Bước tiếp theo
+          </button>
+          <button id="btnAutoSim" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;">
+            <i class="fa-solid fa-forward-fast"></i> Chạy hết
+          </button>
+          <button id="btnResetSim" class="btn-secondary" style="padding: 0.4rem 0.7rem; font-size: 0.82rem;"
+            title="Đặt lại ca bệnh">
+            <i class="fa-solid fa-rotate-left"></i> Đặt lại
+          </button>
+        </div>
+      </div>
+
+      <p id="bannerDesc" style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.25rem 0;"></p>
+
+      <div class="banner-content" style="margin-top: 0.35rem;">
+        <span class="tag-pill"><strong>Triệu chứng ban đầu (GT):</strong> <code id="bannerGT">&empty;</code></span>
+        <span class="tag-pill"><strong>Bệnh mục tiêu (KL):</strong> <code id="bannerKL"
+            style="color: #f43f5e;">&empty;</code></span>
+        <span class="tag-pill"><strong>Tập R<sub>GT</sub>:</strong> <code id="bannerRGT"
+            style="color: #f59e0b;">&empty;</code></span>
+        <span class="tag-pill"><strong>Tập R<sub>KL</sub>:</strong> <code id="bannerRKL"
+            style="color: #f43f5e;">&empty;</code></span>
+        <span class="tag-pill"><strong>Bộ nhớ sự kiện (TG):</strong> <code id="bannerTG"
+            style="color: #10b981;">&empty;</code></span>
+        <span class="tag-pill"><strong>Tập thỏa mãn (THOA):</strong> <code id="bannerTHOA"
+            style="color: #f59e0b;">&empty;</code></span>
+        <span class="tag-pill"><strong>Vết luật chẩn đoán (VET):</strong> <code id="bannerVET"
+            style="color: #38bdf8;">&empty;</code></span>
+        <span class="tag-pill"><strong>Hàm lượng giá:</strong>
+          <code>h&#770;(R) = KC(R, R<sub>KL</sub>) &rarr; min</code></span>
+      </div>
+    </div>
+
+    <!-- Layout 2 Cột: Canvas bên trái & Inspector bên phải -->
     <div class="rpg-layout">
       <div class="canvas-container">
         <canvas id="rpgCanvas"></canvas>
       </div>
 
-      <!-- Sidebar Inspector: Phân tích Sự kiện & CF -->
+      <!-- Sidebar Inspector: Phân tích Luật Y tế & Hàm lượng giá Heuristic -->
       <aside class="rpg-inspector">
         <div class="inspector-header">
-          <h3><i class="fa-solid fa-circle-nodes"></i> Phân tích Sự kiện & CF</h3>
+          <h3><i class="fa-solid fa-stethoscope"></i> Chi tiết Luật Y tế</h3>
         </div>
 
         <div id="inspectorContent" class="inspector-body">
-          <p style="margin-bottom: 0.75rem;">
-            Nhấp chuột vào bất kỳ <strong>Sự kiện (Place)</strong>, <strong>Luật sinh (Transition)</strong> hoặc
-            <strong>Bệnh (Goal)</strong> trên đồ thị để kiểm tra chi tiết công thức và vết tính toán lan truyền.
-          </p>
-
-          <div class="stat-pill success" style="margin-bottom: 0.5rem;">
-            <i class="fa-solid fa-check-circle"></i> Đồ thị Mạng luật RPG (Rule Petri Graph)
-          </div>
-          <!-- <div style="margin-top: 0.8rem; font-size: 0.82rem; color: var(--text-muted); line-height: 1.6;">
-            <strong>Mô hình toán học MYCIN:</strong><br>
-            • Tiền đề AND: $CF(\\text{Premise}) = \\min(CF_1, CF_2, \\dots)$<br>
-            • Luật kích hoạt: $CF(\\text{Rule}) = CF(\\text{Premise}) \\times CF(r)$<br>
-            • Kết hợp chứng cứ: $CF_1 + CF_2 - CF_1 \\times CF_2$
-          </div> -->
+          <!-- Nội dung do JS render -->
         </div>
       </aside>
+    </div>
+
+    <!-- BẢNG NHẬT KÝ DIỄN BIẾN SUY DIỄN TIẾN TRÊN ĐỒ THỊ RPG TỪNG BƯỚC (THEO SLIDE 9-10 & 22-23) -->
+    <div class="card" style="margin-top: 1.5rem; padding: 1.25rem;">
+      <h3
+        style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-list-check" style="color: #10b981;"></i> Bảng Nhật Ký Diễn Biến Suy Diễn Tiến Chẩn Đoán (Đồ Thị RPG)
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+        Tại mỗi chu kỳ chẩn đoán, hệ thống đánh giá hàm lượng giá <strong>h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr;
+          min</strong> cho từng luật y tế <strong>r &isin; THOA</strong> trên mạng luật RPG và kích hoạt luật có đường
+        đi ngắn nhất nạp vào <strong>VET</strong>.
+      </p>
+      <div class="table-responsive">
+        <table class="data-table" id="rpgTraceSimulationTable">
+          <thead>
+            <tr>
+              <th style="width: 70px; text-align: center;">Chu kỳ</th>
+              <th style="width: 110px; text-align: center;">Luật chọn (r)</th>
+              <th style="width: 180px;">Tập thỏa mãn (THOA)</th>
+              <th>Đánh giá Heuristic: h&#770;(r) = KC(r, R<sub>KL</sub>)</th>
+              <th style="width: 200px;">Bộ nhớ sự kiện (TG)</th>
+              <th style="width: 170px;">Tập luật còn lại (R)</th>
+              <th style="width: 190px;">Vết suy diễn (VET)</th>
+            </tr>
+          </thead>
+          <tbody id="rpgTraceTableBody">
+            <!-- Render động bằng JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BẢNG TỔNG HỢP HÀM LƯỢNG GIÁ HEURISTIC TRÊN ĐỒ THỊ RPG (THEO SLIDE 22-23) -->
+    <div class="card" style="margin-top: 1.5rem; padding: 1.25rem;">
+      <h3
+        style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-table-list" style="color: #38bdf8;"></i> Bảng Đánh Giá Hàm Lượng Giá Heuristic Trên Đồ Thị RPG: h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr; min
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+        Áp dụng lý thuyết <em>"Mô tơ suy diễn"</em>: Luật y tế <strong>r</strong> được ưu tiên chọn
+        khi khoảng cách trên đồ thị RPG từ nó tới tập luật kết luận bệnh mục tiêu <strong>R<sub>KL</sub></strong> là
+        ngắn nhất (giúp chẩn đoán đúng đích và loại bỏ các xét nghiệm, hội chứng không liên quan).
+      </p>
+      <div class="table-responsive">
+        <table class="data-table" id="rpgAnalysisTable">
+          <thead>
+            <tr>
+              <th style="width: 75px;">Mã luật (r)</th>
+              <th>Tên luật y tế & Nội dung</th>
+              <th>Tiền đề (NẾU)</th>
+              <th>Kết luận (THÌ)</th>
+              <th style="width: 140px; text-align: center;">Thuộc R<sub>GT</sub> (left &sube; GT)</th>
+              <th style="width: 130px; text-align: center;">Thuộc R<sub>KL</sub> (q &sube; KL)</th>
+              <th style="width: 160px; text-align: center;">KC(r, R<sub>KL</sub>) [h&#770;]</th>
+              <th style="width: 160px; text-align: center;">Trạng thái / Mức ưu tiên</th>
+            </tr>
+          </thead>
+          <tbody id="rpgTableBody">
+            <!-- Render động bằng JS -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </main>
 
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
-    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Dựa trên lý thuyết mô tơ suy diễn</p>
   </footer>
 
   <!-- ==================== SCRIPTS ==================== -->
   <script src="../../js/tien_ich_chung.js"></script>
-  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
-  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
-  <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="../../js/dong_co/thuat_toan_rpg_fpg.js"></script>
   <script src="ve_do_thi_rpg.js"></script>
 
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      const dbEngine = new DatabaseEngine();
-      try { await dbEngine.init(); } catch (e) { }
-
-      const kbManager = new KnowledgeBaseManager(dbEngine);
+    document.addEventListener("DOMContentLoaded", () => {
+      const rpgCaseSelect = document.getElementById("rpgCaseSelect");
       const inspectorContent = document.getElementById("inspectorContent");
+      const bannerName = document.getElementById("bannerName");
+      const bannerDesc = document.getElementById("bannerDesc");
+      const bannerGT = document.getElementById("bannerGT");
+      const bannerKL = document.getElementById("bannerKL");
+      const bannerRGT = document.getElementById("bannerRGT");
+      const bannerRKL = document.getElementById("bannerRKL");
+      const bannerTG = document.getElementById("bannerTG");
+      const bannerTHOA = document.getElementById("bannerTHOA");
+      const bannerVET = document.getElementById("bannerVET");
+      const rpgTableBody = document.getElementById("rpgTableBody");
+      const rpgTraceTableBody = document.getElementById("rpgTraceTableBody");
+
+      const btnStepSim = document.getElementById("btnStepSim");
+      const btnAutoSim = document.getElementById("btnAutoSim");
+      const btnResetSim = document.getElementById("btnResetSim");
+
+      let currentCase = null;
+      let simulationResult = null;
+      let currentStepIndex = 0;
 
       const rpgVisualizer = new RPGVisualizer("rpgCanvas", {
-        onNodeSelect: (node) => {
-          renderInspector(node);
-        },
-        onNodeHover: (node) => {
-          renderInspector(node || rpgVisualizer.selectedNode);
-        }
+        onNodeSelect: (node) => renderInspector(node),
+        onNodeHover: (node) => renderInspector(node || rpgVisualizer.selectedNode)
       });
+
+      // 1. Nạp danh sách ca bệnh lâm sàng vào select box
+      const cases = window.MEDICAL_KB_GRAPH_DATA.cases || [];
+      rpgCaseSelect.innerHTML = cases.map(c => `
+        <option value="${c.id}">${c.name}</option>
+      `).join("");
+
+      function loadCase(caseId) {
+        currentCase = cases.find(c => c.id === caseId) || cases[0];
+        rpgVisualizer.setCase(currentCase);
+
+        const rpgData = window.MedicalGraphAlgorithms.buildMedicalRPG(currentCase);
+
+        // Cập nhật banner
+        bannerName.textContent = currentCase.name;
+        bannerDesc.textContent = currentCase.description;
+        bannerGT.textContent = `{${(currentCase.gt || []).join(", ")}}`;
+        bannerKL.textContent = `{${(currentCase.kl || []).join(", ")}} (${currentCase.targetDiseaseName || ''})`;
+        bannerRGT.textContent = `{${Array.from(rpgData.rGtIds).join(", ") || "∅"}}`;
+        bannerRKL.textContent = `{${Array.from(rpgData.rKlIds).join(", ") || "∅"}}`;
+
+        initSimulation();
+        renderInspector(null);
+      }
+
+      function initSimulation() {
+        simulationResult = window.MedicalGraphAlgorithms.simulateForwardChainingWithRPG(currentCase);
+        currentStepIndex = 0;
+        updateSimulationUI();
+      }
+
+      function updateSimulationUI() {
+        if (!simulationResult || !simulationResult.steps) return;
+        const currentStep = simulationResult.steps[currentStepIndex];
+
+        bannerTG.textContent = `{${(currentStep.TG || []).join(", ")}}`;
+        bannerTHOA.textContent = currentStep.THOA && currentStep.THOA.length > 0 ? `{${currentStep.THOA.join(", ")}}` : "∅";
+        bannerVET.textContent = currentStep.VET && currentStep.VET.length > 0 ? `{${currentStep.VET.join(", ")}}` : "∅";
+
+        rpgVisualizer.setSimulationState(
+          new Set(currentStep.VET || []),
+          currentStep.selectedRule,
+          new Set(currentStep.TG || [])
+        );
+
+        const rpgData = window.MedicalGraphAlgorithms.buildMedicalRPG(currentCase);
+        renderAnalysisTable(currentCase, rpgData, currentStep);
+        renderTraceTable();
+      }
+
+      function renderTraceTable() {
+        if (!simulationResult || !simulationResult.steps) return;
+        const stepsToShow = simulationResult.steps.slice(0, currentStepIndex + 1);
+
+        rpgTraceTableBody.innerHTML = stepsToShow.map(st => {
+          const ruleDisplay = st.selectedRule ? `<span class="badge-rule">${st.selectedRule}</span>` : `<span style="color: var(--text-muted);">-</span>`;
+          const thoaDisplay = (st.THOA || []).join(", ") || "∅";
+          const tgDisplay = (st.TG || []).join(", ");
+          const rDisplay = (st.R || []).join(", ") || "∅";
+          const vetDisplay = (st.VET || []).join(", ") || "∅";
+
+          let evalHtml = "";
+          if (st.evaluations && st.evaluations.length > 0) {
+            evalHtml = st.evaluations.map(ev => {
+              const isSelected = st.selectedRule === ev.ruleId;
+              const kcStr = ev.kc === Infinity ? "&infin;" : ev.kc;
+              return `<span class="eval-pill ${isSelected ? 'selected' : ''}">h&#770;(${ev.ruleId}) = KC(${ev.ruleId}, R<sub>KL</sub>) = ${kcStr}${isSelected ? ' (*)' : ''}</span>`;
+            }).join(" ");
+          } else {
+            evalHtml = `<span style="color: var(--text-muted);">Khởi tạo ban đầu</span>`;
+          }
+
+          const isGoal = st.isGoalReached;
+
+          return `
+            <tr class="${st.cycle === currentStepIndex ? 'active-step-row' : ''}">
+              <td style="text-align: center; font-weight: 700;">${st.cycle === 0 ? 'KT' : st.cycle}</td>
+              <td style="text-align: center;">${ruleDisplay}</td>
+              <td style="font-family: monospace;">{${thoaDisplay}}</td>
+              <td>${evalHtml}</td>
+              <td style="font-family: monospace; color: #10b981;">{${tgDisplay}}</td>
+              <td style="font-family: monospace; color: var(--text-secondary);">{${rDisplay}}</td>
+              <td style="font-family: monospace; font-weight: bold; color: #38bdf8;">{${vetDisplay}} ${isGoal ? '✓ (Hoàn tất)' : ''}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function renderAnalysisTable(clinicalCase, rpgData, currentStep) {
+        const rules = rpgData.rules || [];
+        const edges = rpgData.edges || [];
+        const facts = window.MEDICAL_KB_GRAPH_DATA.facts || {};
+        const activeRule = currentStep ? currentStep.selectedRule : null;
+        const vetSet = new Set(currentStep ? currentStep.VET || [] : []);
+        const thoaSet = new Set(currentStep ? currentStep.THOA || [] : []);
+
+        const rowData = rules.map(r => {
+          const isR_GT = rpgData.rGtIds.has(r.id);
+          const isR_KL = rpgData.rKlIds.has(r.id);
+          const isFired = vetSet.has(r.id);
+          const isSelected = activeRule === r.id;
+          const isInTHOA = thoaSet.has(r.id);
+          const kc = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rpgData.rKlIds, edges);
+          return { rule: r, isR_GT, isR_KL, isFired, isSelected, isInTHOA, kc };
+        });
+
+        rpgTableBody.innerHTML = rowData.map(item => {
+          const r = item.rule;
+          const premsStr = (r.premises || []).map(p => `${p} (${(facts[p] || {}).name || p})`).join(" ∧ ");
+          const concName = (facts[r.conclusion] || {}).name || r.conclusion;
+
+          const kcDisplay = item.kc === Infinity
+            ? "<span style='color: var(--text-muted);'>&infin; (Không dẫn tới KL)</span>"
+            : (item.kc === 0
+              ? "<span style='color: #10b981; font-weight: bold;'>0 (Đích chẩn đoán)</span>"
+              : `<span style='color: #38bdf8; font-weight: bold;'>${item.kc} bước</span>`);
+
+          let priorityBadge = "";
+          if (item.isSelected) {
+            priorityBadge = `<span class="stat-pill" style="background: rgba(16,185,129,0.25); color: #10b981; border-color: #10b981; font-weight: bold;">⚡ Đang chọn (Kích hoạt)</span>`;
+          } else if (item.isFired) {
+            priorityBadge = `<span class="stat-pill success"><i class="fa-solid fa-check"></i> Đã nạp vào VET</span>`;
+          } else if (item.isInTHOA) {
+            priorityBadge = `<span class="stat-pill warning"><i class="fa-solid fa-bolt"></i> Thỏa tiền đề (THOA)</span>`;
+          } else if (item.isR_GT && item.kc !== Infinity) {
+            priorityBadge = `<span class="stat-pill success">Ưu tiên (R_GT)</span>`;
+          } else if (item.kc === 0) {
+            priorityBadge = `<span class="stat-pill" style="color: #f43f5e; border-color: rgba(244,63,94,0.4);">Kết luận bệnh</span>`;
+          } else if (item.kc === 1) {
+            priorityBadge = `<span class="stat-pill warning">Kế cận kết luận</span>`;
+          } else {
+            priorityBadge = `<span class="stat-pill" style="opacity: 0.5;">Khác</span>`;
+          }
+
+          const rowClass = item.isSelected ? 'active-step-row' : '';
+
+          return `
+            <tr class="${rowClass}">
+              <td><strong style="color: ${item.isFired ? '#10b981' : '#38bdf8'}; font-family: monospace;">${r.id}</strong></td>
+              <td><strong>${r.name}</strong><br><small style="color: var(--text-secondary);">${r.description || ''}</small></td>
+              <td><small>${premsStr}</small></td>
+              <td><strong style="color: ${r.conclusion.startsWith('D') ? '#f43f5e' : '#10b981'};">${r.conclusion}</strong> (${concName})</td>
+              <td style="text-align: center;">
+                ${item.isR_GT ? '<span class="badge-tag r-gt"><i class="fa-solid fa-check"></i> R_GT</span>' : '<span style="color: var(--text-muted);">-</span>'}
+              </td>
+              <td style="text-align: center;">
+                ${item.isR_KL ? '<span class="badge-tag r-kl"><i class="fa-solid fa-flag-checkered"></i> R_KL</span>' : '<span style="color: var(--text-muted);">-</span>'}
+              </td>
+              <td style="text-align: center; font-family: monospace;">${kcDisplay}</td>
+              <td style="text-align: center;">${priorityBadge}</td>
+            </tr>
+          `;
+        }).join("");
+      }
 
       function renderInspector(node) {
         if (!node) {
           inspectorContent.innerHTML = `
             <p style="margin-bottom: 0.75rem;">
-              Nhấp chuột vào bất kỳ <strong>Sự kiện (Place)</strong>, <strong>Luật sinh (Transition)</strong> hoặc <strong>Bệnh (Goal)</strong> trên đồ thị để kiểm tra chi tiết công thức và vết tính toán lan truyền.
+              Nhấp chuột hoặc rê chuột vào bất kỳ <strong>Đỉnh Luật Y tế (R)</strong> trên đồ thị RPG để kiểm tra liên hệ trước sau và hàm heuristic chẩn đoán.
             </p>
             <div class="stat-pill success" style="margin-bottom: 0.5rem;">
-              <i class="fa-solid fa-check-circle"></i> Đồ thị Mạng luật RPG (Rule Petri Graph)
+              <i class="fa-solid fa-circle-check"></i> Đồ thị liên hệ trước giữa các luật y tế RPG
             </div>
-            
+            <div class="formula-card">
+              <strong>Ý nghĩa lâm sàng của đồ thị RPG:</strong><br>
+              • <strong>Tầng 1 (Bên trái):</strong> Các luật xác định <em>Hội chứng trung gian</em> từ triệu chứng ban đầu của bệnh nhân.<br>
+              • <strong>Tầng 2 (Bên phải):</strong> Các luật tổng hợp <em>Hội chứng + Dấu hiệu đặc hiệu</em> để chẩn đoán xác định bệnh.<br>
+              • <strong>Cung nối:</strong> Mang tên Hội chứng cầu nối giữa 2 tầng luật.<br>
+              • <strong>Độ đo heuristic:</strong> <code>h&#770;(R) = KC(R, R<sub>KL</sub>) &rarr; min</code> giúp động cơ suy diễn chọn chuỗi luật ngắn nhất tới chẩn đoán.
+            </div>
           `;
           return;
         }
 
-        const kb = kbManager.getKB();
-        let html = `
+        const r = node.ruleData;
+        const facts = window.MEDICAL_KB_GRAPH_DATA.facts || {};
+        const premsStr = (node.premises || []).map(p => `${p} (${(facts[p] || {}).name || p})`).join("<br>+ ");
+        const concName = (facts[node.conclusion] || {}).name || node.conclusion;
+
+        const incomingEdges = rpgVisualizer.edges.filter(e => e.to.id === node.id);
+        const outgoingEdges = rpgVisualizer.edges.filter(e => e.from.id === node.id);
+
+        inspectorContent.innerHTML = `
           <div style="margin-bottom: 0.75rem;">
-            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">
-              [${node.id}] ${node.subLabel ? `<span style="font-size: 0.85rem; font-weight: normal; color: var(--text-secondary);">- ${node.subLabel}</span>` : ''}
+            <div style="font-size: 1.15rem; font-weight: 700; color: #38bdf8; font-family: monospace;">
+              [${node.id}]: ${node.name}
             </div>
-            <div style="margin-top: 0.35rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
-              <span class="stat-pill ${node.isActive ? 'success' : 'warning'}">
-                ${node.isActive ? 'Đang kích hoạt' : 'Chưa kích hoạt'}
-              </span>
-              <span class="stat-pill">
-                ${node.type === 'FACT' ? 'Place (Sự kiện)' : (node.type === 'RULE' ? 'Transition (Luật)' : 'Goal (Kết luận)')}
-              </span>
+            <div style="margin-top: 0.4rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+              ${node.isR_GT ? '<span class="stat-pill warning"><i class="fa-solid fa-star"></i> Thuộc R_GT (Thỏa mãn triệu chứng ban đầu)</span>' : ''}
+              ${node.isR_KL ? '<span class="stat-pill" style="background: rgba(244,63,94,0.15); color: #f43f5e; border-color: rgba(244,63,94,0.3);"><i class="fa-solid fa-flag-checkered"></i> Thuộc R_KL (Đạt chẩn đoán đích)</span>' : ''}
+              ${!node.isR_GT && !node.isR_KL ? '<span class="stat-pill">Luật trung gian</span>' : ''}
             </div>
           </div>
+
+          <div style="font-size: 0.85rem; line-height: 1.6; margin-bottom: 0.6rem;">
+            <strong>Điều kiện NẾU:</strong><br>+ ${premsStr}<br>
+            <strong>Kết luận THÌ:</strong> <strong style="color: #10b981;">${node.conclusion}</strong> (${concName})
+          </div>
+
+          <div class="formula-card">
+            <strong>Hàm lượng giá Heuristic RPG:</strong><br>
+            <code>h&#770;(${node.id}) = KC(${node.id}, R<sub>KL</sub>) = <strong>${node.kcToR_KL === Infinity ? '&infin;' : node.kcToR_KL}</strong></code> bước.<br>
+            ${node.kcToR_KL === 0 ? '&rarr; Đây là luật trực tiếp đưa ra kết luận chẩn đoán!' : (node.kcToR_KL === Infinity ? '&rarr; Luật này không tham gia vào chuỗi chẩn đoán bệnh mục tiêu của ca này.' : `&rarr; Cần kích hoạt tiếp ${node.kcToR_KL} luật để hoàn tất chẩn đoán.`)}
+          </div>
+
+          <div style="margin-top: 0.6rem; font-size: 0.83rem;">
+            <strong>Luật liên hệ trước:</strong><br>
+            ${incomingEdges.length > 0 ? incomingEdges.map(e => `• <strong>${e.from.id}</strong> (cung cấp <code>${e.connectorFact} - ${e.connectorName}</code>)`).join('<br>') : '<em>(Thỏa mãn từ triệu chứng ban đầu)</em>'}
+          </div>
+
+          <div style="margin-top: 0.6rem; font-size: 0.83rem;">
+            <strong>Luật liên hệ sau:</strong><br>
+            ${outgoingEdges.length > 0 ? outgoingEdges.map(e => `• <strong>${e.to.id}</strong> (nhận hội chứng <code>${e.connectorFact}</code> từ ${node.id})`).join('<br>') : '<em>(Không có luật kế tiếp - Kết luận cuối)</em>'}
+          </div>
         `;
+      }
 
-        if (node.type === "FACT" && node.data) {
-          const s = node.data;
-          const relatedRulesMap = new Map();
-          (kb.rules || []).forEach(r => {
-            const prems = Array.from(new Set(r.premises || []));
-            if (prems.includes(s.id) && !relatedRulesMap.has(r.id)) {
-              relatedRulesMap.set(r.id, { ...r, premises: prems });
-            }
-          });
-          const relatedRules = Array.from(relatedRulesMap.values());
-          html += `
-            <div style="font-size: 0.82rem; margin-top: 0.5rem;">
-              <strong>Tên triệu chứng:</strong> ${s.name}<br>
-              <strong>Câu hỏi truy vấn:</strong><br>
-              <em>"${s.question || 'Bạn có triệu chứng này không?'}"</em>
-            </div>
-            <div class="formula-card">
-              Tham gia vào tiền đề của ${relatedRules.length} luật:<br>
-              ${relatedRules.map(r => `• <strong>${r.id}</strong>: NẾU ... ${s.id} ... THÌ ${r.conclusion}`).join('<br>')}
-            </div>
-          `;
-        } else if (node.type === "RULE" && node.data) {
-          const r = node.data;
-          const { activeFacts } = getActiveState();
-          const uniquePremises = Array.from(new Set(r.premises || []));
-          const activePremises = uniquePremises.filter(pId => activeFacts.has(pId));
-
-          html += `
-            <div style="font-size: 0.82rem; margin-top: 0.5rem;">
-              <strong>Tên luật:</strong> ${r.name || r.id}<br>
-              <strong>Độ đặc hiệu lâm sàng:</strong> CF = ${r.cf}<br>
-              <strong>Số tiền đề:</strong> ${activePremises.length} / ${uniquePremises.length} thỏa mãn
-            </div>
-            <div class="formula-card">
-              <strong>Luật ${r.id}:</strong><br>
-              IF ${uniquePremises.join(' ∧ ')}<br>
-              THEN ${r.conclusion} [CF=${r.cf}]<br><br>
-              CF(Tiền đề) = min(${uniquePremises.map(p => `CF(${p})`).join(', ')})<br>
-              CF(Kích hoạt) = CF(Tiền đề) × ${r.cf}
-            </div>
-          `;
-        } else if (node.type === "DISEASE" && node.data) {
-          const d = node.data;
-          const incomingRulesMap = new Map();
-          (kb.rules || []).forEach(r => {
-            if (r && r.conclusion === d.id && r.id && !incomingRulesMap.has(r.id)) {
-              incomingRulesMap.set(r.id, {
-                ...r,
-                premises: Array.from(new Set(r.premises || []))
-              });
-            }
-          });
-          const incomingRules = Array.from(incomingRulesMap.values());
-          html += `
-            <div style="font-size: 0.82rem; margin-top: 0.5rem;">
-              <strong>Tên bệnh:</strong> ${d.name}<br>
-              <strong>Mức độ nguy hiểm:</strong> ${d.severity || 'Cần theo dõi y tế'}<br>
-              <strong>Số luật dẫn tới:</strong> ${incomingRules.length} luật sinh
-            </div>
-            ${d.warningSigns ? `
-              <div style="font-size: 0.8rem; color: #f87171; margin-top: 0.4rem;">
-                <i class="fa-solid fa-triangle-exclamation"></i> <strong>Cảnh báo:</strong> ${d.warningSigns}
-              </div>
-            ` : ''}
-            <div class="formula-card">
-              <strong>Các luật kết luận về bệnh này:</strong><br>
-              ${incomingRules.map(r => `• <strong>${r.id}</strong> [CF=${r.cf}]: IF ${(r.premises || []).join(' ∧ ')}`).join('<br>')}<br><br>
-              <strong>Hàm kết hợp MYCIN:</strong><br>
-              CF_combine(CF1, CF2) = CF1 + CF2 - (CF1 × CF2)
-            </div>
-          `;
+      // Event listeners
+      btnStepSim.addEventListener("click", () => {
+        if (!simulationResult || !simulationResult.steps) return;
+        if (currentStepIndex < simulationResult.steps.length - 1) {
+          currentStepIndex++;
+          updateSimulationUI();
+        } else {
+          alert("Quá trình suy diễn mạng luật RPG hoàn tất! Đã chẩn đoán thành công: " + (currentCase.targetDiseaseName || currentCase.kl[0]));
         }
+      });
 
-        inspectorContent.innerHTML = html;
-      }
+      btnAutoSim.addEventListener("click", () => {
+        if (!simulationResult || !simulationResult.steps) return;
+        currentStepIndex = simulationResult.steps.length - 1;
+        updateSimulationUI();
+      });
 
-      function populateFilters() {
-        const filterSelect = document.getElementById("rpgDiseaseFilter");
-        if (!filterSelect) return;
-        const kb = kbManager.getKB();
-        filterSelect.innerHTML = `<option value="ALL">-- Toàn bộ mạng luật (${(kb.rules || []).length} luật) --</option>`;
-        (kb.diseases || []).forEach(d => {
-          const opt = document.createElement("option");
-          opt.value = d.id;
-          opt.textContent = `[${d.id}] ${d.name}`;
-          filterSelect.appendChild(opt);
-        });
-      }
+      btnResetSim.addEventListener("click", () => {
+        initSimulation();
+      });
 
-      function getActiveState() {
-        let activeFacts = new Set();
-        let firedRules = new Set();
-        try {
-          const rawSyms = sessionStorage.getItem("RPG_ACTIVE_SYMPTOMS");
-          if (rawSyms) {
-            const symMap = JSON.parse(rawSyms);
-            activeFacts = new Set(Object.keys(symMap).filter(k => symMap[k] > 0));
-          }
-          const rawRules = sessionStorage.getItem("RPG_FIRED_RULES");
-          if (rawRules) {
-            const rulesArr = JSON.parse(rawRules);
-            firedRules = new Set(rulesArr.map(r => r.ruleId || r));
-          }
-        } catch (e) {
-          console.warn("Lỗi đọc trạng thái RPG:", e);
-        }
-        return { activeFacts, firedRules };
-      }
-
-      function updateGraph() {
-        const filterSelect = document.getElementById("rpgDiseaseFilter");
-        const diseaseFilter = filterSelect ? filterSelect.value : "ALL";
-        const { activeFacts, firedRules } = getActiveState();
-        rpgVisualizer.setData(kbManager.getKB(), activeFacts, firedRules, diseaseFilter);
-        renderInspector(null);
-      }
-
-      populateFilters();
-
-      // Kiểm tra focus bệnh từ URL query (?focus=D01)
-      const urlParams = new URLSearchParams(window.location.search);
-      const focusDisease = urlParams.get("focus");
-      if (focusDisease) {
-        const filterSelect = document.getElementById("rpgDiseaseFilter");
-        if (filterSelect) filterSelect.value = focusDisease;
-      }
-
-      setTimeout(() => {
-        rpgVisualizer.resizeCanvas();
-        updateGraph();
-      }, 50);
-
-      const rpgDiseaseFilter = document.getElementById("rpgDiseaseFilter");
-      if (rpgDiseaseFilter) rpgDiseaseFilter.addEventListener("change", updateGraph);
+      rpgCaseSelect.addEventListener("change", (e) => {
+        loadCase(e.target.value);
+      });
 
       document.getElementById("btnZoomIn").addEventListener("click", () => rpgVisualizer.zoomIn());
       document.getElementById("btnZoomOut").addEventListener("click", () => rpgVisualizer.zoomOut());
       document.getElementById("btnResetGraph").addEventListener("click", () => rpgVisualizer.resetView());
 
-      kbManager.onUpdate(() => {
-        populateFilters();
-        updateGraph();
-      });
+      // Tự động nhận diện ca bệnh từ URL param (?focus=... hoặc ?case=... hoặc ?disease=...)
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetParam = urlParams.get("focus") || urlParams.get("case") || urlParams.get("disease");
+
+      let selectedCaseId = cases.length > 0 ? cases[0].id : null;
+
+      if (targetParam) {
+        const found = cases.find(c =>
+          c.id === targetParam ||
+          (c.kl && c.kl.includes(targetParam)) ||
+          c.id.toLowerCase() === targetParam.toLowerCase()
+        );
+        if (found) {
+          selectedCaseId = found.id;
+        }
+      }
+
+      if (selectedCaseId) {
+        rpgCaseSelect.value = selectedCaseId;
+        loadCase(selectedCaseId);
+      }
     });
   </script>
 </body>
