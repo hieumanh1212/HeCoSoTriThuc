@@ -25,6 +25,9 @@ class RPGVisualizer {
     this.dragStartX = 0;
     this.dragStartY = 0;
     this.hoveredNode = null;
+    this.selectedNode = null;
+    this.onNodeSelect = options.onNodeSelect || null;
+    this.onNodeHover = options.onNodeHover || null;
 
     this.nodes = [];
     this.edges = [];
@@ -65,6 +68,19 @@ class RPGVisualizer {
       this.autoFit();
     });
 
+    this.canvas.addEventListener("click", (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left - this.offsetX) / this.scale;
+      const mouseY = (e.clientY - rect.top - this.offsetY) / this.scale;
+
+      const clicked = this.findNodeAt(mouseX, mouseY);
+      this.selectedNode = clicked;
+      if (this.onNodeSelect) {
+        this.onNodeSelect(clicked);
+      }
+      this.render();
+    });
+
     this.canvas.addEventListener("mousedown", (e) => {
       this.isDragging = true;
       this.dragStartX = e.clientX - this.offsetX;
@@ -82,12 +98,25 @@ class RPGVisualizer {
         this.offsetY = e.clientY - this.dragStartY;
         this.render();
       } else {
-        const found = this._findNodeAt(mouseX, mouseY);
+        const found = this.findNodeAt(mouseX, mouseY);
         if (this.hoveredNode !== found) {
           this.hoveredNode = found;
           this.canvas.style.cursor = found ? "pointer" : "grab";
+          if (this.onNodeHover) {
+            this.onNodeHover(found);
+          }
           this.render();
         }
+      }
+    });
+
+    this.canvas.addEventListener("mouseleave", () => {
+      if (this.hoveredNode) {
+        this.hoveredNode = null;
+        if (this.onNodeHover) {
+          this.onNodeHover(null);
+        }
+        this.render();
       }
     });
 
@@ -100,6 +129,8 @@ class RPGVisualizer {
       const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
       this.zoom(zoomFactor, e.clientX, e.clientY);
     }, { passive: false });
+  findNodeAt(mouseX, mouseY) {
+    return this._findNodeAt(mouseX, mouseY);
   }
 
   _findNodeAt(mouseX, mouseY) {
@@ -131,6 +162,27 @@ class RPGVisualizer {
       this.offsetY = canvasY - (canvasY - this.offsetY) * (this.scale / prevScale);
     }
     this.render();
+  }
+
+  findNodeAt(x, y) {
+    for (const node of this.nodes) {
+      if (node.type === "FACT") {
+        const dist = Math.hypot(x - node.x, y - node.y);
+        if (dist <= node.radius + 6) return node;
+      } else {
+        const halfW = (node.width ? node.width / 2 : 44) + 4;
+        const halfH = (node.height ? node.height / 2 : 19) + 4;
+        if (
+          x >= node.x - halfW &&
+          x <= node.x + halfW &&
+          y >= node.y - halfH &&
+          y <= node.y + halfH
+        ) {
+          return node;
+        }
+      }
+    }
+    return null;
   }
 
   zoomIn() {
@@ -192,19 +244,38 @@ class RPGVisualizer {
   }
 
   _filterRulesAndDiseases() {
-    let targetRules = this.kb.rules || [];
-    let targetDiseases = this.kb.diseases || [];
+    const uniqueRulesMap = new Map();
+    (this.kb.rules || []).forEach(r => {
+      if (r && r.id && !uniqueRulesMap.has(r.id)) {
+        uniqueRulesMap.set(r.id, {
+          ...r,
+          premises: Array.from(new Set((r.premises || []).filter(Boolean)))
+        });
+      }
+    });
+    const allRules = Array.from(uniqueRulesMap.values());
+
+    const uniqueDiseasesMap = new Map();
+    (this.kb.diseases || []).forEach(d => {
+      if (d && d.id && !uniqueDiseasesMap.has(d.id)) {
+        uniqueDiseasesMap.set(d.id, d);
+      }
+    });
+    const allDiseases = Array.from(uniqueDiseasesMap.values());
+
+    let targetRules = allRules;
+    let targetDiseases = allDiseases;
 
     if (this.selectedDiseaseFilter !== "ALL") {
       const disId = this.selectedDiseaseFilter;
-      const directRules = targetRules.filter(r => r.conclusion === disId);
+      const directRules = allRules.filter(r => r.conclusion === disId);
       const relatedPremises = new Set();
       directRules.forEach(r => (r.premises || []).forEach(p => relatedPremises.add(p)));
 
       // Thêm luật suy ra các hội chứng trung gian được dùng bởi directRules
-      const tier1Rules = targetRules.filter(r => relatedPremises.has(r.conclusion));
+      const tier1Rules = allRules.filter(r => relatedPremises.has(r.conclusion));
       targetRules = [...directRules, ...tier1Rules];
-      targetDiseases = (this.kb.diseases || []).filter(d => d.id === disId);
+      targetDiseases = allDiseases.filter(d => d.id === disId);
     }
     return { targetRules, targetDiseases };
   }
@@ -325,14 +396,13 @@ class RPGVisualizer {
       this.nodes.push(node);
       nodeMap.set(d.id, node);
     });
-  }
-
   _buildRPGEllipticalArcs(targetRules, nodeMap) {
     targetRules.forEach(r => {
       const ruleNode = nodeMap.get(r.id);
       if (!ruleNode) return;
 
-      (r.premises || []).forEach(pId => {
+      const uniquePremises = Array.from(new Set(r.premises || []));
+      uniquePremises.forEach(pId => {
         const fromNode = nodeMap.get(pId);
         if (fromNode) {
           this.edges.push({
@@ -515,7 +585,6 @@ class RPGVisualizer {
 
   drawNode(ctx, node, isLight = false) {
     ctx.save();
-
     if (node.type === "FACT") {
       this._drawFactCircle(ctx, node, isLight, "#059669", "#34d399", "#94a3b8");
     } else if (node.type === "INTERMEDIATE") {
@@ -525,7 +594,6 @@ class RPGVisualizer {
     } else if (node.type === "DISEASE") {
       this._drawDiseaseRect(ctx, node, isLight);
     }
-
     ctx.restore();
   }
 
@@ -544,6 +612,10 @@ class RPGVisualizer {
       ctx.strokeStyle = isLight ? idleStroke : "#475569";
       ctx.lineWidth = 2;
       ctx.shadowBlur = 0;
+    }
+    if (this.selectedNode === node) {
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 3.5;
     }
     ctx.fill();
     ctx.stroke();
@@ -580,6 +652,10 @@ class RPGVisualizer {
       ctx.lineWidth = 1.5;
       ctx.shadowBlur = 0;
     }
+    if (this.selectedNode === node) {
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 3.5;
+    }
     ctx.fill();
     ctx.stroke();
 
@@ -612,6 +688,10 @@ class RPGVisualizer {
       ctx.strokeStyle = isLight ? "#fca5a5" : "#94a3b8";
       ctx.lineWidth = 1.5;
       ctx.shadowBlur = 0;
+    }
+    if (this.selectedNode === node) {
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 3.5;
     }
     ctx.fill();
     ctx.stroke();

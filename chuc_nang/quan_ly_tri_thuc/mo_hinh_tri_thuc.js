@@ -19,13 +19,53 @@ class KnowledgeBaseManager {
     this.syncFromDatabase();
   }
 
+  sanitizeKB(rawKB) {
+    if (!rawKB) return rawKB;
+    const kb = { ...rawKB };
+    if (Array.isArray(kb.rules)) {
+      const uniqueRulesMap = new Map();
+      kb.rules.forEach(r => {
+        if (r && r.id) {
+          const cleanPremises = Array.from(new Set((r.premises || []).map(p => String(p).trim()).filter(Boolean)));
+          if (!uniqueRulesMap.has(r.id)) {
+            uniqueRulesMap.set(r.id, {
+              ...r,
+              premises: cleanPremises
+            });
+          }
+        }
+      });
+      kb.rules = Array.from(uniqueRulesMap.values());
+    }
+    if (Array.isArray(kb.diseases)) {
+      const uniqueDiseasesMap = new Map();
+      kb.diseases.forEach(d => {
+        if (d && d.id && !uniqueDiseasesMap.has(d.id)) {
+          uniqueDiseasesMap.set(d.id, d);
+        }
+      });
+      kb.diseases = Array.from(uniqueDiseasesMap.values());
+    }
+    if (Array.isArray(kb.symptoms)) {
+      const uniqueSymptomsMap = new Map();
+      kb.symptoms.forEach(s => {
+        if (s && s.id && !uniqueSymptomsMap.has(s.id)) {
+          uniqueSymptomsMap.set(s.id, s);
+        }
+      });
+      kb.symptoms = Array.from(uniqueSymptomsMap.values());
+    }
+    return kb;
+  }
+
   async syncFromDatabase() {
     if (!this.db) return;
     try {
       const dbKB = await this.db.toKnowledgeBaseObject();
       if (dbKB && dbKB.rules && dbKB.rules.length > 0) {
-        this.kb = this._mergeWithDefaults(dbKB, window.DEFAULT_KNOWLEDGE_BASE || {});
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+        const mergedKB = this._mergeWithDefaults(dbKB, window.DEFAULT_KNOWLEDGE_BASE || {});
+        this.kb = this.sanitizeKB(mergedKB);
+        this.saveToStorage();
         this.notifyListeners();
       }
     } catch (e) {
@@ -60,16 +100,23 @@ class KnowledgeBaseManager {
       if (saved) {
         const parsed = JSON.parse(saved);
         const def = window.DEFAULT_KNOWLEDGE_BASE || {};
-        return this._mergeWithDefaults(parsed, def);
+        const merged = this._mergeWithDefaults(parsed, def);
+        const cleanKB = this.sanitizeKB(merged);
+        // Tự động làm sạch localStorage nếu trước đó bị lưu trùng lặp
+        try {
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanKB));
+        } catch (err) {}
+        return cleanKB;
       }
     } catch (e) {
       console.warn("Lỗi đọc LocalStorage, sử dụng dữ liệu mặc định:", e);
     }
-    return JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {}));
+    return this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
   }
 
   async saveToStorage() {
     try {
+      this.kb = this.sanitizeKB(this.kb);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
       if (this.db) {
         await this.db.importFromKBObject(this.kb, "Cập nhật qua KnowledgeBaseManager");
@@ -91,11 +138,12 @@ class KnowledgeBaseManager {
   }
 
   getKB() {
+    this.kb = this.sanitizeKB(this.kb);
     return this.kb;
   }
 
   resetToDefault() {
-    this.kb = JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {}));
+    this.kb = this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
     this.saveToStorage();
     return this.kb;
   }

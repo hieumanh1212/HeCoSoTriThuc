@@ -128,13 +128,17 @@ const server = http.createServer(async (req, res) => {
       const rawRules = db.prepare("SELECT ma_luat as id, ten_luat as name, ma_benh_ket_luan as conclusion, he_so_tin_cay_luat as cf, mo_ta as description FROM tap_luat ORDER BY ma_luat;").all();
       const rawPremises = db.prepare("SELECT ma_luat as ruleId, ma_trieu_chung as symptomId FROM tien_de_luat;").all();
 
-      const rules = rawRules.map(r => {
-        const prems = rawPremises.filter(p => p.ruleId === r.id).map(p => p.symptomId);
-        return {
-          ...r,
-          premises: prems
-        };
+      const uniqueRuleMap = new Map();
+      rawRules.forEach(r => {
+        if (r && r.id && !uniqueRuleMap.has(r.id)) {
+          const prems = Array.from(new Set(rawPremises.filter(p => p.ruleId === r.id).map(p => p.symptomId).filter(Boolean)));
+          uniqueRuleMap.set(r.id, {
+            ...r,
+            premises: prems
+          });
+        }
       });
+      const rules = Array.from(uniqueRuleMap.values());
 
       return sendJSON(res, 200, {
         ok: true,
