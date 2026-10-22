@@ -1,6 +1,7 @@
 /**
- * FEATURE MODULE: RPG VISUALIZER (RULE PETRI GRAPH)
- * Trực quan hóa Mạng Petri Luật sinh: Sự kiện (Place) -> Luật (Transition) -> Kết luận (Goal)
+ * FEATURE MODULE: RPG VISUALIZER (RULES PRECEDENCE GRAPH) - BÀI TOÁN Y TẾ
+ * Áp dụng lý thuyết: "Mô tơ suy diễn" - TS. Nguyễn Quốc Tuấn (Slide 22 - 23)
+ * Trực quan hóa Mạng liên hệ trước giữa các luật chẩn đoán Y tế
  */
 
 class RPGVisualizer {
@@ -9,20 +10,18 @@ class RPGVisualizer {
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext("2d");
 
-    this.kb = null;
-    this.activeFacts = new Set();
-    this.firedRules = new Set();
-    this.selectedDiseaseFilter = "ALL";
-
-    this.scale = 0.85;
-    this.offsetX = 40;
-    this.offsetY = 30;
+    this.selectedCase = null;
+    this.rpgData = null;
+    this.scale = 0.95;
+    this.offsetX = 50;
+    this.offsetY = 40;
 
     this.isDragging = false;
     this.dragStartX = 0;
     this.dragStartY = 0;
     this.hoveredNode = null;
     this.selectedNode = null;
+
     this.onNodeSelect = options.onNodeSelect || null;
     this.onNodeHover = options.onNodeHover || null;
 
@@ -115,8 +114,8 @@ class RPGVisualizer {
 
     this.canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      const newScale = Math.max(0.25, Math.min(2.5, this.scale * zoomFactor));
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+      const newScale = Math.max(0.3, Math.min(2.5, this.scale * zoomFactor));
 
       const rect = this.canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -132,21 +131,8 @@ class RPGVisualizer {
 
   findNodeAt(x, y) {
     for (const node of this.nodes) {
-      if (node.type === "FACT") {
-        const dist = Math.hypot(x - node.x, y - node.y);
-        if (dist <= node.radius + 6) return node;
-      } else {
-        const halfW = (node.width ? node.width / 2 : 44) + 4;
-        const halfH = (node.height ? node.height / 2 : 19) + 4;
-        if (
-          x >= node.x - halfW &&
-          x <= node.x + halfW &&
-          y >= node.y - halfH &&
-          y <= node.y + halfH
-        ) {
-          return node;
-        }
-      }
+      const dist = Math.hypot(x - node.x, y - node.y);
+      if (dist <= node.radius + 6) return node;
     }
     return null;
   }
@@ -157,7 +143,7 @@ class RPGVisualizer {
   }
 
   zoomOut() {
-    this.scale = Math.max(0.25, this.scale / 1.2);
+    this.scale = Math.max(0.3, this.scale / 1.2);
     this.render();
   }
 
@@ -175,24 +161,20 @@ class RPGVisualizer {
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
     this.nodes.forEach(n => {
-      const extraLeft = n.type === "FACT" ? 220 : (n.width ? n.width / 2 : 30);
-      const extraRight = n.type === "DISEASE" ? 90 : (n.width ? n.width / 2 : 30);
-      const extraY = n.height ? n.height / 2 : 30;
-
-      minX = Math.min(minX, n.x - extraLeft);
-      maxX = Math.max(maxX, n.x + extraRight);
-      minY = Math.min(minY, n.y - extraY);
-      maxY = Math.max(maxY, n.y + extraY);
+      minX = Math.min(minX, n.x - n.radius - 80);
+      maxX = Math.max(maxX, n.x + n.radius + 80);
+      minY = Math.min(minY, n.y - n.radius - 40);
+      maxY = Math.max(maxY, n.y + n.radius + 40);
     });
 
     const graphW = Math.max(100, maxX - minX);
     const graphH = Math.max(100, maxY - minY);
 
-    const padding = 60;
+    const padding = 70;
     const scaleX = (viewW - padding * 2) / graphW;
     const scaleY = (viewH - padding * 2) / graphH;
 
-    this.scale = Math.min(1.15, Math.max(0.4, Math.min(scaleX, scaleY)));
+    this.scale = Math.min(1.15, Math.max(0.5, Math.min(scaleX, scaleY)));
 
     const scaledW = graphW * this.scale;
     const scaledH = graphH * this.scale;
@@ -203,154 +185,100 @@ class RPGVisualizer {
     this.render();
   }
 
-  setData(knowledgeBase, activeFacts = new Set(), firedRules = new Set(), diseaseFilter = "ALL") {
-    this.kb = knowledgeBase;
-    this.activeFacts = activeFacts instanceof Set ? activeFacts : new Set(Object.keys(activeFacts || {}));
-    this.firedRules = firedRules instanceof Set ? firedRules : new Set((firedRules || []).map(r => r.ruleId || r));
-    this.selectedDiseaseFilter = diseaseFilter;
-
+  setCase(clinicalCase) {
+    this.selectedCase = clinicalCase;
+    this.rpgData = window.MedicalGraphAlgorithms.buildMedicalRPG(clinicalCase);
     this.buildGraph();
     this.autoFit();
   }
 
   buildGraph() {
-    if (!this.kb) return;
+    if (!this.selectedCase || !this.rpgData) return;
 
     this.nodes = [];
     this.edges = [];
 
-    // Khử trùng lặp tập luật sinh và tập triệu chứng tiền đề
-    const uniqueRulesMap = new Map();
-    (this.kb.rules || []).forEach(r => {
-      if (r && r.id && !uniqueRulesMap.has(r.id)) {
-        uniqueRulesMap.set(r.id, {
-          ...r,
-          premises: Array.from(new Set((r.premises || []).filter(Boolean)))
-        });
-      }
-    });
-    const allRules = Array.from(uniqueRulesMap.values());
-
-    // Khử trùng lặp danh mục bệnh
-    const uniqueDiseasesMap = new Map();
-    (this.kb.diseases || []).forEach(d => {
-      if (d && d.id && !uniqueDiseasesMap.has(d.id)) {
-        uniqueDiseasesMap.set(d.id, d);
-      }
-    });
-    const allDiseases = Array.from(uniqueDiseasesMap.values());
-
-    let targetRules = allRules;
-    let targetDiseases = allDiseases;
-
-    if (this.selectedDiseaseFilter !== "ALL") {
-      targetRules = allRules.filter(r => r.conclusion === this.selectedDiseaseFilter);
-      targetDiseases = allDiseases.filter(d => d.id === this.selectedDiseaseFilter);
-    }
-
-    const usedSymptomIds = new Set();
-    targetRules.forEach(r => (r.premises || []).forEach(pId => usedSymptomIds.add(pId)));
-    const targetSymptoms = (this.kb.symptoms || []).filter(s => usedSymptomIds.has(s.id));
-
-    // Cột 1: Sự kiện (X = 260 để có đủ khoảng trống hiển thị tên triệu chứng bên trái)
-    // Cột 2: Luật sinh (X = 620)
-    // Cột 3: Kết luận / Bệnh (X = 980)
-    const col1X = 260;
-    const col2X = 620;
-    const col3X = 980;
-
-    const symSpacing = targetSymptoms.length > 12 ? 55 : 68;
-    const ruleSpacing = targetRules.length > 10 ? 65 : 80;
-    const disSpacing = targetDiseases.length > 5 ? 90 : 120;
-
-    const symTotalHeight = targetSymptoms.length * symSpacing;
-    const ruleTotalHeight = targetRules.length * ruleSpacing;
-    const disTotalHeight = targetDiseases.length * disSpacing;
-    const maxHeight = Math.max(symTotalHeight, ruleTotalHeight, disTotalHeight, 400);
-
-    const symStartY = 60 + (maxHeight - symTotalHeight) / 2;
-    const ruleStartY = 60 + (maxHeight - ruleTotalHeight) / 2;
-    const disStartY = 60 + (maxHeight - disTotalHeight) / 2;
-
     const nodeMap = new Map();
+    const rules = this.rpgData.rules || [];
 
-    // 1. Tạo node Sự kiện / Triệu chứng (Place)
-    targetSymptoms.forEach((s, idx) => {
-      const node = {
-        id: s.id,
-        type: "FACT",
-        label: s.id,
-        subLabel: s.name,
-        x: col1X,
-        y: symStartY + idx * symSpacing,
-        radius: 20,
-        data: s,
-        isActive: this.activeFacts.has(s.id)
-      };
-      this.nodes.push(node);
-      nodeMap.set(s.id, node);
-    });
+    // Tách luật thành 2 tầng: Tầng 1 (ra Hội chứng I) và Tầng 2 (ra Bệnh D)
+    const stage1Rules = rules.filter(r => r.conclusion.startsWith("I"));
+    const stage2Rules = rules.filter(r => !r.conclusion.startsWith("I"));
 
-    // 2. Tạo node Luật sinh (Transition)
-    targetRules.forEach((r, idx) => {
+    const col1X = 220; // Tầng 1: Luật hội chứng
+    const col2X = 680; // Tầng 2: Luật bệnh
+
+    const spacingY1 = 85;
+    const spacingY2 = 68;
+
+    const startY1 = 100;
+    const startY2 = 70;
+
+    // 1. Tạo node luật Tầng 1
+    stage1Rules.forEach((r, idx) => {
+      const isR_GT = this.rpgData.rGtIds.has(r.id);
+      const isR_KL = this.rpgData.rKlIds.has(r.id);
+      const kcToR_KL = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, this.rpgData.rKlIds, this.rpgData.edges);
+
       const node = {
         id: r.id,
-        type: "RULE",
         label: r.id,
-        subLabel: `CF: ${r.cf}`,
-        x: col2X,
-        y: ruleStartY + idx * ruleSpacing,
-        width: 88,
-        height: 38,
-        data: r,
-        isActive: this.firedRules.has(r.id)
+        name: r.name,
+        description: r.description,
+        ruleData: r,
+        premises: r.premises,
+        conclusion: r.conclusion,
+        isR_GT,
+        isR_KL,
+        kcToR_KL,
+        stage: 1,
+        x: col1X,
+        y: startY1 + idx * spacingY1,
+        radius: 30
       };
+
       this.nodes.push(node);
       nodeMap.set(r.id, node);
     });
 
-    // 3. Tạo node Bệnh / Kết luận (Goal)
-    targetDiseases.forEach((d, idx) => {
-      const isDiseaseActive = targetRules.some(r => r.conclusion === d.id && this.firedRules.has(r.id));
+    // 2. Tạo node luật Tầng 2
+    stage2Rules.forEach((r, idx) => {
+      const isR_GT = this.rpgData.rGtIds.has(r.id);
+      const isR_KL = this.rpgData.rKlIds.has(r.id);
+      const kcToR_KL = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, this.rpgData.rKlIds, this.rpgData.edges);
+
       const node = {
-        id: d.id,
-        type: "DISEASE",
-        label: d.id,
-        subLabel: d.name,
-        x: col3X,
-        y: disStartY + idx * disSpacing,
-        width: 155,
-        height: 52,
-        data: d,
-        isActive: isDiseaseActive
+        id: r.id,
+        label: r.id,
+        name: r.name,
+        description: r.description,
+        ruleData: r,
+        premises: r.premises,
+        conclusion: r.conclusion,
+        isR_GT,
+        isR_KL,
+        kcToR_KL,
+        stage: 2,
+        x: col2X,
+        y: startY2 + idx * spacingY2,
+        radius: 30
       };
+
       this.nodes.push(node);
-      nodeMap.set(d.id, node);
+      nodeMap.set(r.id, node);
     });
 
-    // 4. Tạo các cung nối có hướng (chắc chắn mỗi cặp Place -> Transition chỉ có 1 cung duy nhất)
-    targetRules.forEach(r => {
-      const ruleNode = nodeMap.get(r.id);
-      if (!ruleNode) return;
-
-      const uniquePremises = Array.from(new Set(r.premises || []));
-      uniquePremises.forEach(pId => {
-        const symNode = nodeMap.get(pId);
-        if (symNode) {
-          this.edges.push({
-            from: symNode,
-            to: ruleNode,
-            isFired: symNode.isActive && ruleNode.isActive
-          });
-        }
-      });
-
-      const disNode = nodeMap.get(r.conclusion);
-      if (disNode) {
+    // 3. Tạo các cung giữa các luật
+    this.rpgData.edges.forEach(e => {
+      const fromNode = nodeMap.get(e.from);
+      const toNode = nodeMap.get(e.to);
+      if (fromNode && toNode) {
         this.edges.push({
-          from: ruleNode,
-          to: disNode,
-          isFired: ruleNode.isActive
+          from: fromNode,
+          to: toNode,
+          connectorFact: e.connectorFact,
+          connectorName: e.connectorName,
+          label: e.connectorFact
         });
       }
     });
@@ -367,13 +295,13 @@ class RPGVisualizer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
-    // Nền canvas
+    // Canvas Background
     ctx.fillStyle = isLight ? "#f8fafc" : "#0b1120";
     ctx.fillRect(0, 0, width, height);
 
     // Grid chấm nền
     ctx.save();
-    ctx.fillStyle = isLight ? "rgba(100, 116, 139, 0.18)" : "rgba(148, 163, 184, 0.12)";
+    ctx.fillStyle = isLight ? "rgba(100, 116, 139, 0.2)" : "rgba(148, 163, 184, 0.12)";
     const dotSize = 1.5;
     const dotGap = 28 * this.scale;
     const startX = (this.offsetX % dotGap);
@@ -388,22 +316,25 @@ class RPGVisualizer {
     }
     ctx.restore();
 
-    // Vẽ Đồ thị với Phép biến hình (Pan + Zoom)
+    // Pan + Zoom
     ctx.save();
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
+
+    // Vẽ nhãn phân tầng trên canvas
+    this.drawStageHeaders(ctx, isLight);
 
     // 1. Vẽ các cung (Edges)
     this.edges.forEach(edge => {
       this.drawEdge(ctx, edge, isLight);
     });
 
-    // 2. Vẽ các Node
+    // 2. Vẽ các đỉnh (Nodes)
     this.nodes.forEach(node => {
       this.drawNode(ctx, node, isLight);
     });
 
-    // 3. Vẽ Tooltip nếu có node hover
+    // 3. Tooltip khi hover
     if (this.hoveredNode) {
       this.drawTooltip(ctx, this.hoveredNode, isLight);
     }
@@ -411,17 +342,33 @@ class RPGVisualizer {
     ctx.restore();
   }
 
+  drawStageHeaders(ctx, isLight) {
+    ctx.save();
+    ctx.font = "bold 13px sans-serif";
+    ctx.fillStyle = isLight ? "#64748b" : "#94a3b8";
+    ctx.textAlign = "center";
+
+    // Cột 1
+    ctx.fillText("TẦNG 1: LUẬT XÁC ĐỊNH HỘI CHỨNG (I)", 220, 45);
+    // Cột 2
+    ctx.fillText("TẦNG 2: LUẬT CHẨN ĐOÁN BỆNH LÝ (D)", 680, 45);
+    ctx.restore();
+  }
+
   drawEdge(ctx, edge, isLight = false) {
     const from = edge.from;
     const to = edge.to;
-    const isFired = edge.isFired;
+
+    const isSelectedEdge = this.selectedNode && (edge.from.id === this.selectedNode.id || edge.to.id === this.selectedNode.id);
+    const isHoveredEdge = this.hoveredNode && (edge.from.id === this.hoveredNode.id || edge.to.id === this.hoveredNode.id);
+    const isPathToGoal = from.isR_GT && to.isR_KL;
+    const isHighlighted = isSelectedEdge || isHoveredEdge || isPathToGoal;
 
     ctx.save();
-    ctx.beginPath();
 
-    const startX = from.x + (from.type === "RULE" ? from.width / 2 : (from.radius || from.width / 2));
+    const startX = from.x + from.radius;
     const startY = from.y;
-    const endX = to.x - (to.type === "RULE" ? to.width / 2 : (to.radius || to.width / 2));
+    const endX = to.x - to.radius - 5;
     const endY = to.y;
 
     const cp1X = startX + (endX - startX) * 0.5;
@@ -429,218 +376,255 @@ class RPGVisualizer {
     const cp2X = startX + (endX - startX) * 0.5;
     const cp2Y = endY;
 
+    ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
 
-    if (isFired) {
-      ctx.strokeStyle = "#10b981";
-      ctx.lineWidth = 3.5;
-      ctx.shadowColor = "rgba(16, 185, 129, 0.7)";
+    if (isHighlighted) {
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 3.2;
+      ctx.shadowColor = "rgba(56, 189, 248, 0.75)";
       ctx.shadowBlur = 10;
     } else {
-      ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.6)" : "rgba(148, 163, 184, 0.35)";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isLight ? "rgba(100, 116, 139, 0.65)" : "rgba(148, 163, 184, 0.45)";
+      ctx.lineWidth = 1.8;
       ctx.shadowBlur = 0;
     }
 
     ctx.stroke();
 
-    this.drawArrowHead(ctx, cp2X, cp2Y, endX, endY, isFired ? "#10b981" : (isLight ? "#64748b" : "#94a3b8"));
+    // Mũi tên
+    const arrowAngle = Math.atan2(endY - cp2Y, endX - cp2X);
+    this.drawArrowHeadAt(ctx, endX, endY, arrowAngle, isHighlighted ? "#38bdf8" : (isLight ? "#475569" : "#94a3b8"));
+
+    // Nhãn hội chứng cầu nối trên cung
+    if (edge.connectorFact) {
+      const midX = (startX + endX) / 2;
+      const midY = (startY + endY) / 2;
+      this.drawEdgeLabel(ctx, edge.connectorFact, midX, midY, isLight, isHighlighted);
+    }
+
     ctx.restore();
   }
 
-  drawArrowHead(ctx, fromX, fromY, toX, toY, color) {
-    const headLen = 9;
-    const angle = Math.atan2(toY - fromY, toX - fromX);
+  drawArrowHeadAt(ctx, x, y, angle, color) {
+    const headLen = 10;
     ctx.save();
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(toX, toY);
-    ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.moveTo(x, y);
+    ctx.lineTo(
+      x - headLen * Math.cos(angle - Math.PI / 7),
+      y - headLen * Math.sin(angle - Math.PI / 7)
+    );
+    ctx.lineTo(
+      x - headLen * Math.cos(angle + Math.PI / 7),
+      y - headLen * Math.sin(angle + Math.PI / 7)
+    );
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 
-  drawNode(ctx, node, isLight = false) {
+  drawEdgeLabel(ctx, text, x, y, isLight, isHighlighted) {
     ctx.save();
-    const isSelected = this.selectedNode === node;
+    ctx.font = "bold 11px 'JetBrains Mono', Consolas, monospace";
+    const textWidth = ctx.measureText(text).width;
+    const padX = 5;
+    const padY = 3;
 
-    if (node.type === "FACT") {
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+    ctx.fillStyle = isLight ? "#ffffff" : "#1e293b";
+    ctx.strokeStyle = isHighlighted ? "#38bdf8" : (isLight ? "#cbd5e1" : "#475569");
+    ctx.lineWidth = 1;
 
-      if (node.isActive) {
-        ctx.fillStyle = "#059669";
-        ctx.strokeStyle = "#34d399";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "rgba(52, 211, 153, 0.85)";
-        ctx.shadowBlur = 14;
-      } else {
-        ctx.fillStyle = isLight ? "#ffffff" : "#1e293b";
-        ctx.strokeStyle = isLight ? "#94a3b8" : "#475569";
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 0;
-      }
+    ctx.beginPath();
+    ctx.roundRect(x - textWidth / 2 - padX, y - 8 - padY, textWidth + padX * 2, 16 + padY, 4);
+    ctx.fill();
+    ctx.stroke();
 
-      if (isSelected) {
-        ctx.strokeStyle = "#f59e0b";
-        ctx.lineWidth = 3.5;
-      }
+    ctx.fillStyle = isHighlighted ? "#0284c7" : (isLight ? "#334155" : "#cbd5e1");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
 
-      ctx.fill();
-      ctx.stroke();
+    ctx.restore();
+  }
 
-      // Label mã triệu chứng ở giữa hình tròn
-      ctx.fillStyle = node.isActive ? "#ffffff" : (isLight ? "#0f172a" : "#ffffff");
-      ctx.font = "bold 12px Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+  drawNode(ctx, node, isLight = false) {
+    const isSelected = this.selectedNode && this.selectedNode.id === node.id;
+    const isHovered = this.hoveredNode && this.hoveredNode.id === node.id;
+
+    ctx.save();
+
+    // 1. Nền vòng tròn
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+
+    if (node.isR_GT) {
+      // Luật thỏa mãn ngay từ triệu chứng ban đầu (Slide 23: Sọc ngang vàng)
+      ctx.fillStyle = isLight ? "#fef3c7" : "#3b2a0c";
+    } else if (node.isR_KL) {
+      // Luật đạt kết luận chẩn đoán bệnh mục tiêu (Slide 23: Sọc chéo đỏ)
+      ctx.fillStyle = isLight ? "#ffe4e6" : "#43141d";
+    } else {
+      ctx.fillStyle = isLight ? "#ffffff" : "#1e293b";
+    }
+    ctx.fill();
+
+    // 2. Vẽ HATCHING PATTERN chuẩn Slide 23 TS. Nguyễn Quốc Tuấn
+    if (node.isR_GT) {
+      this.drawHatchLines(ctx, node, "HORIZONTAL", isLight ? "#d97706" : "#f59e0b");
+    }
+    if (node.isR_KL) {
+      this.drawHatchLines(ctx, node, "DIAGONAL", isLight ? "#e11d48" : "#f43f5e");
+    }
+
+    // 3. Viền
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+
+    if (isSelected || isHovered) {
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = "rgba(56, 189, 248, 0.8)";
+      ctx.shadowBlur = 12;
+    } else if (node.isR_GT) {
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 2.5;
+    } else if (node.isR_KL) {
+      ctx.strokeStyle = "#f43f5e";
+      ctx.lineWidth = 2.5;
+    } else {
+      ctx.strokeStyle = isLight ? "#64748b" : "#94a3b8";
+      ctx.lineWidth = 2;
+    }
+    ctx.stroke();
+
+    // 4. Nhãn tên luật: R01, R02...
+    ctx.font = "bold 15px 'JetBrains Mono', Consolas, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (node.isR_GT || node.isR_KL) {
+      ctx.strokeStyle = isLight ? "#ffffff" : "#000000";
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(node.label, node.x, node.y);
+      ctx.fillStyle = isLight ? "#0f172a" : "#ffffff";
       ctx.fillText(node.label, node.x, node.y);
+    } else {
+      ctx.fillStyle = isLight ? "#1e293b" : "#f8fafc";
+      ctx.fillText(node.label, node.x, node.y);
+    }
 
-      // Tên triệu chứng hiển thị bên trái hình tròn
-      ctx.fillStyle = node.isActive ? (isLight ? "#047857" : "#34d399") : (isLight ? "#334155" : "#cbd5e1");
-      ctx.font = (node.isActive ? "bold " : "") + "11px Inter, sans-serif";
-      ctx.textAlign = "right";
-      const shortName = node.subLabel.length > 32 ? node.subLabel.substring(0, 30) + "..." : node.subLabel;
-      ctx.fillText(shortName, node.x - node.radius - 10, node.y);
+    // 5. Badge khoảng cách heuristic KC(R, R_KL)
+    const kcText = node.kcToR_KL === Infinity ? "h^ = ∞" : `h^ = ${node.kcToR_KL}`;
+    ctx.font = "bold 10px 'Segoe UI Symbol', 'Segoe UI', Arial, sans-serif";
+    ctx.fillStyle = node.kcToR_KL === 0 ? "#10b981" : (node.kcToR_KL === Infinity ? "#94a3b8" : "#38bdf8");
+    ctx.textAlign = "center";
+    ctx.fillText(kcText, node.x, node.y + node.radius + 15);
 
-    } else if (node.type === "RULE") {
-      const x = node.x - node.width / 2;
-      const y = node.y - node.height / 2;
-
-      ctx.beginPath();
-      if (typeof ctx.roundRect === "function") {
-        ctx.roundRect(x, y, node.width, node.height, 8);
-      } else {
-        ctx.rect(x, y, node.width, node.height);
-      }
-
-      if (node.isActive) {
-        ctx.fillStyle = "#2563eb";
-        ctx.strokeStyle = "#60a5fa";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "rgba(96, 165, 250, 0.85)";
-        ctx.shadowBlur = 14;
-      } else {
-        ctx.fillStyle = isLight ? "#f1f5f9" : "#1e293b";
-        ctx.strokeStyle = isLight ? "#94a3b8" : "#64748b";
-        ctx.lineWidth = 1.5;
-        ctx.shadowBlur = 0;
-      }
-
-      if (isSelected) {
-        ctx.strokeStyle = "#f59e0b";
-        ctx.lineWidth = 3.5;
-      }
-
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = node.isActive ? "#ffffff" : (isLight ? "#0f172a" : "#ffffff");
-      ctx.font = "bold 12px Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText(node.label, node.x, y + 6);
-
-      ctx.fillStyle = node.isActive ? "#dbeafe" : (isLight ? "#2563eb" : "#93c5fd");
-      ctx.font = "10px Inter, sans-serif";
-      ctx.fillText(node.subLabel, node.x, y + 21);
-
-    } else if (node.type === "DISEASE") {
-      const x = node.x - node.width / 2;
-      const y = node.y - node.height / 2;
-
-      ctx.beginPath();
-      if (typeof ctx.roundRect === "function") {
-        ctx.roundRect(x, y, node.width, node.height, 10);
-      } else {
-        ctx.rect(x, y, node.width, node.height);
-      }
-
-      if (node.isActive) {
-        ctx.fillStyle = "#dc2626";
-        ctx.strokeStyle = "#f87171";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "rgba(248, 113, 113, 0.9)";
-        ctx.shadowBlur = 16;
-      } else {
-        ctx.fillStyle = isLight ? "#ffffff" : "#1e293b";
-        ctx.strokeStyle = isLight ? "#fca5a5" : "#94a3b8";
-        ctx.lineWidth = 1.5;
-        ctx.shadowBlur = 0;
-      }
-
-      if (isSelected) {
-        ctx.strokeStyle = "#f59e0b";
-        ctx.lineWidth = 3.5;
-      }
-
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = node.isActive ? "#ffffff" : (isLight ? "#991b1b" : "#ffffff");
-      ctx.font = "bold 13px Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText(node.label, node.x, y + 9);
-
-      ctx.fillStyle = node.isActive ? "#fee2e2" : (isLight ? "#475569" : "#cbd5e1");
-      ctx.font = "11px Inter, sans-serif";
-      const shortDis = node.subLabel.length > 20 ? node.subLabel.substring(0, 18) + "..." : node.subLabel;
-      ctx.fillText(shortDis, node.x, y + 28);
+    // Badge r in R_GT hoặc r in R_KL
+    if (node.isR_GT) {
+      this.drawBadgeText(ctx, "R ∈ R_GT", node.x, node.y - node.radius - 8, "#f59e0b", isLight);
+    } else if (node.isR_KL) {
+      this.drawBadgeText(ctx, "R ∈ R_KL", node.x, node.y - node.radius - 8, "#f43f5e", isLight);
     }
 
     ctx.restore();
   }
 
-  drawTooltip(ctx, node, isLight = false) {
+  drawHatchLines(ctx, node, type, color) {
     ctx.save();
-    let textTitle = "";
-    let textDesc = "";
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+    ctx.clip();
 
-    if (node.type === "FACT") {
-      textTitle = `[${node.id}] Triệu chứng`;
-      textDesc = node.subLabel;
-    } else if (node.type === "RULE") {
-      textTitle = `[${node.id}] ${node.data.name}`;
-      textDesc = `${node.data.description || ''} (Hệ số CF = ${node.data.cf})`;
-    } else if (node.type === "DISEASE") {
-      textTitle = `[${node.id}] ${node.subLabel}`;
-      textDesc = `Mức độ: ${node.data.severity || 'Theo dõi y tế'}`;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    ctx.globalAlpha = 0.65;
+
+    const gap = 6;
+    const r = node.radius;
+
+    if (type === "HORIZONTAL") {
+      for (let y = node.y - r; y <= node.y + r; y += gap) {
+        ctx.beginPath();
+        ctx.moveTo(node.x - r, y);
+        ctx.lineTo(node.x + r, y);
+        ctx.stroke();
+      }
+    } else if (type === "DIAGONAL") {
+      for (let offset = -r * 2; offset <= r * 2; offset += gap) {
+        ctx.beginPath();
+        ctx.moveTo(node.x - r + offset, node.y - r);
+        ctx.lineTo(node.x + r + offset, node.y + r);
+        ctx.stroke();
+      }
     }
 
-    ctx.font = "bold 12px Inter, sans-serif";
-    const titleWidth = ctx.measureText(textTitle).width;
-    ctx.font = "11px Inter, sans-serif";
-    const descWidth = ctx.measureText(textDesc).width;
-    const boxWidth = Math.max(titleWidth, descWidth, 200) + 24;
-    const boxHeight = 54;
+    ctx.restore();
+  }
 
-    const boxX = node.x + 20;
-    const boxY = node.y - 30;
-
-    ctx.fillStyle = isLight ? "rgba(255, 255, 255, 0.98)" : "rgba(15, 23, 42, 0.96)";
-    ctx.strokeStyle = isLight ? "#0284c7" : "#38bdf8";
-    ctx.lineWidth = 1.5;
-    ctx.shadowColor = isLight ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.6)";
-    ctx.shadowBlur = 10;
-
+  drawBadgeText(ctx, text, x, y, color, isLight) {
+    ctx.save();
+    ctx.font = "bold 9px 'Segoe UI Symbol', 'Segoe UI', Arial, sans-serif";
+    const w = ctx.measureText(text).width + 8;
+    ctx.fillStyle = isLight ? "#ffffff" : "#1e293b";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+    ctx.roundRect(x - w / 2, y - 6, w, 13, 3);
     ctx.fill();
     ctx.stroke();
 
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = isLight ? "#0284c7" : "#38bdf8";
-    ctx.font = "bold 12px Inter, sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText(textTitle, boxX + 12, boxY + 20);
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
 
-    ctx.fillStyle = isLight ? "#334155" : "#e2e8f0";
-    ctx.font = "11px Inter, sans-serif";
-    ctx.fillText(textDesc, boxX + 12, boxY + 38);
+  drawTooltip(ctx, node, isLight = false) {
+    ctx.save();
+    const line1 = `Luật Y tế: [${node.id}] - ${node.name}`;
+    const line2 = `Nội dung: ${(node.premises || []).join(" ∧ ")} → ${node.conclusion}`;
+    const line3 = `Độ đo Heuristic: h^(${node.id}) = KC(${node.id}, R_KL) = ${node.kcToR_KL === Infinity ? "∞" : node.kcToR_KL} bước tới bệnh kết luận`;
+
+    ctx.font = "12px sans-serif";
+    const maxW = Math.max(
+      ctx.measureText(line1).width,
+      ctx.measureText(line2).width,
+      ctx.measureText(line3).width
+    );
+    const boxW = maxW + 20;
+    const boxH = 68;
+    const boxX = node.x - boxW / 2;
+    const boxY = node.y - node.radius - boxH - 14;
+
+    ctx.fillStyle = isLight ? "rgba(255, 255, 255, 0.96)" : "rgba(15, 23, 42, 0.95)";
+    ctx.strokeStyle = isLight ? "#94a3b8" : "#38bdf8";
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = "rgba(0,0,0,0.3)";
+    ctx.shadowBlur = 8;
+
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = isLight ? "#0f172a" : "#f8fafc";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText(line1, boxX + 10, boxY + 8);
+
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = isLight ? "#475569" : "#94a3b8";
+    ctx.fillText(line2, boxX + 10, boxY + 28);
+
+    ctx.font = "bold 11px 'JetBrains Mono', monospace";
+    ctx.fillStyle = node.kcToR_KL === 0 ? "#10b981" : "#0284c7";
+    ctx.fillText(line3, boxX + 10, boxY + 46);
 
     ctx.restore();
   }
