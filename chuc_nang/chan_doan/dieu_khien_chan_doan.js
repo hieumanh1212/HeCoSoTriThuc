@@ -4,12 +4,13 @@
  */
 
 class DiagnosisController {
-  constructor({ kbManager, forwardEngine, backwardEngine, onInferenceComplete, onFocusGraph }) {
+  constructor({ kbManager, forwardEngine, backwardEngine, onInferenceComplete, onFocusGraph, onFocusFpg }) {
     this.kbManager = kbManager;
     this.forwardEngine = forwardEngine;
     this.backwardEngine = backwardEngine;
     this.onInferenceComplete = onInferenceComplete;
     this.onFocusGraph = onFocusGraph;
+    this.onFocusFpg = onFocusFpg;
 
     this.currentSelectedSymptoms = {}; // { [symptomId]: number (CF: 0 - 1.0) }
     this.lastInferenceResult = null;
@@ -774,6 +775,9 @@ class DiagnosisController {
                   <button class="btn-card-action btn-action-graph btn-focus-graph" data-disease-id="${dis.id || item.diseaseId}" title="Xem đường suy diễn trên đồ thị RPG">
                     <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
                   </button>
+                  <button class="btn-card-action btn-action-graph btn-focus-fpg" data-disease-id="${dis.id || item.diseaseId}" title="Xem lan truyền sự kiện trên đồ thị FPG" style="background: rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.4); color: #38bdf8;">
+                    <i class="fa-solid fa-diagram-successor"></i> Đồ thị FPG
+                  </button>
                 </div>
               </div>
 
@@ -794,6 +798,13 @@ class DiagnosisController {
       btn.addEventListener("click", (e) => {
         const disId = e.currentTarget.getAttribute("data-disease-id");
         if (this.onFocusGraph) this.onFocusGraph(disId);
+      });
+    });
+
+    this.resultsContainer.querySelectorAll(".btn-focus-fpg").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const disId = e.currentTarget.getAttribute("data-disease-id");
+        if (this.onFocusFpg) this.onFocusFpg(disId);
       });
     });
   }

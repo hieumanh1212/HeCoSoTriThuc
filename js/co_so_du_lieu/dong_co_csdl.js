@@ -408,12 +408,24 @@ class DatabaseEngine {
     const premises = await this.getAll("tien_de_luat");
 
     const rulesWithPremises = rules.map(r => {
-      const rulePrems = premises.filter(p => p.ruleId === r.id).map(p => p.symptomId);
+      const rawRulePrems = premises
+        .filter(p => (p.ruleId || p.ma_luat) === r.id)
+        .map(p => p.symptomId || p.ma_trieu_chung);
+      const rulePrems = Array.from(new Set(rawRulePrems.filter(Boolean)));
+      const fallbackPrems = Array.from(new Set((r.premises || []).filter(Boolean)));
       return {
         ...r,
-        premises: rulePrems.length > 0 ? rulePrems : (r.premises || [])
+        premises: rulePrems.length > 0 ? rulePrems : fallbackPrems
       };
     });
+
+    const uniqueRulesMap = new Map();
+    rulesWithPremises.forEach(r => {
+      if (r && r.id && !uniqueRulesMap.has(r.id)) {
+        uniqueRulesMap.set(r.id, r);
+      }
+    });
+    const finalRules = Array.from(uniqueRulesMap.values());
 
     const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
 
@@ -427,7 +439,7 @@ class DatabaseEngine {
       symptomGroups: symptomGroups.length > 0 ? symptomGroups : (defaultKB.symptomGroups || []),
       symptoms: symptoms.length > 0 ? symptoms : (defaultKB.symptoms || []),
       diseases: diseases.length > 0 ? diseases : (defaultKB.diseases || []),
-      rules: rulesWithPremises.length > 0 ? rulesWithPremises : (defaultKB.rules || []),
+      rules: finalRules.length > 0 ? finalRules : (defaultKB.rules || []),
       testCases: defaultKB.testCases || []
     };
   }
@@ -453,29 +465,41 @@ class DatabaseEngine {
       }
     }
 
-    const currentPremises = await this.getAll("tien_de_luat");
-    for (const p of currentPremises) {
-      await this.delete("tien_de_luat", p.id, false);
+    if (this.db && this.db.objectStoreNames.contains("tien_de_luat")) {
+      await new Promise((resolve) => {
+        try {
+          const tx = this.db.transaction(["tien_de_luat"], "readwrite");
+          const store = tx.objectStore("tien_de_luat");
+          const req = store.clear();
+          req.onsuccess = () => resolve();
+          req.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
     }
 
     if (kb.rules) {
+      const processedRuleIds = new Set();
       for (const rule of kb.rules) {
+        if (!rule || !rule.id || processedRuleIds.has(rule.id)) continue;
+        processedRuleIds.add(rule.id);
+
+        const uniquePrems = Array.from(new Set((rule.premises || []).filter(Boolean)));
         await this.put("tap_luat", {
           id: rule.id,
           name: rule.name,
           conclusion: rule.conclusion,
           cf: rule.cf,
           description: rule.description || "",
-          premises: rule.premises || []
+          premises: uniquePrems
         }, false);
 
-        if (rule.premises && Array.isArray(rule.premises)) {
-          for (const pId of rule.premises) {
-            await this.put("tien_de_luat", {
-              ruleId: rule.id,
-              symptomId: pId
-            }, false);
-          }
+        for (const pId of uniquePrems) {
+          await this.put("tien_de_luat", {
+            ruleId: rule.id,
+            symptomId: pId
+          }, false);
         }
       }
     }
