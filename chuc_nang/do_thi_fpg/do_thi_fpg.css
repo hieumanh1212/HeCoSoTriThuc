@@ -1,6 +1,6 @@
 /* ==========================================================================
-   MODULE CSS: ĐỒ THỊ ƯU TIÊN SỰ KIỆN FPG (FACT PRECEDENCE GRAPH)
-   Mạng ngữ nghĩa biểu diễn luật, lan truyền sự kiện & hệ số tin cậy CF
+   MODULE CSS: ĐỒ THỊ LIÊN HỆ TRƯỚC SỰ KIỆN FPG (FACTS PRECEDENCE GRAPH)
+   Theo tài liệu bài giảng: "Mô tơ suy diễn" - TS. Nguyễn Quốc Tuấn (Slide 18 - 21)
    ========================================================================== */
 
 .fpg-layout {
@@ -26,7 +26,7 @@
   padding: 0.85rem 1.25rem;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .graph-controls {
@@ -36,39 +36,50 @@
   gap: 0.5rem;
 }
 
-.mode-toggle-group {
-  display: flex;
-  background: var(--bg-main);
-  padding: 0.25rem;
-  border-radius: var(--radius-md);
+.problem-banner {
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  gap: 0.25rem;
+  border-left: 4px solid #10b981;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.btn-mode-tab {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  padding: 0.45rem 0.85rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
+.problem-banner .banner-title {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  transition: all var(--transition-fast);
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: #10b981;
 }
 
-.btn-mode-tab:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+.problem-banner .banner-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.btn-mode-tab.active {
-  color: #ffffff;
-  background: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.35);
+.sim-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag-pill {
+  font-size: 0.82rem;
+  background: var(--bg-main);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.tag-pill code {
+  font-weight: 700;
 }
 
 .graph-legend {
@@ -88,87 +99,55 @@
 
 .legend-shape {
   display: inline-block;
-}
-
-.shape-place {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: #1e293b;
-  border: 2px solid #475569;
+  position: relative;
 }
 
-.shape-trans {
-  width: 18px;
-  height: 10px;
-  background: #1e293b;
-  border: 1.5px solid #64748b;
-  border-radius: 2px;
+/* Sọc ngang cho f in GT theo Slide 19 */
+.shape-f-gt {
+  background: repeating-linear-gradient(
+    0deg,
+    #f59e0b,
+    #f59e0b 2px,
+    #1e293b 2px,
+    #1e293b 5px
+  );
+  border: 1.5px solid #f59e0b;
 }
 
-.shape-active {
-  background: #059669;
-  border-color: #34d399;
-  box-shadow: 0 0 8px #34d399;
+/* Sọc chéo cho f in KL theo Slide 19 */
+.shape-f-kl {
+  background: repeating-linear-gradient(
+    45deg,
+    #f43f5e,
+    #f43f5e 2px,
+    #1e293b 2px,
+    #1e293b 5px
+  );
+  border: 1.5px solid #f43f5e;
 }
 
-.shape-place-active {
-  background: #059669;
-  border-color: #34d399;
-  box-shadow: 0 0 8px #34d399;
-}
-
-.shape-fact-input {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #1e293b;
-  border: 2px solid #38bdf8;
-}
-
-.shape-fact-goal {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  background: #1e293b;
-  border: 2px solid #f43f5e;
-}
-
-.shape-gate-and {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: #0284c7;
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.shape-gate-or {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: #7c3aed;
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.shape-active-glow {
+.shape-f-tg {
   background: #10b981;
-  border-color: #34d399;
-  box-shadow: 0 0 8px #34d399;
+  border: 1.5px solid #34d399;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.legend-arrow {
+  font-family: monospace;
+  font-size: 0.78rem;
+  background: var(--bg-main);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  color: #38bdf8;
 }
 
 .canvas-container {
   width: 100%;
-  height: 680px;
+  height: 640px;
   background-color: var(--canvas-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -221,10 +200,11 @@
   border-radius: var(--radius-md);
   padding: 0.85rem;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: #38bdf8;
   margin: 0.6rem 0;
   overflow-x: auto;
+  line-height: 1.7;
 }
 
 .stat-pill {
@@ -252,6 +232,41 @@
   border-color: rgba(245, 158, 11, 0.3);
 }
 
+.badge-rule {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 4px;
+}
+
+.eval-pill {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  margin-right: 0.3rem;
+  margin-bottom: 0.2rem;
+}
+
+.eval-pill.selected {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-color: #10b981;
+  font-weight: bold;
+}
+
+.active-step-row {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border-left: 3px solid #10b981;
+}
+
 /* Light Theme */
 [data-theme="light"] .fpg-inspector {
   background: #ffffff;
@@ -259,23 +274,53 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
-[data-theme="light"] .graph-toolbar {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+[data-theme="light"] .problem-banner {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  border-left-color: #059669;
 }
 
-[data-theme="light"] .mode-toggle-group {
+[data-theme="light"] .tag-pill {
   background: #f1f5f9;
   border-color: #cbd5e1;
-}
-
-[data-theme="light"] .graph-legend {
-  color: #0f172a;
-  font-weight: 600;
 }
 
 [data-theme="light"] .formula-card {
   background: #f8fafc;
   border-color: #cbd5e1;
   color: #0284c7;
+}
+
+[data-theme="light"] .shape-f-gt {
+  background: repeating-linear-gradient(
+    0deg,
+    #d97706,
+    #d97706 2px,
+    #fef3c7 2px,
+    #fef3c7 5px
+  );
+  border-color: #d97706;
+}
+
+[data-theme="light"] .shape-f-kl {
+  background: repeating-linear-gradient(
+    45deg,
+    #e11d48,
+    #e11d48 2px,
+    #ffe4e6 2px,
+    #ffe4e6 5px
+  );
+  border-color: #e11d48;
+}
+
+[data-theme="light"] .eval-pill {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+[data-theme="light"] .eval-pill.selected {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #10b981;
 }
