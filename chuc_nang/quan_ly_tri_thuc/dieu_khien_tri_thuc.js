@@ -41,6 +41,10 @@ class KBController {
     this.modalRuleForm = document.getElementById("modalRuleForm");
     this.ruleForm = document.getElementById("ruleForm");
     this.ruleFormModalTitle = document.getElementById("ruleFormModalTitle");
+    this.modalSymptomForm = document.getElementById("modalSymptomForm");
+    this.symptomForm = document.getElementById("symptomForm");
+    this.modalDiseaseForm = document.getElementById("modalDiseaseForm");
+    this.diseaseForm = document.getElementById("diseaseForm");
 
     // Điều hướng lỗi
     this.errorNavigatorGroup = document.getElementById("errorNavigatorGroup");
@@ -52,6 +56,9 @@ class KBController {
     // State biến tạm
     this.importedParsedRows = [];
     this.importedWorkbook = null;
+    this.catalogImportRows = [];
+    this.catalogImportOnly = false;
+    this.catalogImportSummary = document.getElementById("catalogImportSummary");
     this.errorRowIndices = [];
     this.currentErrorIndex = -1;
 
@@ -74,6 +81,139 @@ class KBController {
     this.cfMinInput = document.getElementById("cfMinInput");
     this.cfMaxInput = document.getElementById("cfMaxInput");
     this.cfFilter = { mode: "all", min: 0.0, max: 1.0 };
+    this.setExcelScope(document.querySelector(".kb-subtab-btn.active")?.getAttribute("data-subtab") || "rules-table");
+  }
+
+  setExcelScope(subtab) {
+    const scopes = {
+      "rules-table": { id: "rules", label: "tập luật" },
+      "symptoms-table": { id: "symptoms", label: "danh mục triệu chứng" },
+      "diseases-table": { id: "diseases", label: "danh mục bệnh & phác đồ" }
+    };
+    const selected = scopes[subtab] || scopes["rules-table"];
+    this.excelScope = selected.id;
+
+    const addActions = {
+      rules: { label: "Thêm luật mới", title: "Thêm luật sinh mới", icon: "fa-plus" },
+      symptoms: { label: "Thêm triệu chứng", title: "Thêm triệu chứng lâm sàng", icon: "fa-virus" },
+      diseases: { label: "Thêm bệnh & phác đồ", title: "Thêm bệnh và thông tin phác đồ", icon: "fa-disease" }
+    };
+    const addAction = addActions[selected.id];
+    if (this.btnAddNewRule) {
+      this.btnAddNewRule.innerHTML = `<i class="fa-solid ${addAction.icon}"></i> ${addAction.label}`;
+      this.btnAddNewRule.title = addAction.title;
+    }
+
+    if (this.btnExportExcel) {
+      this.btnExportExcel.innerHTML = `<i class="fa-solid fa-file-excel"></i> Xuất ${selected.label} (.xlsx)`;
+      this.btnExportExcel.title = `Chỉ xuất dữ liệu của ${selected.label} đang mở`;
+    }
+    if (this.btnOpenImportModal) {
+      this.btnOpenImportModal.innerHTML = `<i class="fa-solid fa-file-import"></i> Nhập ${selected.label}`;
+      this.btnOpenImportModal.title = `Chỉ nhập dữ liệu ${selected.label} từ Excel`;
+    }
+  }
+
+  nextCatalogId(prefix, items) {
+    const maxNumber = (items || []).reduce((max, item) => {
+      const number = Number(String(item.id || "").replace(/\D/g, ""));
+      return Number.isFinite(number) ? Math.max(max, number) : max;
+    }, 0);
+    return `${prefix}${String(maxNumber + 1).padStart(2, "0")}`;
+  }
+
+  openAddSymptomModal() {
+    if (!this.symptomForm || !this.modalSymptomForm) return;
+    const kb = this.kbManager.getKB();
+    const groupSelect = document.getElementById("formSymptomGroupId");
+    if (groupSelect) {
+      groupSelect.innerHTML = (kb.symptomGroups || []).map(group =>
+        `<option value="${group.id}">${group.name}</option>`
+      ).join("");
+    }
+    this.symptomForm.reset();
+    document.getElementById("formSymptomId").value = this.nextCatalogId("S", kb.symptoms);
+    this.modalSymptomForm.classList.add("active");
+  }
+
+  openAddDiseaseModal() {
+    if (!this.diseaseForm || !this.modalDiseaseForm) return;
+    this.diseaseForm.reset();
+    document.getElementById("formDiseaseId").value = this.nextCatalogId("D", this.kbManager.getKB().diseases);
+    this.modalDiseaseForm.classList.add("active");
+  }
+
+  async handleSymptomFormSubmit(event) {
+    event.preventDefault();
+    const kb = this.kbManager.getKB();
+    const id = document.getElementById("formSymptomId").value.trim().toUpperCase();
+    const name = document.getElementById("formSymptomName").value.trim();
+    const groupId = document.getElementById("formSymptomGroupId").value;
+    if (!/^[A-Z0-9_-]+$/.test(id)) {
+      ThongBao.canhBao("Mã triệu chứng chỉ được gồm chữ, số, dấu gạch ngang hoặc gạch dưới.");
+      return;
+    }
+    if ((kb.symptoms || []).some(symptom => symptom.id.toUpperCase() === id)) {
+      ThongBao.canhBao(`Mã triệu chứng ${id} đã tồn tại.`);
+      return;
+    }
+    if (!(kb.symptomGroups || []).some(group => group.id === groupId)) {
+      ThongBao.canhBao("Vui lòng chọn nhóm triệu chứng hợp lệ.");
+      return;
+    }
+
+    kb.symptoms.push({
+      id,
+      name,
+      groupId,
+      question: document.getElementById("formSymptomQuestion").value.trim() || `Bệnh nhân có bị ${name} không?`,
+      severity: document.getElementById("formSymptomSeverity").value
+    });
+    try {
+      await this.kbManager.saveToStorage();
+      this.modalSymptomForm.classList.remove("active");
+      this.renderTables();
+      ThongBao.thanhCong(`Đã thêm triệu chứng ${id}.`);
+    } catch (error) {
+      kb.symptoms = kb.symptoms.filter(symptom => symptom.id !== id);
+      ThongBao.thatBai(`Không thể lưu triệu chứng: ${error.message}`);
+    }
+  }
+
+  async handleDiseaseFormSubmit(event) {
+    event.preventDefault();
+    const kb = this.kbManager.getKB();
+    const id = document.getElementById("formDiseaseId").value.trim().toUpperCase();
+    const name = document.getElementById("formDiseaseName").value.trim();
+    if (!/^[A-Z0-9_-]+$/.test(id)) {
+      ThongBao.canhBao("Mã bệnh chỉ được gồm chữ, số, dấu gạch ngang hoặc gạch dưới.");
+      return;
+    }
+    if ((kb.diseases || []).some(disease => disease.id.toUpperCase() === id)) {
+      ThongBao.canhBao(`Mã bệnh ${id} đã tồn tại.`);
+      return;
+    }
+
+    const treatment = document.getElementById("formDiseaseTreatment").value.trim();
+    kb.diseases.push({
+      id,
+      name,
+      scientificName: document.getElementById("formDiseaseScientificName").value.trim(),
+      category: document.getElementById("formDiseaseCategory").value.trim(),
+      severity: document.getElementById("formDiseaseSeverity").value.trim() || "Trung bình",
+      warningSigns: document.getElementById("formDiseaseWarningSigns").value.trim(),
+      treatment,
+      recommendation: treatment
+    });
+    try {
+      await this.kbManager.saveToStorage();
+      this.modalDiseaseForm.classList.remove("active");
+      this.renderTables();
+      ThongBao.thanhCong(`Đã thêm bệnh ${id} cùng thông tin phác đồ.`);
+    } catch (error) {
+      kb.diseases = kb.diseases.filter(disease => disease.id !== id);
+      ThongBao.thatBai(`Không thể lưu bệnh: ${error.message}`);
+    }
   }
 
   bindEvents() {
@@ -151,14 +291,18 @@ class KBController {
     }
 
     if (this.btnAddNewRule) {
-      this.btnAddNewRule.addEventListener("click", () => this.openAddRuleModal());
+      this.btnAddNewRule.addEventListener("click", () => {
+        if (this.excelScope === "symptoms") this.openAddSymptomModal();
+        else if (this.excelScope === "diseases") this.openAddDiseaseModal();
+        else this.openAddRuleModal();
+      });
     }
 
     if (this.btnExportExcel) {
       this.btnExportExcel.addEventListener("click", () => {
         try {
-          this.kbManager.exportExcel();
-          ThongBao.thanhCong("Đã xuất thành công tệp Excel cơ sở tri thức!");
+          const filename = this.kbManager.exportExcel(this.excelScope);
+          ThongBao.thanhCong(`Đã xuất dữ liệu ${this.excelScope} vào ${filename}.`);
         } catch (err) {
           ThongBao.thatBai(`Lỗi xuất Excel: ${err.message}`);
         }
@@ -262,6 +406,12 @@ class KBController {
     if (this.ruleForm) {
       this.ruleForm.addEventListener("submit", (e) => this.handleRuleFormSubmit(e));
     }
+    if (this.symptomForm) {
+      this.symptomForm.addEventListener("submit", (e) => this.handleSymptomFormSubmit(e));
+    }
+    if (this.diseaseForm) {
+      this.diseaseForm.addEventListener("submit", (e) => this.handleDiseaseFormSubmit(e));
+    }
   }
 
   // ============================================================================
@@ -269,8 +419,11 @@ class KBController {
   // ============================================================================
 
   openImportModal() {
+    this.importScope = this.excelScope;
     this.importedParsedRows = [];
     this.importedWorkbook = null;
+    this.catalogImportRows = [];
+    this.catalogImportOnly = false;
     this.errorRowIndices = [];
     this.currentErrorIndex = -1;
 
@@ -288,6 +441,12 @@ class KBController {
     if (this.countValid) this.countValid.textContent = "0";
     if (this.countInvalid) this.countInvalid.textContent = "0";
     if (this.totalRowsBadge) this.totalRowsBadge.textContent = "0 dòng";
+    if (this.catalogImportSummary) {
+      this.catalogImportSummary.style.display = "none";
+      this.catalogImportSummary.innerHTML = "";
+    }
+    const importTitle = document.querySelector(".import-modal-heading");
+    if (importTitle) importTitle.textContent = `Nạp ${this.getExcelScopeLabel(this.importScope)} từ Excel`;
 
     if (this.importPreviewTableBody) {
       this.importPreviewTableBody.innerHTML = `
@@ -341,7 +500,29 @@ class KBController {
         const ruleSheetName = workbook.SheetNames.find(name => {
           const n = normalizeKey(name);
           return n.includes("luat") || n.includes("rule") || n.includes("tapluat");
-        }) || workbook.SheetNames[0];
+        });
+
+        this.catalogImportRows = this.importScope === "rules"
+          ? []
+          : this.inspectCatalogWorkbook(workbook, this.importScope);
+        this.catalogImportOnly = this.importScope !== "rules";
+        this.renderCatalogImportSummary();
+
+        if (this.catalogImportOnly) {
+          if (this.catalogImportRows.length === 0) {
+            throw new Error(`Không tìm thấy dữ liệu ${this.getExcelScopeLabel(this.importScope)} trong tệp Excel.`);
+          }
+          this.importedParsedRows = [];
+          if (this.totalRowsBadge) this.totalRowsBadge.textContent = `${this.catalogImportRows.length} dòng danh mục`;
+          if (this.countValid) this.countValid.textContent = "0";
+          if (this.countInvalid) this.countInvalid.textContent = "0";
+          if (this.btnValidateExcel) this.btnValidateExcel.disabled = false;
+          if (this.btnSubmitImport) this.btnSubmitImport.disabled = true;
+          if (this.importPreviewTableBody) {
+            this.importPreviewTableBody.innerHTML = `<tr><td colspan="9" class="import-empty-state">Tệp này chứa danh mục triệu chứng/bệnh. Chi tiết xem trước và trạng thái được hiển thị phía trên.</td></tr>`;
+          }
+          return;
+        }
 
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[ruleSheetName]);
 
@@ -350,7 +531,7 @@ class KBController {
         }
 
         if (this.totalRowsBadge) {
-          this.totalRowsBadge.textContent = `${rows.length} dòng`;
+          this.totalRowsBadge.textContent = `${rows.length + this.catalogImportRows.length} dòng`;
         }
 
         this.importedParsedRows = rows.map((row, idx) => {
@@ -445,6 +626,131 @@ class KBController {
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  getExcelScopeLabel(scope) {
+    return {
+      rules: "tập luật",
+      symptoms: "danh mục triệu chứng",
+      diseases: "danh mục bệnh & phác đồ"
+    }[scope] || "cơ sở tri thức";
+  }
+
+  inspectCatalogWorkbook(workbook, scope = "all") {
+    const normalize = value => String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const catalogRows = [];
+    const targetType = { symptoms: "symptom", diseases: "disease" }[scope] || scope;
+    const knownGroupIds = new Set((this.kbManager.getKB().symptomGroups || []).map(group => String(group.id).toUpperCase()));
+    const knownGroupNames = new Set((this.kbManager.getKB().symptomGroups || []).map(group => normalize(group.name)));
+    const sheetTypes = workbook.SheetNames.map(sheetName => {
+      const normalized = normalize(sheetName);
+      if (normalized.includes("nhomtrieuchung") || normalized.includes("symptomgroup")) return "group";
+      if (normalized.includes("trieuchung") || normalized.includes("symptom")) return "symptom";
+      if (normalized.includes("danhmucbenh") || normalized === "benh" || normalized.includes("disease")) return "disease";
+      return null;
+    });
+
+    workbook.SheetNames.forEach((sheetName, sheetIndex) => {
+      if (sheetTypes[sheetIndex] !== "group") return;
+      XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" }).forEach(row => {
+        const entries = Object.entries(row).map(([key, value]) => [normalize(key), String(value || "").trim()]);
+        const id = (entries.find(([key, value]) => value && (key.includes("manhom") || key === "id" || key === "groupid")) || ["", ""])[1];
+        const name = (entries.find(([key, value]) => value && (key.includes("tennhom") || key === "name" || key === "groupname")) || ["", ""])[1];
+        if (id) knownGroupIds.add(id.toUpperCase());
+        if (name) knownGroupNames.add(normalize(name));
+      });
+    });
+
+    workbook.SheetNames.forEach((sheetName, sheetIndex) => {
+      const type = sheetTypes[sheetIndex];
+      if (!type || (scope !== "all" && type !== targetType)) return;
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+      const seenIds = new Set();
+      rows.forEach((row, index) => {
+        const entries = Object.entries(row).map(([key, value]) => [normalize(key), String(value || "").trim()]);
+        const find = predicate => (entries.find(([key, value]) => value && predicate(key)) || ["", ""])[1];
+        const id = find(key => type === "group"
+          ? key.includes("manhom") || key === "id" || key === "groupid"
+          : type === "symptom"
+            ? key.includes("matrieuchung") || key === "id" || key === "symptomid"
+            : key.includes("mabenh") || key === "id" || key === "diseaseid");
+        const name = find(key => type === "group"
+          ? key.includes("tennhom") || key === "name" || key === "groupname"
+          : type === "symptom"
+            ? key.includes("tentrieuchung") || key === "name" || key === "symptomname"
+            : key.includes("tenbenh") || key === "name" || key === "diseasename");
+        if (!id && !name && entries.every(([, value]) => !value)) return;
+        const errors = [];
+        if (!id) errors.push("Thiếu mã");
+        if (!name) errors.push("Thiếu tên");
+        if (id && !/^[a-zA-Z0-9_-]+$/.test(id)) errors.push("Mã chỉ được gồm chữ, số, _ hoặc -");
+        const normalizedId = id.toUpperCase();
+        if (normalizedId && seenIds.has(normalizedId)) errors.push(`Trùng mã ${id} trong sheet`);
+        if (normalizedId) seenIds.add(normalizedId);
+
+        if (type === "symptom") {
+          const groupId = find(key => key.includes("manhom") || key === "groupid");
+          const groupName = find(key => key.includes("tennhom") || key === "groupname");
+          if ((groupId || groupName) && !knownGroupIds.has(groupId.toUpperCase()) && !knownGroupNames.has(normalize(groupName || groupId))) {
+            errors.push(`Nhóm triệu chứng [${groupId || groupName}] không tồn tại`);
+          }
+        }
+
+        let detail = "";
+        if (type === "symptom") {
+          detail = find(key => key.includes("cauhoi") || key.includes("question") || key.includes("why"));
+        } else if (type === "disease") {
+          detail = find(key => key.includes("xutri") || key.includes("treatment") || key.includes("phacdo") || key.includes("recommendation"));
+        } else {
+          detail = find(key => key.includes("mota") || key === "description");
+        }
+        catalogRows.push({
+          type,
+          typeLabel: type === "group" ? "Nhóm triệu chứng" : type === "symptom" ? "Triệu chứng" : "Bệnh/phác đồ",
+          id,
+          name,
+          detail,
+          rowNumber: index + 2,
+          status: errors.length ? "INVALID" : "PENDING",
+          errors
+        });
+      });
+    });
+    return catalogRows;
+  }
+
+  renderCatalogImportSummary() {
+    if (!this.catalogImportSummary) return;
+    if (!this.catalogImportRows.length) {
+      this.catalogImportSummary.style.display = "none";
+      this.catalogImportSummary.innerHTML = "";
+      return;
+    }
+    const counts = this.catalogImportRows.reduce((result, row) => {
+      result[row.typeLabel] = (result[row.typeLabel] || 0) + 1;
+      return result;
+    }, {});
+    const escape = value => String(value || "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    this.catalogImportSummary.style.display = "block";
+    this.catalogImportSummary.innerHTML = `
+      <strong>Nội dung danh mục:</strong> ${Object.entries(counts).map(([label, count]) => `${label}: ${count}`).join(" · ")}
+      <div class="catalog-import-preview">
+        ${this.catalogImportRows.map(row => `
+          <div class="catalog-import-row ${row.status === "INVALID" ? "invalid" : ""}">
+            <span>${escape(row.typeLabel)}</span>
+            <strong>${escape(row.id || "[Thiếu mã]")}</strong>
+            <span>${escape(row.name || "[Thiếu tên]")}</span>
+            <span>${escape(row.errors.join("; ") || row.detail || (row.status === "VALID" ? "Hợp lệ" : "Chờ kiểm tra"))}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
   }
 
   renderImportPreviewTable() {
@@ -618,7 +924,23 @@ class KBController {
 
   validateImportData() {
     if (!this.importedParsedRows || this.importedParsedRows.length === 0) {
-      ThongBao.canhBao("Vui lòng chọn tệp Excel trước khi kiểm tra!");
+      if (!this.catalogImportOnly || this.catalogImportRows.length === 0) {
+        ThongBao.canhBao("Vui lòng chọn tệp Excel có dữ liệu trước khi kiểm tra!");
+        return;
+      }
+
+      const validCount = this.catalogImportRows.filter(row => row.errors.length === 0).length;
+      const invalidCount = this.catalogImportRows.length - validCount;
+      this.catalogImportRows.forEach(row => { row.status = row.errors.length ? "INVALID" : "VALID"; });
+      this.renderCatalogImportSummary();
+      if (this.countValid) this.countValid.textContent = validCount;
+      if (this.countInvalid) this.countInvalid.textContent = invalidCount;
+      if (this.btnSubmitImport) this.btnSubmitImport.disabled = validCount === 0 || invalidCount > 0;
+      if (invalidCount === 0 && validCount > 0) {
+        ThongBao.thanhCong(`Kiểm tra hoàn tất: ${validCount} dòng danh mục hợp lệ. Có thể nạp vào CSDL.`);
+      } else {
+        ThongBao.canhBao(`Có ${invalidCount} dòng danh mục thiếu/sai dữ liệu. Hãy sửa file Excel rồi chọn lại.`);
+      }
       return;
     }
 
@@ -749,9 +1071,16 @@ class KBController {
       }
     });
 
+    this.catalogImportRows.forEach(row => { row.status = row.errors.length ? "INVALID" : "VALID"; });
+    this.renderCatalogImportSummary();
+    const catalogValidCount = this.catalogImportRows.filter(row => row.status === "VALID").length;
+    const catalogInvalidCount = this.catalogImportRows.length - catalogValidCount;
+    const totalValidCount = validCount + catalogValidCount;
+    const totalInvalidCount = invalidCount + catalogInvalidCount;
+
     // Cập nhật giao diện thống kê & bảng
-    if (this.countValid) this.countValid.textContent = validCount;
-    if (this.countInvalid) this.countInvalid.textContent = invalidCount;
+    if (this.countValid) this.countValid.textContent = totalValidCount;
+    if (this.countInvalid) this.countInvalid.textContent = totalInvalidCount;
     this.renderImportPreviewTable();
 
     // Điều hướng đến lỗi đầu tiên nếu có
@@ -764,26 +1093,27 @@ class KBController {
     }
 
     // Thông báo nhanh góc màn hình
-    if (invalidCount === 0 && validCount > 0) {
-      ThongBao.thanhCong(`Kiểm tra hoàn tất: Toàn bộ ${validCount} dòng dữ liệu đều hợp lệ! Bạn có thể nạp vào CSDL.`);
+    if (totalInvalidCount === 0 && totalValidCount > 0) {
+      ThongBao.thanhCong(`Kiểm tra hoàn tất: Toàn bộ ${totalValidCount} dòng luật và danh mục đều hợp lệ! Bạn có thể nạp vào CSDL.`);
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = false;
     } else {
-      ThongBao.canhBao(`Phát hiện ${invalidCount} dòng dữ liệu không hợp lệ. Vui lòng sử dụng nút điều hướng (↑ / ↓) để xem chi tiết.`);
+      ThongBao.canhBao(`Phát hiện ${totalInvalidCount} dòng dữ liệu không hợp lệ. Vui lòng kiểm tra bảng xem trước.`);
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = true;
     }
   }
 
   async submitImportData() {
-    if (!this.importedParsedRows || this.importedParsedRows.length === 0) return;
+    if ((!this.importedParsedRows || this.importedParsedRows.length === 0) && this.catalogImportRows.length === 0) return;
 
-    const invalidCount = this.importedParsedRows.filter(r => r.status !== "VALID").length;
+    const invalidCount = this.importedParsedRows.filter(r => r.status !== "VALID").length +
+      this.catalogImportRows.filter(row => row.status !== "VALID").length;
     if (invalidCount > 0) {
       ThongBao.thatBai("Không thể nạp dữ liệu do vẫn còn dòng bị lỗi cú pháp!");
       return;
     }
 
     try {
-      // 1. Cập nhật các luật sinh hợp lệ vào KB
+      // Cập nhật các luật đã qua kiểm tra vào KB.
       const existingRules = this.kbManager.kb.rules || [];
 
       for (const row of this.importedParsedRows) {
@@ -804,16 +1134,22 @@ class KBController {
         }
       }
 
-      this.kbManager.kb.rules = existingRules;
+      if (this.importedParsedRows.length > 0) this.kbManager.kb.rules = existingRules;
 
-      // 2. Lưu vĩnh viễn vào SQLite (qua may_chu.js) hoặc IndexedDB
-      await this.kbManager.saveToStorage();
+      const importedCatalog = this.catalogImportRows.length > 0
+        ? await this.kbManager.importExcel(this.importedWorkbook, { scope: this.importScope, includeRules: false, includeCatalog: true })
+        : null;
+      if (!importedCatalog) await this.kbManager.saveToStorage();
 
       // 3. Đóng modal và render lại bảng
       if (this.modalImportExcel) this.modalImportExcel.classList.remove("active");
       this.renderTables();
 
-      ThongBao.thanhCong(`Đã nạp thành công ${this.importedParsedRows.length} luật sinh vào Cơ sở tri thức và đồng bộ CSDL!`);
+      const importedRuleCount = this.importedParsedRows.length;
+      const importedSymptomCount = importedCatalog ? importedCatalog.importedSyms : 0;
+      const importedDiseaseCount = importedCatalog ? importedCatalog.importedDiseases : 0;
+      const importedGroupCount = importedCatalog ? importedCatalog.importedGroups : 0;
+      ThongBao.thanhCong(`Đã nạp ${importedGroupCount} nhóm, ${importedRuleCount} luật, ${importedSymptomCount} triệu chứng và ${importedDiseaseCount} bệnh/phác đồ; CSDL đã được cập nhật.`);
     } catch (err) {
       ThongBao.thatBai(`Lỗi lưu dữ liệu: ${err.message}`);
     }
@@ -1103,9 +1439,10 @@ class KBController {
         const matchId = removeVietnameseTones(d.id).includes(q);
         const matchName = removeVietnameseTones(d.name).includes(q);
         const matchSeverity = removeVietnameseTones(d.severity).includes(q);
+        const matchTreatment = removeVietnameseTones(d.treatment || d.recommendation).includes(q);
         const matchWarning = removeVietnameseTones(d.warningSigns).includes(q);
         const matchRef = removeVietnameseTones(d.reference).includes(q);
-        return matchId || matchName || matchSeverity || matchWarning || matchRef;
+        return matchId || matchName || matchSeverity || matchTreatment || matchWarning || matchRef;
       });
     }
 
@@ -1128,7 +1465,7 @@ class KBController {
       if (currentRows.length === 0) {
         this.disTbody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
               <i class="fa-solid fa-magnifying-glass" style="font-size: 1.8rem; opacity: 0.4; margin-bottom: 0.5rem; display: block;"></i>
               ${this.searchKeyword ? `Không tìm thấy bệnh học nào phù hợp với từ khóa "<strong>${this.searchKeyword}</strong>"` : "Chưa có dữ liệu danh mục bệnh nào"}
             </td>
@@ -1141,6 +1478,7 @@ class KBController {
               <td><strong style="color: #f87171; font-family: 'JetBrains Mono';">${d.id}</strong></td>
               <td><strong style="font-size: 0.95rem;">${d.name}</strong></td>
               <td><span class="badge badge-high">${d.severity}</span></td>
+              <td style="font-size: 0.8rem;">${d.treatment || d.recommendation || 'Chưa cập nhật'}</td>
               <td style="color: #fca5a5; font-size: 0.8rem;">${d.warningSigns || 'Chưa cập nhật'}</td>
               <td style="color: var(--text-muted); font-size: 0.8rem;">${d.reference || 'Bộ Y Tế'}</td>
             </tr>
