@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     onLoadTestCase: (symptomsMap) => {
       const diagNavBtn = document.querySelector('[data-tab="tab-diagnosis"]');
       if (diagNavBtn) diagNavBtn.click();
-      diagnosisController.setSymptoms(symptomsMap);
+      diagnosisController.setSymptoms(symptomsMap, false);
     }
   });
 
