@@ -26,7 +26,7 @@ class TestCasesController {
                 <span class="tc-id" style="${isChaining ? 'background: #8b5cf6;' : ''}">${tc.id}</span>
                 ${isChaining ? `
                   <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.4); font-size: 0.7rem; font-weight: 700;">
-                    <i class="fa-solid fa-network-wired"></i> Suy diễn Đa tầng (A+B→C→E)
+                    <i class="fa-solid fa-network-wired"></i> Suy diễn Đa tầng Mắt xích
                   </span>
                 ` : ''}
               </div>

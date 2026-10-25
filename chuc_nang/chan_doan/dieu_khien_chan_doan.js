@@ -876,22 +876,29 @@ class DiagnosisController {
       `;
     }
 
-    const first = downstreamTargets[0];
-    const rId = first.ruleId || 'R18';
-    const extraBadge = first.extraPremises.length > 0
-      ? `<span class="chain-extra-badge" title="Dấu hiệu kết hợp: ${first.extraPremises.map(p => `[${p.id}] ${p.name}`).join(', ')}">+ ${first.extraPremises.length} dấu hiệu phụ</span>`
-      : '';
+    const branchesHtml = downstreamTargets.map(target => {
+      const extraItems = target.extraPremises.map(p => {
+        const shortName = p.name.length > 14 ? p.name.substring(0, 12) + '...' : p.name;
+        return `<span class="chain-extra-badge" title="Dấu hiệu kết hợp: [${p.id}] ${p.name}">+ [${p.id}] ${shortName}</span>`;
+      }).join('');
+
+      return `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.2rem; margin-bottom: 0.35rem;">
+          <span class="chain-rule-pill clinical-rule-chip" data-rule-id="${target.ruleId}" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc ${target.ruleId}">
+            <i class="fa-solid fa-bolt"></i> [${target.ruleId}]
+          </span>
+          <div class="chain-arrow-icon" style="color: #10b981; margin: 1px 0;">
+            <i class="fa-solid fa-arrow-right"></i>
+          </div>
+          ${extraItems}
+        </div>
+      `;
+    }).join('');
 
     return `
       <div class="chain-connector">
-        <span class="chain-rule-pill clinical-rule-chip" data-rule-id="${rId}" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc ${rId}">
-          <i class="fa-solid fa-bolt"></i> [${rId}]
-        </span>
-        <div class="chain-arrow-icon" style="color: #10b981;">
-          <i class="fa-solid fa-arrow-right"></i>
-        </div>
-        <div class="chain-step-label" style="color: #10b981;">Bước 2: Bệnh đích</div>
-        ${extraBadge}
+        <div class="chain-step-label" style="color: #10b981; margin-bottom: 0.25rem;">Bước 2: Bệnh đích</div>
+        ${branchesHtml}
       </div>
     `;
   }
@@ -906,29 +913,35 @@ class DiagnosisController {
     const conn2Html = this._buildChainConnector2(downstreamTargets);
     const stage3Html = this._buildChainStage3Html(downstreamTargets);
 
-    const targetInfo = downstreamTargets.length > 0 ? downstreamTargets[0] : null;
-
     const r1Chips = im.firedRules.map(r => `
       <span class="clinical-rule-chip" data-rule-id="${r.ruleId}" style="cursor: pointer;" title="Rê chuột xem chi tiết quy tắc">
         <i class="fa-solid fa-bolt"></i> [${r.ruleId}] Nhận diện hội chứng
       </span>
     `).join(', ');
 
-    const r2Chips = targetInfo ? `
-      <span class="clinical-rule-chip" data-rule-id="${targetInfo.ruleId}" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc">
-        <i class="fa-solid fa-bolt"></i> [${targetInfo.ruleId}] Chẩn đoán xác định
-      </span>
-    ` : '...';
+    const r2Chips = downstreamTargets.length > 0
+      ? downstreamTargets.map(target => {
+          const extraStr = target.extraPremises.length > 0
+            ? ` (+ [${target.extraPremises.map(p => p.id).join(', ')}])`
+            : '';
+          return `<span class="clinical-rule-chip" data-rule-id="${target.ruleId}" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc">
+            <i class="fa-solid fa-bolt"></i> [${target.ruleId}] ${target.diseaseName}${extraStr}
+          </span>`;
+        }).join(' và ')
+      : '...';
 
     const inputNames = inputSymptoms.map(s => `"${s.name}"`).join(', ');
-    const extraNames = targetInfo && targetInfo.extraPremises.length > 0
-      ? ` và dấu hiệu chuyên biệt ${targetInfo.extraPremises.map(s => `"${s.name}"`).join(', ')}`
-      : '';
-    const diseaseName = targetInfo
-      ? `chẩn đoán xác định bệnh <strong>"${targetInfo.diseaseName}"</strong> với độ tin cậy <strong>${targetInfo.finalCF}%</strong>.`
-      : `tiếp tục chờ thêm dữ kiện đặc hiệu.`;
 
-    const narrativeStr = `Hệ thống ghi nhận bệnh nhân có các dấu hiệu lâm sàng ban đầu: ${inputNames} ➔ kích hoạt quy tắc nhận diện hội chứng để tổng hợp thành <strong>"${im.name}"</strong> (Độ tin cậy: ${Math.round(im.finalCF * 100)}%). Hội chứng này kết hợp cùng các dấu hiệu lâm sàng khác${extraNames} ➔ tiếp tục kích hoạt quy tắc chẩn đoán để ${diseaseName}`;
+    const targetsNarrative = downstreamTargets.length > 0
+      ? downstreamTargets.map(t => {
+          const extraDesc = t.extraPremises.length > 0
+            ? ` kết hợp cùng dấu hiệu chuyên biệt ${t.extraPremises.map(s => `"${s.name}" [${s.id}]`).join(', ')}`
+            : '';
+          return `kích hoạt quy tắc <strong>[${t.ruleId}]</strong>${extraDesc} ➔ chẩn đoán xác định bệnh <strong>"${t.diseaseName}"</strong> với độ tin cậy <strong>${t.finalCF}%</strong>`;
+        }).join('; đồng thời ')
+      : 'tiếp tục chờ thêm dữ kiện đặc hiệu.';
+
+    const narrativeStr = `Hệ thống ghi nhận bệnh nhân có các dấu hiệu lâm sàng ban đầu: ${inputNames} ➔ kích hoạt quy tắc nhận diện hội chứng để tổng hợp thành <strong>"${im.name}"</strong> (Độ tin cậy: ${Math.round(im.finalCF * 100)}%). Từ hội chứng này, hệ thống ${targetsNarrative}.`;
 
     return `
       <div style="margin-bottom: 1.25rem;">
@@ -950,15 +963,187 @@ class DiagnosisController {
             <strong style="color: #8b5cf6;">${im.name}</strong> (${Math.round(im.finalCF * 100)}%)
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
             ${r2Chips}
-            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <strong style="color: var(--color-emerald);">${targetInfo ? targetInfo.diseaseName : 'Bệnh đích'}</strong>
-            ${targetInfo ? `(${targetInfo.finalCF}%)` : ''}
           </span>
         </div>
 
         <div class="chain-narrative-box">
           <i class="fa-solid fa-comment-medical" style="color: var(--color-primary); margin-right: 0.4rem;"></i>
           ${narrativeStr}
+        </div>
+      </div>
+    `;
+  }
+
+  _findConvergentRules(firedRules, intermediateResults) {
+    const imIds = new Set((intermediateResults || []).map(im => im.id));
+    return (firedRules || []).filter(r => {
+      const imPremises = (r.premises || []).filter(p => imIds.has(p));
+      return imPremises.length >= 2;
+    });
+  }
+
+  _buildConvergentChainHtml(convRule, result, kb) {
+    const imIds = (convRule.premises || []);
+    const parentIms = imIds.map(id => (result.intermediateResults || []).find(im => im.id === id)).filter(Boolean);
+    const disMeta = (kb.diseases || []).find(d => d.id === convRule.conclusion) || { id: convRule.conclusion, name: convRule.conclusion };
+    const disResult = (result.results || []).find(d => d.diseaseId === convRule.conclusion);
+    const finalCF = disResult ? Math.round(disResult.finalCF * 100) : Math.round((convRule.outputCF || 0.9) * 100);
+
+    const branchesData = parentIms.map(im => {
+      const inputs = this._collectChainInputs(im.firedRules, kb);
+      const rule = im.firedRules[0] || {};
+      return { im, inputs, rule };
+    });
+
+    const stage1Html = `
+      <div class="chain-stage-box chain-stage-input" style="flex: 1.1;">
+        <div class="chain-stage-tag tag-input">
+          <i class="fa-solid fa-stethoscope"></i> TẦNG 1: DỮ LIỆU BAN ĐẦU (2 NHÁNH)
+        </div>
+        ${branchesData.map((b, idx) => `
+          <div style="margin-bottom: 0.5rem; padding: 0.45rem; background: rgba(6, 182, 212, 0.06); border-radius: 6px; border: 1px dashed rgba(6, 182, 212, 0.3);">
+            <div style="font-size: 0.72rem; font-weight: 700; color: var(--color-cyan); margin-bottom: 0.25rem;">
+              Nhánh ${idx + 1} (➔ ${b.im.id}):
+            </div>
+            <div class="chain-pill-list">
+              ${b.inputs.map(s => `
+                <div class="chain-pill-item" title="${s.name}" style="font-size: 0.72rem; padding: 0.2rem 0.4rem;">
+                  <span><strong>${s.id}:</strong> ${s.name}</span>
+                  <span style="font-weight: 700; color: var(--color-cyan); margin-left: 4px;">${s.userCF}%</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    const conn1Html = `
+      <div class="chain-connector">
+        <div class="chain-step-label" style="color: #8b5cf6;">Bước 1: Song song</div>
+        ${branchesData.map(b => `
+          <span class="chain-rule-pill clinical-rule-chip" data-rule-id="${b.rule.ruleId || b.rule.id}" style="margin: 0.2rem 0;" title="Rê chuột xem quy tắc ${b.rule.ruleId || b.rule.id}">
+            <i class="fa-solid fa-bolt"></i> [${b.rule.ruleId || b.rule.id}]
+          </span>
+        `).join('')}
+        <div class="chain-arrow-icon" style="color: #8b5cf6; margin: 2px 0;">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+      </div>
+    `;
+
+    const stage2Html = `
+      <div class="chain-stage-box chain-stage-intermediate" style="flex: 1.1;">
+        <div class="chain-stage-tag tag-intermediate">
+          <i class="fa-solid fa-network-wired"></i> TẦNG 2: HỘI CHỨNG TRUNG GIAN (HỘI TỤ)
+        </div>
+        ${branchesData.map(b => `
+          <div style="margin-bottom: 0.5rem; padding: 0.45rem; background: rgba(139, 92, 246, 0.08); border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.25);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+              <span style="font-family: monospace; font-weight: 800; color: #8b5cf6; font-size: 0.78rem; background: rgba(139, 92, 246, 0.18); padding: 0.1rem 0.35rem; border-radius: 4px;">
+                ${b.im.id}
+              </span>
+              <span style="font-size: 0.95rem; font-weight: 900; color: #8b5cf6;">
+                ${Math.round(b.im.finalCF * 100)}%
+              </span>
+            </div>
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">
+              ${b.im.name}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    const conn2Html = `
+      <div class="chain-connector">
+        <div class="chain-step-label" style="color: #10b981;">Bước 2: Hội tụ</div>
+        <span class="chain-rule-pill clinical-rule-chip" data-rule-id="${convRule.ruleId}" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem quy tắc hội tụ ${convRule.ruleId}">
+          <i class="fa-solid fa-bolt"></i> [${convRule.ruleId}]
+        </span>
+        <div class="chain-arrow-icon" style="color: #10b981; margin: 3px 0;">
+          <i class="fa-solid fa-angles-right"></i>
+        </div>
+        <span style="font-size: 0.68rem; font-weight: 700; color: #10b981;">(${imIds.join(' + ')})</span>
+      </div>
+    `;
+
+    const stage3Html = `
+      <div class="chain-stage-box chain-stage-goal">
+        <div>
+          <div class="chain-stage-tag tag-goal">
+            <i class="fa-solid fa-flag-checkered"></i> TẦNG 3: BỆNH ĐÍCH HỘI TỤ
+          </div>
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 0.65rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+              <span style="font-family: monospace; font-weight: 800; color: #10b981; font-size: 0.85rem; background: rgba(16, 185, 129, 0.18); padding: 0.15rem 0.45rem; border-radius: 4px;">
+                ${disMeta.id}
+              </span>
+              <span style="font-size: 1.15rem; font-weight: 900; color: var(--color-emerald);">
+                ${finalCF}%
+              </span>
+            </div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.45rem;">
+              ${disMeta.name}
+            </div>
+            <div class="chain-stage-actions">
+              <a href="../do_thi_rpg/do_thi_rpg.html?focus=${disMeta.id}&mode=RPG" class="btn-stage-mini" title="Xem trên Mạng Petri RPG">
+                <i class="fa-solid fa-project-diagram"></i> Mạng RPG
+              </a>
+              <a href="../do_thi_rpg/do_thi_rpg.html?focus=${disMeta.id}&mode=FPG" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc FPG">
+                <i class="fa-solid fa-network-wired"></i> Mạng FPG
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="chain-meta-row" style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.4rem;">
+          <span>Kết luận suy diễn hội tụ</span>
+          <span style="font-weight: 700; color: var(--color-emerald);">Chu kỳ 2</span>
+        </div>
+      </div>
+    `;
+
+    const branchNames = branchesData.map(b => `${b.im.id}: "${b.im.name}" (${Math.round(b.im.finalCF * 100)}%)`).join(' và ');
+
+    return `
+      <div style="margin-bottom: 1.5rem; border: 1.5px solid rgba(139, 92, 246, 0.35); border-radius: 12px; padding: 1rem; background: rgba(139, 92, 246, 0.03);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="badge" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;">
+              <i class="fa-solid fa-code-fork fa-rotate-180"></i> MÔ HÌNH SUY DIỄN HỘI TỤ (A,B→C & E,F→G ➔ C,G→M)
+            </span>
+            <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Quy tắc hội tụ [${convRule.ruleId}]</span>
+          </div>
+        </div>
+
+        <div class="chain-flow-wrapper">
+          ${stage1Html}
+          ${conn1Html}
+          ${stage2Html}
+          ${conn2Html}
+          ${stage3Html}
+        </div>
+
+        <div class="chain-formula-ribbon" style="margin-top: 0.85rem;">
+          <span style="font-weight: 700; color: #8b5cf6;"><i class="fa-solid fa-route"></i> Tiến trình hội tụ:</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+            <span>Nhánh 1 & Nhánh 2</span>
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            <span class="clinical-rule-chip">[${branchesData.map(b => b.rule.ruleId || b.rule.id).join('], [')}]</span>
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            <strong style="color: #8b5cf6;">${imIds.join(' ∧ ')}</strong>
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            <span class="clinical-rule-chip" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);">[${convRule.ruleId}] Hội tụ</span>
+            <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
+            <strong style="color: var(--color-emerald);">${disMeta.name}</strong> (${finalCF}%)
+          </span>
+        </div>
+
+        <div class="chain-narrative-box">
+          <i class="fa-solid fa-comment-medical" style="color: var(--color-primary); margin-right: 0.4rem;"></i>
+          <strong>Chu kỳ 1:</strong> Hệ thống kích hoạt song song 2 nhánh tiền đề ban đầu để tổng hợp thành 2 hội chứng trung gian ${branchNames}.<br>
+          <i class="fa-solid fa-bolt" style="color: #10b981; margin-right: 0.4rem; margin-top: 0.35rem;"></i>
+          <strong>Chu kỳ 2 (Hội tụ):</strong> Cả 2 hội chứng trung gian đã nạp vào Bộ nhớ làm việc cùng thỏa mãn tiền đề của quy tắc hội tụ <strong>[${convRule.ruleId}] (${imIds.join(' ∧ ')} → ${disMeta.id})</strong> để chẩn đoán xác định bệnh <strong>"${disMeta.name}"</strong> với độ tin cậy <strong>${finalCF}%</strong>.
         </div>
       </div>
     `;
@@ -1317,9 +1502,18 @@ class DiagnosisController {
     if (!this.lastInferenceResult || !this.modalChainPipeline || !this.chainModalContent) return;
     const kb = this.kbManager.getKB();
     const intermediateResults = this.lastInferenceResult.intermediateResults || [];
-    this.chainModalContent.innerHTML = intermediateResults
-      .map(im => this._buildSingleChainHtml(im, this.lastInferenceResult, kb))
-      .join('');
+    const convRules = this._findConvergentRules(this.lastInferenceResult.firedRules, intermediateResults);
+
+    let html = '';
+    if (convRules.length > 0) {
+      html += convRules.map(r => this._buildConvergentChainHtml(r, this.lastInferenceResult, kb)).join('');
+    } else {
+      html += intermediateResults
+        .map(im => this._buildSingleChainHtml(im, this.lastInferenceResult, kb))
+        .join('');
+    }
+
+    this.chainModalContent.innerHTML = html;
     this.modalChainPipeline.classList.add("active");
   }
 

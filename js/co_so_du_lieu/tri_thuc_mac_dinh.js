@@ -379,6 +379,40 @@ const DEFAULT_KNOWLEDGE_BASE = {
       conclusion: "D05",
       cf: 0.96,
       description: "IF Hội chứng bóng nước ngoại ban (HC04) AND Giật mình chới với khi ngủ (S21) THEN Bệnh Tay Chân Miệng độ 2A có biến chứng (D05) [CF = 0.96]"
+    },
+    {
+      id: "R26",
+      name: "Luật chẩn đoán Sởi từ Hội chứng sốt virus & Ban dát sẩn",
+      premises: ["HC01", "S14"],
+      conclusion: "D03",
+      cf: 0.94,
+      description: "IF Hội chứng sốt virus cấp tính (HC01) AND Phát ban dát sẩn từ mặt lan thân (S14) THEN Chẩn đoán xác định Bệnh Sởi (D03) [CF = 0.94]"
+    },
+
+    // Mắt xích 5: Suy diễn đa tầng hội tụ (A, B -> C & E, F -> G & C, G -> M)
+    {
+      id: "R27",
+      name: "Luật xác định Hội chứng sốt virus từ Sốt cao & Đau mỏi cơ (A, B → C)",
+      premises: ["S01", "S06"],
+      conclusion: "HC01",
+      cf: 0.90,
+      description: "IF Sốt cao đột ngột (S01: A) AND Đau mỏi cơ bắp toàn thân (S06: B) THEN Hội chứng sốt nhiễm virus cấp tính (HC01: C) [CF = 0.90]"
+    },
+    {
+      id: "R28",
+      name: "Luật xác định Hội chứng viêm hô hấp trên từ Ho & Đau họng (E, F → G)",
+      premises: ["S08", "S10"],
+      conclusion: "HC03",
+      cf: 0.88,
+      description: "IF Ho khan/đờm (S08: E) AND Đau rát họng khi nuốt (S10: F) THEN Hội chứng viêm đường hô hấp trên (HC03: G) [CF = 0.88]"
+    },
+    {
+      id: "R29",
+      name: "Luật hội tụ chẩn đoán Cúm mùa từ Sốt virus & Viêm hô hấp trên (C, G → M)",
+      premises: ["HC01", "HC03"],
+      conclusion: "D02",
+      cf: 0.95,
+      description: "IF Hội chứng sốt virus (HC01: C) AND Hội chứng viêm hô hấp trên (HC03: G) THEN Chẩn đoán xác định Cúm mùa / Cúm A (D02: M) [CF = 0.95]"
     }
   ],
 
@@ -482,6 +516,37 @@ const DEFAULT_KNOWLEDGE_BASE = {
       isChainingBenchmark: true,
       chainingPath: "Chu kỳ 1: (S08 ∧ S09 ∧ S17) → [R19] → HC02 (92%) | Chu kỳ 2: (HC02 ∧ S01 ∧ S14) → [R20] → D03 (98%)",
       clinicalNote: "Kiểm thử đa tầng Mắt xích 2: Chu kỳ 1 kích hoạt Luật R19 sinh ra Tam chứng viêm long hô hấp (HC02: 92%); Chu kỳ 2 kết hợp S01 và S14 kích hoạt Luật R20 chẩn đoán xác định Bệnh Sởi (D03)."
+    },
+    {
+      id: "TC08",
+      name: "Ca bệnh 8: Phân nhánh từ Hội chứng HC01 (Sốt virus + Ban dát sẩn → Bệnh Sởi)",
+      patientInfo: "Bé trai, 5 tuổi, sốt cao đột ngột, đau nhức hốc mắt và đau trán, xuất hiện phát ban dát sẩn dạng sởi",
+      selectedSymptoms: [
+        { id: "S01", cf: 1.0 }, // Sốt cao đột ngột liên tục
+        { id: "S04", cf: 1.0 }, // Đau đầu dữ dội vùng trán
+        { id: "S05", cf: 1.0 }, // Đau nhức hai hốc mắt
+        { id: "S06", cf: 1.0 }, // Đau mỏi cơ bắp
+        { id: "S14", cf: 1.0 }  // Phát ban dát sẩn dạng sởi
+      ],
+      expectedDisease: "D03",
+      isChainingBenchmark: true,
+      chainingPath: "Chu kỳ 1: (S01 ∧ S04 ∧ S05 ∧ S06) → [R17] → HC01 (90%) | Chu kỳ 2: (HC01 ∧ S14) → [R26] → D03 (94%)",
+      clinicalNote: "Minh họa phân nhánh tri thức từ cùng một hội chứng HC01: Chu kỳ 1 sinh ra HC01 (90%), chu kỳ 2 kết hợp cùng triệu chứng chuyển biệt mới (S14: Ban dát sẩn) kích hoạt R26 chẩn đoán Bệnh Sởi (D03), thay vì Sốt xuất huyết như khi kết hợp với S13."
+    },
+    {
+      id: "TC09",
+      name: "Ca bệnh 9: Suy diễn đa tầng hội tụ (A, B → C & E, F → G & C, G → M)",
+      patientInfo: "Nam, 30 tuổi, sốt cao đột ngột kèm đau cơ toàn thân, ho khan và đau rát họng dữ dội",
+      selectedSymptoms: [
+        { id: "S01", cf: 1.0 }, // (A) Sốt cao đột ngột (39 - 40°C)
+        { id: "S06", cf: 1.0 }, // (B) Đau mỏi cơ bắp toàn thân
+        { id: "S08", cf: 1.0 }, // (E) Ho khan hoặc ho có đờm
+        { id: "S10", cf: 1.0 }  // (F) Đau rát họng, nuốt đau
+      ],
+      expectedDisease: "D02",
+      isChainingBenchmark: true,
+      chainingPath: "Chu kỳ 1 (Song song): (S01 ∧ S06) → [R27] → HC01 (90%) & (S08 ∧ S10) → [R28] → HC03 (88%) | Chu kỳ 2 (Hội tụ): (HC01 ∧ HC03) → [R29] → D02 (95%)",
+      clinicalNote: "Ca kiểm thử mô hình suy diễn đa tầng hội tụ chuẩn: Chu kỳ 1 kích hoạt song song [R27] (S01 ∧ S06 → HC01: Hội chứng sốt virus) và [R28] (S08 ∧ S10 → HC03: Hội chứng viêm hô hấp trên); Chu kỳ 2 hội tụ cả hai hội chứng trung gian C và G để kích hoạt [R29] (HC01 ∧ HC03 → D02) chẩn đoán xác định bệnh M: Cúm mùa / Cúm A (95%)."
     }
   ]
 };

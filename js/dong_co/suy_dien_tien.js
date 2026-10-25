@@ -93,9 +93,9 @@ class ForwardChainingEngine {
     };
   }
 
-  _evaluateRule(rule, workingMemory, cycleCount, context) {
+  _evaluateRule(rule, workingMemory, cycleCount, context, memorySnapshot) {
     const { evaluatedRules, firedRules, diseaseMatches, intermediateMatches, traceLogs } = context;
-    const { satisfied, premiseCFs, missing } = this._evaluatePremises(rule, workingMemory);
+    const { satisfied, premiseCFs, missing } = this._evaluatePremises(rule, memorySnapshot || workingMemory);
 
     if (!satisfied) {
       traceLogs.push({
@@ -140,9 +140,10 @@ class ForwardChainingEngine {
 
   _runCycle(rules, workingMemory, evaluatedRules, cycleCount, context) {
     let activated = false;
+    const memorySnapshot = { ...workingMemory };
     for (const rule of rules) {
       if (evaluatedRules.has(rule.id)) continue;
-      const fired = this._evaluateRule(rule, workingMemory, cycleCount, context);
+      const fired = this._evaluateRule(rule, workingMemory, cycleCount, context, memorySnapshot);
       if (fired) {
         activated = true;
       }
