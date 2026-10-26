@@ -64,7 +64,11 @@ class KnowledgeBaseManager {
       const dbKB = await this.db.toKnowledgeBaseObject();
       if (dbKB && dbKB.rules && dbKB.rules.length > 0) {
         const mergedKB = this._mergeWithDefaults(dbKB, window.DEFAULT_KNOWLEDGE_BASE || {});
+        const currentTestCases = this.getTestCases();
         this.kb = this.sanitizeKB(mergedKB);
+        if (currentTestCases && currentTestCases.length > 0) {
+          this.kb.testCases = currentTestCases;
+        }
         this.saveToStorage();
         this.notifyListeners();
       }
@@ -99,9 +103,22 @@ class KnowledgeBaseManager {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (!parsed.testCases || !Array.isArray(parsed.testCases) || parsed.testCases.length === 0) {
+          const customTC = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+          if (customTC) {
+            try { parsed.testCases = JSON.parse(customTC); } catch (e) {}
+          }
+          if (!parsed.testCases || parsed.testCases.length === 0) {
+            const defKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            parsed.testCases = JSON.parse(JSON.stringify(defKB.testCases || []));
+          }
+        }
         const def = window.DEFAULT_KNOWLEDGE_BASE || {};
         const merged = this._mergeWithDefaults(parsed, def);
         const cleanKB = this.sanitizeKB(merged);
+        if (parsed.testCases) {
+          cleanKB.testCases = parsed.testCases;
+        }
         // Tự động làm sạch localStorage nếu trước đó bị lưu trùng lặp
         try {
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanKB));
@@ -111,13 +128,21 @@ class KnowledgeBaseManager {
     } catch (e) {
       console.warn("Lỗi đọc LocalStorage, sử dụng dữ liệu mặc định:", e);
     }
-    return this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
+    const def = JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {}));
+    const customTC = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+    if (customTC) {
+      try { def.testCases = JSON.parse(customTC); } catch (e) {}
+    }
+    return this.sanitizeKB(def);
   }
 
   async saveToStorage() {
     try {
       this.kb = this.sanitizeKB(this.kb);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      if (this.kb && this.kb.testCases) {
+        localStorage.setItem("MED_EXPERT_CUSTOM_TESTCASES", JSON.stringify(this.kb.testCases));
+      }
       if (this.db) {
         await this.db.importFromKBObject(this.kb, "Cập nhật qua KnowledgeBaseManager");
       }
@@ -144,6 +169,7 @@ class KnowledgeBaseManager {
 
   resetToDefault() {
     this.kb = this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
+    localStorage.removeItem("MED_EXPERT_CUSTOM_TESTCASES");
     this.saveToStorage();
     return this.kb;
   }
@@ -351,6 +377,129 @@ class KnowledgeBaseManager {
     return diseaseData;
   }
 
+  // --- TEST CASES CRUD ---
+  getTestCases() {
+    if (this.kb && Array.isArray(this.kb.testCases) && this.kb.testCases.length > 0) {
+      return this.kb.testCases;
+    }
+    try {
+      const backup = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+      if (backup) {
+        const parsed = JSON.parse(backup);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (this.kb) this.kb.testCases = parsed;
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    const defaultCases = (window.DEFAULT_KNOWLEDGE_BASE && window.DEFAULT_KNOWLEDGE_BASE.testCases)
+      ? window.DEFAULT_KNOWLEDGE_BASE.testCases
+      : [];
+    if (this.kb) this.kb.testCases = JSON.parse(JSON.stringify(defaultCases));
+    return this.kb ? (this.kb.testCases || []) : [];
+  }
+
+  getTestCaseById(id) {
+    return this.getTestCases().find(c => c.id === id) || null;
+  }
+
+  saveTestCases() {
+    try {
+      localStorage.setItem("MED_EXPERT_CUSTOM_TESTCASES", JSON.stringify(this.kb.testCases || []));
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      this.notifyListeners();
+    } catch (e) {
+      console.error("Lỗi lưu trữ ca kiểm thử:", e);
+    }
+  }
+
+  addTestCase(tcData) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+
+    let tcId = (tcData.id || "").trim();
+    if (!tcId) {
+      const existingMax = this.kb.testCases.reduce((max, c) => {
+        const num = parseInt(String(c.id || "").replace(/[^0-9]/g, ""), 10);
+        return !isNaN(num) && num > max ? num : max;
+      }, 0);
+      tcId = `TC${String(existingMax + 1).padStart(2, "0")}`;
+    }
+
+    if (this.kb.testCases.some(c => c.id.toUpperCase() === tcId.toUpperCase())) {
+      throw new Error(`Mã ca kiểm thử "${tcId}" đã tồn tại! Vui lòng chọn mã khác.`);
+    }
+
+    if (!tcData.name || !tcData.name.trim()) {
+      throw new Error("Tên ca bệnh kiểm thử không được để trống!");
+    }
+
+    if (!tcData.selectedSymptoms || tcData.selectedSymptoms.length === 0) {
+      throw new Error("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng cho ca kiểm thử!");
+    }
+
+    const newCase = {
+      id: tcId,
+      name: tcData.name.trim(),
+      patientInfo: (tcData.patientInfo || "").trim() || "Bệnh nhân ngoại trú",
+      selectedSymptoms: tcData.selectedSymptoms,
+      expectedDisease: tcData.expectedDisease || "",
+      clinicalNote: (tcData.clinicalNote || "").trim() || "Ca bệnh kiểm chứng do chuyên gia thiết lập."
+    };
+
+    this.kb.testCases.push(newCase);
+    this.saveTestCases();
+    return newCase;
+  }
+
+  updateTestCase(id, tcData) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+    const index = this.kb.testCases.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Không tìm thấy ca kiểm thử có mã "${id}" để cập nhật!`);
+    }
+
+    if (!tcData.name || !tcData.name.trim()) {
+      throw new Error("Tên ca bệnh kiểm thử không được để trống!");
+    }
+
+    if (!tcData.selectedSymptoms || tcData.selectedSymptoms.length === 0) {
+      throw new Error("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng cho ca kiểm thử!");
+    }
+
+    this.kb.testCases[index] = {
+      id: id,
+      name: tcData.name.trim(),
+      patientInfo: (tcData.patientInfo || "").trim() || "Bệnh nhân ngoại trú",
+      selectedSymptoms: tcData.selectedSymptoms,
+      expectedDisease: tcData.expectedDisease || "",
+      clinicalNote: (tcData.clinicalNote || "").trim() || "Ca bệnh kiểm chứng do chuyên gia thiết lập."
+    };
+
+    this.saveTestCases();
+    return this.kb.testCases[index];
+  }
+
+  deleteTestCase(id) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+    const index = this.kb.testCases.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Không tìm thấy ca kiểm thử có mã "${id}" để xóa!`);
+    }
+
+    const deleted = this.kb.testCases.splice(index, 1)[0];
+    this.saveTestCases();
+    return deleted;
+  }
+
+  resetTestCasesToDefault() {
+    const defaultCases = (window.DEFAULT_KNOWLEDGE_BASE && window.DEFAULT_KNOWLEDGE_BASE.testCases)
+      ? window.DEFAULT_KNOWLEDGE_BASE.testCases
+      : [];
+    this.kb.testCases = JSON.parse(JSON.stringify(defaultCases));
+    this.saveTestCases();
+    return this.kb.testCases;
+  }
+
   // ============================================================================
   // XUẤT / NHẬP EXCEL (.XLSX) BẰNG THƯ VIỆN SHEETJS
   // ============================================================================
@@ -415,8 +564,6 @@ class KnowledgeBaseManager {
     const disRows = (kb.diseases || []).map(d => ({
       "Mã Bệnh": d.id,
       "Tên Bệnh Học": d.name,
-      "Tên Khoa Học": d.scientificName || "",
-      "Nhóm Bệnh": d.category || "",
       "Mức Độ Nguy Hiểm": d.severity || "",
       "Hướng Xử Trí & Phác Đồ": d.treatment || d.recommendation || "",
       "Dấu Hiệu Cảnh Báo Nguy Hiểm": d.warningSigns || ""
@@ -451,9 +598,14 @@ class KnowledgeBaseManager {
     return filename;
   }
 
-  downloadExcelTemplate() {
+  downloadExcelTemplate(scope = "all") {
     if (typeof XLSX === "undefined") {
       throw new Error("Thư viện SheetJS chưa được tải!");
+    }
+
+    const supportedScopes = ["all", "rules", "symptoms", "diseases"];
+    if (!supportedScopes.includes(scope)) {
+      throw new Error(`Không hỗ trợ tải mẫu Excel cho phạm vi [${scope}].`);
     }
 
     const wb = XLSX.utils.book_new();
@@ -475,27 +627,30 @@ class KnowledgeBaseManager {
       { wch: 10 }, { wch: 40 }, { wch: 18 }, { wch: 30 },
       { wch: 18 }, { wch: 45 }, { wch: 50 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+    if (scope === "all" || scope === "rules") {
+      XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+    }
 
     // Mẫu triệu chứng
+    const sampleGroupId = (this.getKB().symptomGroups || [])[0]?.id || "group_fever";
     const sampleSyms = [
       {
         "Mã Triệu Chứng": "S99",
-        "Mã Nhóm": "G01",
+        "Mã Nhóm": sampleGroupId,
         "Tên Triệu Chứng": "Triệu chứng mẫu mới",
         "Câu Hỏi Truy Vấn (WHY)": "Bệnh nhân có biểu hiện triệu chứng mẫu này không?",
         "Mức Độ Cảnh Báo": "Bình thường"
       }
     ];
     const wsSyms = XLSX.utils.json_to_sheet(sampleSyms);
-    XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+    if (scope === "all" || scope === "symptoms") {
+      XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+    }
 
     const sampleDiseases = [
       {
         "Mã Bệnh": "D99",
         "Tên Bệnh Học": "Tên bệnh mẫu",
-        "Tên Khoa Học": "Scientific name",
-        "Nhóm Bệnh": "Nhóm bệnh",
         "Mức Độ Nguy Hiểm": "Trung bình",
         "Hướng Xử Trí & Phác Đồ": "Hướng xử trí theo hướng dẫn chuyên môn",
         "Dấu Hiệu Cảnh Báo Nguy Hiểm": "Dấu hiệu cần chuyển khám"
@@ -506,7 +661,9 @@ class KnowledgeBaseManager {
       { wch: 12 }, { wch: 35 }, { wch: 28 }, { wch: 30 }, { wch: 25 },
       { wch: 70 }, { wch: 70 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsDiseases, "DANH_MUC_BENH");
+    if (scope === "all" || scope === "diseases") {
+      XLSX.utils.book_append_sheet(wb, wsDiseases, "DANH_MUC_BENH");
+    }
 
     const sampleGroups = [
       {
@@ -516,7 +673,9 @@ class KnowledgeBaseManager {
         "Mô Tả Phân Loại": "Mô tả nhóm triệu chứng"
       }
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sampleGroups), "NHOM_TRIEU_CHUNG");
+    if (scope === "all") {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sampleGroups), "NHOM_TRIEU_CHUNG");
+    }
 
     // Mẫu hướng dẫn
     const guideRows = [
@@ -528,9 +687,17 @@ class KnowledgeBaseManager {
     ];
     const wsGuide = XLSX.utils.json_to_sheet(guideRows);
     wsGuide["!cols"] = [{ wch: 15 }, { wch: 90 }];
-    XLSX.utils.book_append_sheet(wb, wsGuide, "HUONG_DAN");
+    if (scope === "all") {
+      XLSX.utils.book_append_sheet(wb, wsGuide, "HUONG_DAN");
+    }
 
-    XLSX.writeFile(wb, "Mau_Nhap_Lieu_Tri_Thuc.xlsx");
+    const filenames = {
+      rules: "Mau_Nhap_Tap_Luat.xlsx",
+      symptoms: "Mau_Nhap_Danh_Muc_Trieu_Chung.xlsx",
+      diseases: "Mau_Nhap_Danh_Muc_Benh_Phac_Do.xlsx",
+      all: "Mau_Nhap_Toan_Bo_Tri_Thuc.xlsx"
+    };
+    XLSX.writeFile(wb, filenames[scope]);
   }
 
   async importExcel(input, { scope = "all", includeRules = true, includeCatalog = true } = {}) {
@@ -637,8 +804,6 @@ class KnowledgeBaseManager {
           ...prior,
           id,
           name,
-          scientificName: valueFor(row, key => key.includes("khoahoc") || key.includes("scientific")) || prior.scientificName || "",
-          category: valueFor(row, key => key.includes("nhombenh") || key === "category") || prior.category || "",
           severity: valueFor(row, key => key.includes("nguyhiem") || key === "severity") || prior.severity || "Trung bình",
           treatment: treatment || prior.treatment || prior.recommendation || "",
           recommendation: treatment || prior.recommendation || prior.treatment || "",

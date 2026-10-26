@@ -291,14 +291,34 @@
           if (diagnosisController.lastInferenceResult) {
             sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
           }
-          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${diseaseId}`;
+          const caseMap = {
+            "D01": "TC01",
+            "D02": "TC02",
+            "D03": "TC03",
+            "D04": "TC04",
+            "D05": "TC05",
+            "D06": "TC06",
+            "D07": "TC07"
+          };
+          const targetCaseId = caseMap[diseaseId] || diseaseId;
+          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${targetCaseId}&disease=${diseaseId}`;
         },
         onFocusFpg: (diseaseId) => {
           sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
           if (diagnosisController.lastInferenceResult) {
             sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
           }
-          window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=${diseaseId}`;
+          const caseMap = {
+            "D01": "TC01",
+            "D02": "TC02",
+            "D03": "TC03",
+            "D04": "TC04",
+            "D05": "TC05",
+            "D06": "TC06",
+            "D07": "TC07"
+          };
+          const targetCaseId = caseMap[diseaseId] || diseaseId;
+          window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=${targetCaseId}&disease=${diseaseId}`;
         }
       });
 
@@ -316,9 +336,9 @@
         sessionStorage.removeItem("RELOAD_DIAGNOSIS_SYMPTOMS");
         try {
           const symptomsMap = JSON.parse(reloadHistoryCase);
-          diagnosisController.setSymptoms(symptomsMap);
-          if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
-            ThongBao.thanhCong("Đã nạp lại dữ liệu ca chẩn đoán từ lịch sử!");
+          diagnosisController.setSymptoms(symptomsMap, false);
+          if (typeof ThongBao !== "undefined" && ThongBao.thongTin) {
+            ThongBao.thongTin("Đã nạp triệu chứng từ lịch sử. Bạn có thể tùy chỉnh và nhấn 'Thực hiện Suy diễn tiến'!", "Nạp thành công");
           }
         } catch (e) {
           diagnosisController.renderAll();
@@ -327,7 +347,10 @@
         sessionStorage.removeItem("LOAD_TESTCASE_SYMPTOMS");
         try {
           const symptomsMap = JSON.parse(savedCase);
-          diagnosisController.setSymptoms(symptomsMap);
+          diagnosisController.setSymptoms(symptomsMap, false);
+          if (typeof ThongBao !== "undefined" && ThongBao.thongTin) {
+            ThongBao.thongTin("Đã nạp triệu chứng từ ca kiểm thử. Hãy tùy chỉnh nếu cần và nhấn 'Thực hiện Suy diễn tiến'!", "Nạp ca kiểm thử");
+          }
         } catch (e) {
           diagnosisController.renderAll();
         }
@@ -335,11 +358,15 @@
         const urlParams = new URLSearchParams(window.location.search);
         const testcaseId = urlParams.get("testcase");
         if (testcaseId) {
-          const tc = (kbManager.getKB().testCases || []).find(c => c.id === testcaseId);
+          const allCases = kbManager.getTestCases ? kbManager.getTestCases() : (kbManager.getKB().testCases || []);
+          const tc = allCases.find(c => c.id === testcaseId);
           if (tc) {
             const symptomsMap = {};
-            tc.selectedSymptoms.forEach(s => symptomsMap[s.id] = s.cf);
-            diagnosisController.setSymptoms(symptomsMap);
+            (tc.selectedSymptoms || []).forEach(s => symptomsMap[s.id] = s.cf);
+            diagnosisController.setSymptoms(symptomsMap, false);
+            if (typeof ThongBao !== "undefined" && ThongBao.thongTin) {
+              ThongBao.thongTin(`Đã nạp triệu chứng ca [${tc.id}]. Nhấn 'Thực hiện Suy diễn tiến' để chẩn đoán!`, "Nạp ca mẫu");
+            }
           } else {
             diagnosisController.renderAll();
           }
