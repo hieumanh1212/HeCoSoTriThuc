@@ -29,6 +29,7 @@ class RPGVisualizer {
     this.firedRules = new Set();
     this.activeRuleId = null;
     this.currentTG = new Set();
+    this.filterRelatedOnly = false;
 
     this.nodes = [];
     this.edges = [];
@@ -206,7 +207,17 @@ class RPGVisualizer {
     if (tgSet) {
       this.currentTG = tgSet instanceof Set ? tgSet : new Set(tgSet || []);
     }
-    this.render();
+    if (this.filterRelatedOnly) {
+      this.buildGraph();
+    } else {
+      this.render();
+    }
+  }
+
+  setFilterRelatedOnly(filterOnly) {
+    this.filterRelatedOnly = !!filterOnly;
+    this.buildGraph();
+    this.autoFit();
   }
 
   buildGraph() {
@@ -216,20 +227,30 @@ class RPGVisualizer {
     this.edges = [];
 
     const nodeMap = new Map();
-    const rules = this.rpgData.rules || [];
+    let rules = this.rpgData.rules || [];
 
-    // Tách luật thành 2 tầng: Tầng 1 (ra Hội chứng I) và Tầng 2 (ra Bệnh D)
-    const stage1Rules = rules.filter(r => r.conclusion.startsWith("I"));
-    const stage2Rules = rules.filter(r => !r.conclusion.startsWith("I"));
+    if (this.filterRelatedOnly) {
+      rules = rules.filter(r => {
+        const isR_GT = this.rpgData.rGtIds.has(r.id);
+        const isR_KL = this.rpgData.rKlIds.has(r.id);
+        const isFired = this.firedRules.has(r.id);
+        const kcToR_KL = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, this.rpgData.rKlIds, this.rpgData.edges);
+        return isR_GT || isR_KL || isFired || (kcToR_KL !== Infinity);
+      });
+    }
+
+    // Tách luật thành 2 tầng: Tầng 1 (ra Hội chứng I / HC) và Tầng 2 (ra Bệnh D)
+    const stage1Rules = rules.filter(r => r.conclusion.startsWith("I") || r.conclusion.startsWith("HC"));
+    const stage2Rules = rules.filter(r => !r.conclusion.startsWith("I") && !r.conclusion.startsWith("HC"));
 
     const col1X = 220; // Tầng 1: Luật hội chứng
     const col2X = 680; // Tầng 2: Luật bệnh
 
-    const spacingY1 = 85;
-    const spacingY2 = 68;
+    const spacingY1 = this.filterRelatedOnly ? 100 : 90;
+    const spacingY2 = this.filterRelatedOnly ? 90 : 70;
 
-    const startY1 = 100;
-    const startY2 = 70;
+    const startY1 = this.filterRelatedOnly ? 140 : 100;
+    const startY2 = this.filterRelatedOnly ? 130 : 70;
 
     // 1. Tạo node luật Tầng 1
     stage1Rules.forEach((r, idx) => {

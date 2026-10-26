@@ -30,6 +30,7 @@ const MEDICAL_KB_GRAPH_DATA = {
     S04: { id: "S04", name: "Đau đầu dữ dội vùng trán", type: "SYMPTOM" },
     S05: { id: "S05", name: "Đau nhức sâu hai hốc mắt", type: "SYMPTOM" },
     S06: { id: "S06", name: "Đau mỏi cơ khớp toàn thân", type: "SYMPTOM" },
+    S07: { id: "S07", name: "Đau rát họng khi nuốt", type: "SYMPTOM" },
     S08: { id: "S08", name: "Ho khan hoặc có đờm", type: "SYMPTOM" },
     S09: { id: "S09", name: "Hắt hơi, chảy nước mũi trong", type: "SYMPTOM" },
     S10: { id: "S10", name: "Đau rát họng, nuốt đau", type: "SYMPTOM" },
@@ -41,16 +42,23 @@ const MEDICAL_KB_GRAPH_DATA = {
     S16: { id: "S16", name: "Bọng nước loét lòng bàn tay, chân, miệng", type: "SYMPTOM" },
     S17: { id: "S17", name: "Mắt đỏ, viêm kết mạc sợ ánh sáng", type: "SYMPTOM" },
     S18: { id: "S18", name: "Buồn nôn, nôn, đau tức vùng gan", type: "SYMPTOM" },
+    S19: { id: "S19", name: "Tiêu chảy / phân lỏng nhiều lần", type: "SYMPTOM" },
     S20: { id: "S20", name: "Mệt mỏi li bì, kiệt sức", type: "SYMPTOM" },
     S21: { id: "S21", name: "Giật mình chới với khi ngủ", type: "SYMPTOM" },
 
-    // 2. Hội chứng lâm sàng trung gian (Intermediate Syndromes - I)
+    // 2. Hội chứng lâm sàng trung gian (Intermediate Syndromes - I & HC)
     I01: { id: "I01", name: "HC Nhiễm trùng sốt cấp & đau cơ", type: "INTERMEDIATE" },
     I02: { id: "I02", name: "HC Xuất huyết & Cảnh báo huyết học", type: "INTERMEDIATE" },
     I03: { id: "I03", name: "HC Viêm long đường hô hấp trên", type: "INTERMEDIATE" },
     I04: { id: "I04", name: "HC Tổn thương niêm mạc bọng nước", type: "INTERMEDIATE" },
     I05: { id: "I05", name: "HC Cảnh báo thần kinh độ 2", type: "INTERMEDIATE" },
     I06: { id: "I06", name: "HC Suy hô hấp cấp tiến triển", type: "INTERMEDIATE" },
+    HC01: { id: "HC01", name: "HC Sốt virus cấp tính", type: "INTERMEDIATE" },
+    HC02: { id: "HC02", name: "Tam chứng viêm long hô hấp", type: "INTERMEDIATE" },
+    HC03: { id: "HC03", name: "HC Viêm đường hô hấp trên", type: "INTERMEDIATE" },
+    HC04: { id: "HC04", name: "HC Bóng nước ngoại ban", type: "INTERMEDIATE" },
+    HC05: { id: "HC05", name: "HC Cảnh báo thần kinh", type: "INTERMEDIATE" },
+    HC06: { id: "HC06", name: "HC Suy hô hấp cấp", type: "INTERMEDIATE" },
 
     // 3. Kết luận Bệnh lý mục tiêu (Diseases - D)
     D01: { id: "D01", name: "Sốt xuất huyết Dengue", type: "DISEASE", color: "#ef4444" },
@@ -74,12 +82,36 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU Sốt cao (S01) VÀ Đau đầu trán (S04) VÀ Đau cơ khớp (S06) THÌ có Hội chứng nhiễm trùng sốt cấp (I01)"
     },
     {
+      id: "R01A",
+      name: "Luật sốt cao và đau đầu vùng trán",
+      premises: ["S01", "S04"],
+      conclusion: "I01",
+      label: "R01A: S01 ∧ S04 → I01",
+      description: "NẾU Sốt cao (S01) VÀ Đau đầu vùng trán (S04) THÌ có Hội chứng nhiễm trùng sốt cấp (I01)"
+    },
+    {
       id: "R02",
       name: "Luật xác định HC Xuất huyết cảnh báo",
       premises: ["S13", "S18"],
       conclusion: "I02",
       label: "R02: S13 ∧ S18 → I02",
       description: "NẾU Chấm xuất huyết dưới da (S13) VÀ Buồn nôn/đau bụng gan (S18) THÌ có HC Xuất huyết cảnh báo (I02)"
+    },
+    {
+      id: "R02A",
+      name: "Luật chấm xuất huyết dưới da đơn thuần",
+      premises: ["S13"],
+      conclusion: "I02",
+      label: "R02A: S13 → I02",
+      description: "NẾU Có chấm xuất huyết dưới da / chảy máu cam (S13) THÌ có HC Xuất huyết (I02)"
+    },
+    {
+      id: "R02B",
+      name: "Luật sốt cao kèm xuất huyết dưới da",
+      premises: ["S01", "S13"],
+      conclusion: "I02",
+      label: "R02B: S01 ∧ S13 → I02",
+      description: "NẾU Sốt cao (S01) VÀ Chấm xuất huyết dưới da (S13) THÌ có HC Xuất huyết cảnh báo (I02)"
     },
     {
       id: "R03",
@@ -90,6 +122,22 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU Ho (S08) VÀ Sổ mũi (S09) VÀ Đau rát họng (S10) THÌ có HC Viêm long hô hấp trên (I03)"
     },
     {
+      id: "R03A",
+      name: "Luật viêm long hô hấp (ho và sổ mũi)",
+      premises: ["S08", "S09"],
+      conclusion: "I03",
+      label: "R03A: S08 ∧ S09 → I03",
+      description: "NẾU Ho khan/đờm (S08) VÀ Sổ mũi (S09) THÌ có HC Viêm long hô hấp trên (I03)"
+    },
+    {
+      id: "R03B",
+      name: "Luật viêm đường hô hấp trên (sổ mũi và rát họng)",
+      premises: ["S09", "S10"],
+      conclusion: "I03",
+      label: "R03B: S09 ∧ S10 → I03",
+      description: "NẾU Sổ mũi (S09) VÀ Đau rát họng (S10) THÌ có HC Viêm đường hô hấp trên (I03)"
+    },
+    {
       id: "R04",
       name: "Luật xác định HC Tổn thương bọng nước tay chân miệng",
       premises: ["S02", "S16"],
@@ -98,12 +146,28 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU Sốt vừa (S02) VÀ Bọng nước lòng bàn tay/chân/miệng (S16) THÌ có HC Bọng nước tay chân miệng (I04)"
     },
     {
+      id: "R04A",
+      name: "Luật bọng nước lòng bàn tay chân niêm mạc miệng",
+      premises: ["S16"],
+      conclusion: "I04",
+      label: "R04A: S16 → I04",
+      description: "NẾU Có bọng nước loét lòng bàn tay, chân, miệng (S16) THÌ có HC Tổn thương bọng nước (I04)"
+    },
+    {
       id: "R05",
       name: "Luật xác định HC Cảnh báo biến chứng thần kinh",
       premises: ["S01", "S21"],
       conclusion: "I05",
       label: "R05: S01 ∧ S21 → I05",
       description: "NẾU Sốt cao (S01) VÀ Giật mình chới với khi ngủ (S21) THÌ có HC Cảnh báo biến chứng thần kinh (I05)"
+    },
+    {
+      id: "R05A",
+      name: "Luật giật mình chới với khi ngủ",
+      premises: ["S21"],
+      conclusion: "I05",
+      label: "R05A: S21 → I05",
+      description: "NẾU Giật mình chới với khi ngủ (S21) THÌ có HC Cảnh báo thần kinh (I05)"
     },
     {
       id: "R06",
@@ -124,6 +188,22 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU HC Nhiễm trùng sốt cấp (I01) VÀ Đau sau hốc mắt (S05) VÀ HC Xuất huyết cảnh báo (I02) THÌ Chẩn đoán Sốt xuất huyết Dengue (D01)"
     },
     {
+      id: "R07A",
+      name: "Luật chẩn đoán SXH Dengue từ HC Sốt cấp & Dấu hiệu xuất huyết",
+      premises: ["I01", "S13"],
+      conclusion: "D01",
+      label: "R07A: I01 ∧ S13 → D01",
+      description: "NẾU HC Nhiễm trùng sốt cấp (I01) VÀ Chấm xuất huyết (S13) THÌ Chẩn đoán Sốt xuất huyết Dengue (D01)"
+    },
+    {
+      id: "R07B",
+      name: "Luật chẩn đoán SXH Dengue từ HC Sốt cấp & HC Xuất huyết",
+      premises: ["I01", "I02"],
+      conclusion: "D01",
+      label: "R07B: I01 ∧ I02 → D01",
+      description: "NẾU HC Nhiễm trùng sốt cấp (I01) VÀ HC Xuất huyết (I02) THÌ Chẩn đoán Sốt xuất huyết Dengue (D01)"
+    },
+    {
       id: "R08",
       name: "Luật chẩn đoán Cúm mùa / Cúm A",
       premises: ["I01", "I03", "S03"],
@@ -132,12 +212,28 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU HC Nhiễm trùng sốt cấp (I01) VÀ HC Viêm long hô hấp (I03) VÀ Rét run từng cơn (S03) THÌ Chẩn đoán Cúm mùa / Cúm A (D02)"
     },
     {
+      id: "R08A",
+      name: "Luật chẩn đoán Cúm mùa từ HC Sốt cấp & Viêm long hô hấp",
+      premises: ["I01", "I03"],
+      conclusion: "D02",
+      label: "R08A: I01 ∧ I03 → D02",
+      description: "NẾU HC Nhiễm trùng sốt cấp (I01) VÀ HC Viêm long hô hấp (I03) THÌ Chẩn đoán Cúm mùa / Cúm A (D02)"
+    },
+    {
       id: "R09",
       name: "Luật chẩn đoán Bệnh Sởi (Measles)",
       premises: ["I03", "S14", "S17"],
       conclusion: "D03",
       label: "R09: I03 ∧ S14 ∧ S17 → D03",
       description: "NẾU HC Viêm long hô hấp (I03) VÀ Ban dát sẩn mặt lan thân (S14) VÀ Mắt đỏ sợ sáng (S17) THÌ Chẩn đoán Bệnh Sởi (D03)"
+    },
+    {
+      id: "R09A",
+      name: "Luật chẩn đoán Bệnh Sởi từ HC Viêm long & Phát ban dát sẩn",
+      premises: ["I03", "S14"],
+      conclusion: "D03",
+      label: "R09A: I03 ∧ S14 → D03",
+      description: "NẾU HC Viêm long hô hấp (I03) VÀ Phát ban dát sẩn (S14) THÌ Chẩn đoán Bệnh Sởi (D03)"
     },
     {
       id: "R10",
@@ -164,6 +260,22 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU HC Bọng nước tay chân miệng (I04) VÀ HC Cảnh báo thần kinh (I05) THÌ Chẩn đoán Tay Chân Miệng độ 2A (D05)"
     },
     {
+      id: "R12A",
+      name: "Luật chẩn đoán Tay Chân Miệng thể nhẹ",
+      premises: ["I04", "S02"],
+      conclusion: "D05",
+      label: "R12A: I04 ∧ S02 → D05",
+      description: "NẾU HC Bọng nước tay chân miệng (I04) VÀ Sốt nhẹ/vừa (S02) THÌ Chẩn đoán Tay Chân Miệng (D05)"
+    },
+    {
+      id: "R12B",
+      name: "Luật chẩn đoán Tay Chân Miệng sốt cao",
+      premises: ["I04", "S01"],
+      conclusion: "D05",
+      label: "R12B: I04 ∧ S01 → D05",
+      description: "NẾU HC Bọng nước tay chân miệng (I04) VÀ Sốt cao (S01) THÌ Chẩn đoán Tay Chân Miệng (D05)"
+    },
+    {
       id: "R13",
       name: "Luật chẩn đoán Bệnh Thủy đậu",
       premises: ["S15", "S02", "S06"],
@@ -172,12 +284,36 @@ const MEDICAL_KB_GRAPH_DATA = {
       description: "NẾU Nốt phỏng nước giọt sương nhiều lứa tuổi (S15) VÀ Sốt nhẹ (S02) VÀ Đau mỏi cơ (S06) THÌ Chẩn đoán Bệnh Thủy đậu (D06)"
     },
     {
+      id: "R13A",
+      name: "Luật chẩn đoán Thủy đậu từ phỏng nước giọt sương & sốt nhẹ",
+      premises: ["S15", "S02"],
+      conclusion: "D06",
+      label: "R13A: S15 ∧ S02 → D06",
+      description: "NẾU Nốt phỏng nước giọt sương (S15) VÀ Sốt nhẹ (S02) THÌ Chẩn đoán Bệnh Thủy đậu (D06)"
+    },
+    {
+      id: "R13B",
+      name: "Luật chẩn đoán Thủy đậu thể sốt cao phát ban",
+      premises: ["S15", "S01"],
+      conclusion: "D06",
+      label: "R13B: S15 ∧ S01 → D06",
+      description: "NẾU Nốt phỏng nước giọt sương (S15) VÀ Sốt cao (S01) THÌ Chẩn đoán Bệnh Thủy đậu (D06)"
+    },
+    {
       id: "R14",
       name: "Luật chẩn đoán Viêm họng cấp thông thường",
       premises: ["I03", "S02"],
       conclusion: "D07",
       label: "R14: I03 ∧ S02 → D07",
       description: "NẾU HC Viêm long hô hấp (I03) VÀ Sốt nhẹ (S02) THÌ Chẩn đoán Viêm họng cấp tính (D07)"
+    },
+    {
+      id: "R14A",
+      name: "Luật chẩn đoán Viêm họng cấp từ rát họng & sổ mũi",
+      premises: ["S10", "S09"],
+      conclusion: "D07",
+      label: "R14A: S10 ∧ S09 → D07",
+      description: "NẾU Đau rát họng (S10) VÀ Chảy nước mũi (S09) THÌ Chẩn đoán Viêm họng cấp tính (D07)"
     }
   ],
 
@@ -265,10 +401,29 @@ class MedicalGraphAlgorithms {
       (r.premises || []).forEach(p => nodeIds.add(p));
       if (r.conclusion) nodeIds.add(r.conclusion);
     });
+    // Bổ sung các triệu chứng và kết luận của ca bệnh thực tế nếu chưa có trong tập luật
+    (selectedCase.gt || []).forEach(p => nodeIds.add(p));
+    (selectedCase.kl || []).forEach(k => nodeIds.add(k));
 
     // 2. Tạo đỉnh
     nodeIds.forEach(id => {
-      const factMeta = kb.facts[id] || { id, name: id, type: "UNKNOWN" };
+      let factMeta = kb.facts[id];
+      if (!factMeta && typeof window !== "undefined" && window.DEFAULT_KNOWLEDGE_BASE) {
+        const defKB = window.DEFAULT_KNOWLEDGE_BASE;
+        const sym = (defKB.symptoms || []).find(s => s.id === id);
+        const dis = (defKB.diseases || []).find(d => d.id === id);
+        if (sym) {
+          const isInter = id.startsWith("I") || id.startsWith("HC") || sym.groupId === "group_syndrome";
+          factMeta = { id, name: sym.name, type: isInter ? "INTERMEDIATE" : "SYMPTOM" };
+        } else if (dis) {
+          factMeta = { id, name: dis.name, type: "DISEASE", color: dis.color || "#ef4444" };
+        }
+      }
+      if (!factMeta) {
+        const isInter = id.startsWith("I") || id.startsWith("HC");
+        const isDis = id.startsWith("D");
+        factMeta = { id, name: id, type: isDis ? "DISEASE" : (isInter ? "INTERMEDIATE" : "SYMPTOM") };
+      }
       nodes.push({
         id,
         label: id,
@@ -436,6 +591,7 @@ class MedicalGraphAlgorithms {
     }
 
     function isKLSubOfTG(currentTG, currentKL) {
+      if (!currentKL || currentKL.size === 0) return false;
       return Array.from(currentKL).every(k => currentTG.has(k));
     }
 
@@ -472,9 +628,15 @@ class MedicalGraphAlgorithms {
         };
       });
 
-      // Chọn luật có kc ngắn nhất tới bệnh mục tiêu
+      // Chọn luật có kc ngắn nhất tới bệnh mục tiêu, ưu tiên luật đã nổ thực tế nếu có
       evaluations.sort((a, b) => {
         if (a.kc !== b.kc) return a.kc - b.kc;
+        if (selectedCase && Array.isArray(selectedCase.firedRuleIds)) {
+          const aFired = selectedCase.firedRuleIds.includes(a.ruleId);
+          const bFired = selectedCase.firedRuleIds.includes(b.ruleId);
+          if (aFired && !bFired) return -1;
+          if (!aFired && bFired) return 1;
+        }
         return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
       });
 
@@ -530,6 +692,7 @@ class MedicalGraphAlgorithms {
     }
 
     function isKLSubOfTG(currentTG, currentKL) {
+      if (!currentKL || currentKL.size === 0) return false;
       return Array.from(currentKL).every(k => currentTG.has(k));
     }
 
@@ -568,9 +731,15 @@ class MedicalGraphAlgorithms {
         };
       });
 
-      // Chọn luật có khoảng cách heuristic ngắn nhất tới R_KL trên đồ thị RPG
+      // Chọn luật có khoảng cách heuristic ngắn nhất tới R_KL trên đồ thị RPG, ưu tiên luật đã nổ thực tế
       evaluations.sort((a, b) => {
         if (a.kc !== b.kc) return a.kc - b.kc;
+        if (selectedCase && Array.isArray(selectedCase.firedRuleIds)) {
+          const aFired = selectedCase.firedRuleIds.includes(a.ruleId);
+          const bFired = selectedCase.firedRuleIds.includes(b.ruleId);
+          if (aFired && !bFired) return -1;
+          if (!aFired && bFired) return 1;
+        }
         return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
       });
 

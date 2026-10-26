@@ -118,6 +118,10 @@
 
         <!-- BỘ ĐIỀU KHIỂN BƯỚC SUY DIỄN CHẨN ĐOÁN -->
         <div class="sim-controls">
+          <button id="btnToggleFilterRelated" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;"
+            title="Ẩn các thông tin không liên quan tới ca bệnh này">
+            <i class="fa-solid fa-filter"></i> Chỉ hiện tri thức ca bệnh
+          </button>
           <button id="btnStepSim" class="btn-primary" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;">
             <i class="fa-solid fa-play"></i> Bước tiếp theo
           </button>
@@ -256,6 +260,7 @@
       const traceTableBody = document.getElementById("traceTableBody");
       const fpgAnalysisTableBody = document.getElementById("fpgAnalysisTableBody");
 
+      const btnToggleFilterRelated = document.getElementById("btnToggleFilterRelated");
       const btnStepSim = document.getElementById("btnStepSim");
       const btnAutoSim = document.getElementById("btnAutoSim");
       const btnResetSim = document.getElementById("btnResetSim");
@@ -263,6 +268,24 @@
       let currentCase = null;
       let simulationResult = null;
       let currentStepIndex = 0;
+      let isFilterRelated = false;
+
+      function updateFilterButtonState() {
+        if (!btnToggleFilterRelated) return;
+        if (isFilterRelated) {
+          btnToggleFilterRelated.innerHTML = '<i class="fa-solid fa-eye"></i> Hiện toàn bộ đồ thị';
+          btnToggleFilterRelated.style.borderColor = "#10b981";
+          btnToggleFilterRelated.style.color = "#10b981";
+          btnToggleFilterRelated.style.background = "rgba(16, 185, 129, 0.15)";
+          btnToggleFilterRelated.title = "Bấm để hiển thị lại toàn bộ mạng tri thức";
+        } else {
+          btnToggleFilterRelated.innerHTML = '<i class="fa-solid fa-filter"></i> Chỉ hiện tri thức ca bệnh';
+          btnToggleFilterRelated.style.borderColor = "";
+          btnToggleFilterRelated.style.color = "";
+          btnToggleFilterRelated.style.background = "";
+          btnToggleFilterRelated.title = "Ẩn các thông tin không liên quan tới ca bệnh này";
+        }
+      }
 
       const fpgVisualizer = new FPGVisualizer("fpgCanvas", {
         onNodeSelect: (node) => renderInspector(node),
@@ -270,16 +293,41 @@
       });
 
       // 1. Nạp danh sách ca bệnh lâm sàng
-      const cases = window.MEDICAL_KB_GRAPH_DATA.cases || [];
-      fpgCaseSelect.innerHTML = cases.map(c => `
-        <option value="${c.id}">${c.name}</option>
-      `).join("");
+      let cases = [...(window.MEDICAL_KB_GRAPH_DATA.cases || [])];
+
+      // Đọc ca chẩn đoán thực tế mới nhất từ phân hệ Chẩn đoán lâm sàng
+      const liveCaseRaw = sessionStorage.getItem("LATEST_DIAGNOSIS_CASE");
+      let liveCase = null;
+      if (liveCaseRaw) {
+        try {
+          liveCase = JSON.parse(liveCaseRaw);
+          if (liveCase && liveCase.gt && liveCase.gt.length > 0) {
+            cases = [liveCase, ...cases];
+          }
+        } catch (e) {
+          console.warn("Lỗi nạp ca chẩn đoán thực tế:", e);
+        }
+      }
+
+      function renderCaseOptions() {
+        fpgCaseSelect.innerHTML = cases.map(c => `
+          <option value="${c.id}" ${c.id === 'LIVE_DIAGNOSIS' ? 'style="font-weight: 700; color: #10b981;"' : ''}>
+            ${c.id === 'LIVE_DIAGNOSIS' ? '🩺 ' : ''}${c.name}
+          </option>
+        `).join("");
+      }
+      renderCaseOptions();
 
       function loadCase(caseId) {
         currentCase = cases.find(c => c.id === caseId) || cases[0];
         fpgVisualizer.setCase(currentCase);
+        fpgVisualizer.setFilterRelatedOnly(isFilterRelated);
 
-        bannerName.textContent = currentCase.name;
+        bannerName.innerHTML = currentCase.id === "LIVE_DIAGNOSIS"
+          ? `<span style="color: #10b981; display: inline-flex; align-items: center; gap: 0.45rem;">
+               <i class="fa-solid fa-stethoscope"></i> ${currentCase.name}
+             </span>`
+          : currentCase.name;
         bannerDesc.textContent = currentCase.description;
         bannerGT.textContent = `{${(currentCase.gt || []).join(", ")}}`;
         bannerKL.textContent = `{${(currentCase.kl || []).join(", ")}} (${currentCase.targetDiseaseName || ''})`;
@@ -313,7 +361,7 @@
 
       function renderAnalysisTable(clinicalCase, currentStep) {
         if (!clinicalCase) return;
-        const rules = window.MEDICAL_KB_GRAPH_DATA.rules || [];
+        let rules = window.MEDICAL_KB_GRAPH_DATA.rules || [];
         const facts = window.MEDICAL_KB_GRAPH_DATA.facts || {};
         const gtSet = new Set(clinicalCase.gt || []);
         const klSet = new Set(clinicalCase.kl || []);
@@ -323,6 +371,16 @@
         const activeRule = currentStep ? currentStep.selectedRule : null;
         const vetSet = new Set(currentStep ? currentStep.VET || [] : []);
         const thoaSet = new Set(currentStep ? currentStep.THOA || [] : []);
+
+        if (isFilterRelated) {
+          rules = rules.filter(r => {
+            const isInitialTHOA = (r.premises || []).every(p => gtSet.has(p));
+            const isDirectKL = klSet.has(r.conclusion);
+            const isFired = vetSet.has(r.id);
+            const kc = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, klSet, edges);
+            return isInitialTHOA || isDirectKL || isFired || (kc !== Infinity);
+          });
+        }
 
         const rowData = rules.map(r => {
           const isInitialTHOA = (r.premises || []).every(p => gtSet.has(p));
@@ -479,6 +537,18 @@
       }
 
       // Event listeners
+      if (btnToggleFilterRelated) {
+        btnToggleFilterRelated.addEventListener("click", () => {
+          isFilterRelated = !isFilterRelated;
+          updateFilterButtonState();
+          fpgVisualizer.setFilterRelatedOnly(isFilterRelated);
+          if (currentCase) {
+            const currentStep = simulationResult && simulationResult.steps ? simulationResult.steps[currentStepIndex] : null;
+            renderAnalysisTable(currentCase, currentStep);
+          }
+        });
+      }
+
       btnStepSim.addEventListener("click", () => {
         if (!simulationResult || !simulationResult.steps) return;
         if (currentStepIndex < simulationResult.steps.length - 1) {
@@ -510,8 +580,19 @@
       // Tự động nhận diện ca bệnh từ URL param (?focus=... hoặc ?case=... hoặc ?disease=...)
       const urlParams = new URLSearchParams(window.location.search);
       const targetParam = urlParams.get("focus") || urlParams.get("case") || urlParams.get("disease");
+      const diseaseParam = urlParams.get("disease");
 
       let selectedCaseId = cases.length > 0 ? cases[0].id : null;
+
+      if (diseaseParam && liveCase) {
+        const diseaseMeta = (window.MEDICAL_KB_GRAPH_DATA.facts || {})[diseaseParam];
+        liveCase.kl = [diseaseParam];
+        if (diseaseMeta) {
+          liveCase.targetDiseaseName = `${diseaseMeta.name} (${diseaseParam})`;
+          liveCase.name = `Ca chẩn đoán thực tế: ${diseaseMeta.name}`;
+          renderCaseOptions();
+        }
+      }
 
       if (targetParam) {
         const found = cases.find(c =>
@@ -521,7 +602,11 @@
         );
         if (found) {
           selectedCaseId = found.id;
+        } else if (liveCase) {
+          selectedCaseId = "LIVE_DIAGNOSIS";
         }
+      } else if (liveCase) {
+        selectedCaseId = "LIVE_DIAGNOSIS";
       }
 
       if (selectedCaseId) {

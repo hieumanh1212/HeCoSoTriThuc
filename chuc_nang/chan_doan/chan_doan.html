@@ -249,10 +249,10 @@
           <span>Sơ Đồ Tiến Trình Suy Luận Chẩn Đoán Lâm Sàng</span>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <a href="../do_thi_rpg/do_thi_rpg.html?mode=RPG" class="btn-chain-graph btn-chain-rpg" title="Mở đồ thị mạng Petri RPG">
+          <a href="../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS" class="btn-chain-graph btn-chain-rpg" id="btnPipelineRpg" title="Mở đồ thị mạng Petri RPG theo ca chẩn đoán thực tế">
             <i class="fa-solid fa-project-diagram"></i> Mạng RPG
           </a>
-          <a href="../do_thi_rpg/do_thi_rpg.html?mode=FPG" class="btn-chain-graph btn-chain-fpg" title="Mở mạng phụ thuộc sự kiện FPG">
+          <a href="../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS" class="btn-chain-graph btn-chain-fpg" id="btnPipelineFpg" title="Mở mạng phụ thuộc sự kiện FPG theo ca chẩn đoán thực tế">
             <i class="fa-solid fa-circle-nodes"></i> Mạng FPG
           </a>
           <button class="modal-close-btn" data-close="modalChainPipeline">&times;</button>
@@ -293,14 +293,56 @@
       const forwardEngine = new ForwardChainingEngine(kbManager.getKB());
       const backwardEngine = new BackwardChainingEngine(kbManager.getKB());
 
+      // Hàm lưu trữ ca chẩn đoán thực tế đầy đủ để đồ thị RPG và FPG hiển thị chính xác
+      function saveLiveDiagnosisCase(inferenceResult, selectedSymptoms, targetDiseaseId = null) {
+        const gt = Object.keys(selectedSymptoms || {}).filter(sId => (selectedSymptoms[sId] || 0) > 0);
+        const results = (inferenceResult && inferenceResult.results) || [];
+        const topResult = results.length > 0 ? results[0] : null;
+        const targetResult = (targetDiseaseId ? results.find(r => r.diseaseId === targetDiseaseId) : null) || topResult;
+
+        const disId = targetDiseaseId || (targetResult ? targetResult.diseaseId : "D01");
+        const disName = targetResult ? targetResult.diseaseName : (disId === "D01" ? "Sốt xuất huyết Dengue" : disId);
+        const cfPercent = targetResult ? Math.round((targetResult.finalCF || 0) * 100) : 0;
+        const firedRuleIds = (inferenceResult && inferenceResult.firedRules)
+          ? inferenceResult.firedRules.map(r => r.ruleId || r.id)
+          : [];
+
+        const liveCase = {
+          id: "LIVE_DIAGNOSIS",
+          name: `Ca chẩn đoán thực tế: ${disName} (${cfPercent}%)`,
+          description: `Ca bệnh lâm sàng được chẩn đoán trực tiếp từ phân hệ Chẩn đoán lúc ${new Date().toLocaleTimeString('vi-VN')} ngày ${new Date().toLocaleDateString('vi-VN')}. Gồm ${gt.length} triệu chứng thực tế được chọn.`,
+          gt: gt,
+          kl: [disId],
+          targetDiseaseName: `${disName} (${disId})`,
+          targetDiseaseId: disId,
+          confidencePercent: cfPercent,
+          symptomsCF: selectedSymptoms || {},
+          firedRuleIds: firedRuleIds,
+          firedRules: (inferenceResult && inferenceResult.firedRules) || [],
+          results: results.map(r => ({
+            diseaseId: r.diseaseId,
+            diseaseName: r.diseaseName,
+            finalCF: r.finalCF
+          })),
+          timestamp: Date.now(),
+          isLiveDiagnosis: true
+        };
+
+        sessionStorage.setItem("LATEST_DIAGNOSIS_CASE", JSON.stringify(liveCase));
+        sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(selectedSymptoms || {}));
+        if (inferenceResult) {
+          sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(inferenceResult.firedRules || []));
+        }
+        return liveCase;
+      }
+
       const diagnosisController = new DiagnosisController({
         kbManager,
         forwardEngine,
         backwardEngine,
         onInferenceComplete: (inferenceResult, selectedSymptoms) => {
-          sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(selectedSymptoms || {}));
-          if (inferenceResult) {
-            sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(inferenceResult.firedRules || []));
+          if (inferenceResult && Object.keys(selectedSymptoms || {}).length > 0) {
+            saveLiveDiagnosisCase(inferenceResult, selectedSymptoms);
           }
           if (dbEngine && dbEngine.isReady && inferenceResult && Object.keys(selectedSymptoms || {}).length > 0) {
             dbEngine.saveInferenceSession(selectedSymptoms, inferenceResult.results || [], inferenceResult.traceLogs || [])
@@ -308,39 +350,29 @@
           }
         },
         onFocusGraph: (diseaseId) => {
-          sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
-          if (diagnosisController.lastInferenceResult) {
-            sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
-          }
-          const caseMap = {
-            "D01": "TC01",
-            "D02": "TC02",
-            "D03": "TC03",
-            "D04": "TC04",
-            "D05": "TC05",
-            "D06": "TC06",
-            "D07": "TC07"
-          };
-          const targetCaseId = caseMap[diseaseId] || diseaseId;
-          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${targetCaseId}&disease=${diseaseId}`;
+          saveLiveDiagnosisCase(diagnosisController.lastInferenceResult, diagnosisController.currentSelectedSymptoms, diseaseId);
+          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${diseaseId}`;
         },
         onFocusFpg: (diseaseId) => {
-          sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
-          if (diagnosisController.lastInferenceResult) {
-            sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
-          }
-          const caseMap = {
-            "D01": "TC01",
-            "D02": "TC02",
-            "D03": "TC03",
-            "D04": "TC04",
-            "D05": "TC05",
-            "D06": "TC06",
-            "D07": "TC07"
-          };
-          const targetCaseId = caseMap[diseaseId] || diseaseId;
-          window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=${targetCaseId}&disease=${diseaseId}`;
+          saveLiveDiagnosisCase(diagnosisController.lastInferenceResult, diagnosisController.currentSelectedSymptoms, diseaseId);
+          window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS&disease=${diseaseId}`;
         }
+      });
+
+      document.querySelectorAll(".btn-chain-rpg, a[href*='do_thi_rpg']").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (diagnosisController.lastInferenceResult) {
+            saveLiveDiagnosisCase(diagnosisController.lastInferenceResult, diagnosisController.currentSelectedSymptoms);
+          }
+        });
+      });
+
+      document.querySelectorAll(".btn-chain-fpg, a[href*='do_thi_fpg']").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (diagnosisController.lastInferenceResult) {
+            saveLiveDiagnosisCase(diagnosisController.lastInferenceResult, diagnosisController.currentSelectedSymptoms);
+          }
+        });
       });
 
       kbManager.onUpdate((updatedKB) => {
