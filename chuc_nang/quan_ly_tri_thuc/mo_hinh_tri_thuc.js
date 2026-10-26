@@ -64,7 +64,11 @@ class KnowledgeBaseManager {
       const dbKB = await this.db.toKnowledgeBaseObject();
       if (dbKB && dbKB.rules && dbKB.rules.length > 0) {
         const mergedKB = this._mergeWithDefaults(dbKB, window.DEFAULT_KNOWLEDGE_BASE || {});
+        const currentTestCases = this.getTestCases();
         this.kb = this.sanitizeKB(mergedKB);
+        if (currentTestCases && currentTestCases.length > 0) {
+          this.kb.testCases = currentTestCases;
+        }
         this.saveToStorage();
         this.notifyListeners();
       }
@@ -99,9 +103,22 @@ class KnowledgeBaseManager {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (!parsed.testCases || !Array.isArray(parsed.testCases) || parsed.testCases.length === 0) {
+          const customTC = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+          if (customTC) {
+            try { parsed.testCases = JSON.parse(customTC); } catch (e) {}
+          }
+          if (!parsed.testCases || parsed.testCases.length === 0) {
+            const defKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            parsed.testCases = JSON.parse(JSON.stringify(defKB.testCases || []));
+          }
+        }
         const def = window.DEFAULT_KNOWLEDGE_BASE || {};
         const merged = this._mergeWithDefaults(parsed, def);
         const cleanKB = this.sanitizeKB(merged);
+        if (parsed.testCases) {
+          cleanKB.testCases = parsed.testCases;
+        }
         // Tự động làm sạch localStorage nếu trước đó bị lưu trùng lặp
         try {
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanKB));
@@ -111,13 +128,21 @@ class KnowledgeBaseManager {
     } catch (e) {
       console.warn("Lỗi đọc LocalStorage, sử dụng dữ liệu mặc định:", e);
     }
-    return this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
+    const def = JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {}));
+    const customTC = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+    if (customTC) {
+      try { def.testCases = JSON.parse(customTC); } catch (e) {}
+    }
+    return this.sanitizeKB(def);
   }
 
   async saveToStorage() {
     try {
       this.kb = this.sanitizeKB(this.kb);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      if (this.kb && this.kb.testCases) {
+        localStorage.setItem("MED_EXPERT_CUSTOM_TESTCASES", JSON.stringify(this.kb.testCases));
+      }
       if (this.db) {
         await this.db.importFromKBObject(this.kb, "Cập nhật qua KnowledgeBaseManager");
       }
@@ -144,6 +169,7 @@ class KnowledgeBaseManager {
 
   resetToDefault() {
     this.kb = this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
+    localStorage.removeItem("MED_EXPERT_CUSTOM_TESTCASES");
     this.saveToStorage();
     return this.kb;
   }
@@ -349,6 +375,129 @@ class KnowledgeBaseManager {
 
     this.saveToStorage();
     return diseaseData;
+  }
+
+  // --- TEST CASES CRUD ---
+  getTestCases() {
+    if (this.kb && Array.isArray(this.kb.testCases) && this.kb.testCases.length > 0) {
+      return this.kb.testCases;
+    }
+    try {
+      const backup = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+      if (backup) {
+        const parsed = JSON.parse(backup);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (this.kb) this.kb.testCases = parsed;
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    const defaultCases = (window.DEFAULT_KNOWLEDGE_BASE && window.DEFAULT_KNOWLEDGE_BASE.testCases)
+      ? window.DEFAULT_KNOWLEDGE_BASE.testCases
+      : [];
+    if (this.kb) this.kb.testCases = JSON.parse(JSON.stringify(defaultCases));
+    return this.kb ? (this.kb.testCases || []) : [];
+  }
+
+  getTestCaseById(id) {
+    return this.getTestCases().find(c => c.id === id) || null;
+  }
+
+  saveTestCases() {
+    try {
+      localStorage.setItem("MED_EXPERT_CUSTOM_TESTCASES", JSON.stringify(this.kb.testCases || []));
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      this.notifyListeners();
+    } catch (e) {
+      console.error("Lỗi lưu trữ ca kiểm thử:", e);
+    }
+  }
+
+  addTestCase(tcData) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+
+    let tcId = (tcData.id || "").trim();
+    if (!tcId) {
+      const existingMax = this.kb.testCases.reduce((max, c) => {
+        const num = parseInt(String(c.id || "").replace(/[^0-9]/g, ""), 10);
+        return !isNaN(num) && num > max ? num : max;
+      }, 0);
+      tcId = `TC${String(existingMax + 1).padStart(2, "0")}`;
+    }
+
+    if (this.kb.testCases.some(c => c.id.toUpperCase() === tcId.toUpperCase())) {
+      throw new Error(`Mã ca kiểm thử "${tcId}" đã tồn tại! Vui lòng chọn mã khác.`);
+    }
+
+    if (!tcData.name || !tcData.name.trim()) {
+      throw new Error("Tên ca bệnh kiểm thử không được để trống!");
+    }
+
+    if (!tcData.selectedSymptoms || tcData.selectedSymptoms.length === 0) {
+      throw new Error("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng cho ca kiểm thử!");
+    }
+
+    const newCase = {
+      id: tcId,
+      name: tcData.name.trim(),
+      patientInfo: (tcData.patientInfo || "").trim() || "Bệnh nhân ngoại trú",
+      selectedSymptoms: tcData.selectedSymptoms,
+      expectedDisease: tcData.expectedDisease || "",
+      clinicalNote: (tcData.clinicalNote || "").trim() || "Ca bệnh kiểm chứng do chuyên gia thiết lập."
+    };
+
+    this.kb.testCases.push(newCase);
+    this.saveTestCases();
+    return newCase;
+  }
+
+  updateTestCase(id, tcData) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+    const index = this.kb.testCases.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Không tìm thấy ca kiểm thử có mã "${id}" để cập nhật!`);
+    }
+
+    if (!tcData.name || !tcData.name.trim()) {
+      throw new Error("Tên ca bệnh kiểm thử không được để trống!");
+    }
+
+    if (!tcData.selectedSymptoms || tcData.selectedSymptoms.length === 0) {
+      throw new Error("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng cho ca kiểm thử!");
+    }
+
+    this.kb.testCases[index] = {
+      id: id,
+      name: tcData.name.trim(),
+      patientInfo: (tcData.patientInfo || "").trim() || "Bệnh nhân ngoại trú",
+      selectedSymptoms: tcData.selectedSymptoms,
+      expectedDisease: tcData.expectedDisease || "",
+      clinicalNote: (tcData.clinicalNote || "").trim() || "Ca bệnh kiểm chứng do chuyên gia thiết lập."
+    };
+
+    this.saveTestCases();
+    return this.kb.testCases[index];
+  }
+
+  deleteTestCase(id) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+    const index = this.kb.testCases.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Không tìm thấy ca kiểm thử có mã "${id}" để xóa!`);
+    }
+
+    const deleted = this.kb.testCases.splice(index, 1)[0];
+    this.saveTestCases();
+    return deleted;
+  }
+
+  resetTestCasesToDefault() {
+    const defaultCases = (window.DEFAULT_KNOWLEDGE_BASE && window.DEFAULT_KNOWLEDGE_BASE.testCases)
+      ? window.DEFAULT_KNOWLEDGE_BASE.testCases
+      : [];
+    this.kb.testCases = JSON.parse(JSON.stringify(defaultCases));
+    this.saveTestCases();
+    return this.kb.testCases;
   }
 
   // ============================================================================

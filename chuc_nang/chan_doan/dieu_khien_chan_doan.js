@@ -657,10 +657,39 @@ class DiagnosisController {
     }
   }
 
-  setSymptoms(symptomsMap) {
+  setSymptoms(symptomsMap, autoInfer = false) {
     this.currentSelectedSymptoms = { ...symptomsMap };
     this.renderAll();
-    this.runInference();
+    if (autoInfer) {
+      this.runInference();
+    } else {
+      this.renderPreLoadedState();
+    }
+  }
+
+  renderPreLoadedState() {
+    if (!this.resultsContainer) return;
+    const count = Object.keys(this.currentSelectedSymptoms || {}).length;
+    this.resultsContainer.innerHTML = `
+      <div class="empty-state" style="border: 2px dashed var(--color-primary); background: rgba(59, 130, 246, 0.05); padding: 2rem; border-radius: 12px; text-align: center;">
+        <i class="fa-solid fa-file-medical-alt" style="font-size: 2.8rem; color: var(--color-primary); margin-bottom: 0.8rem;"></i>
+        <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">
+          Đã nạp ${count} triệu chứng lâm sàng vào biểu mẫu!
+        </p>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 1.2rem auto; line-height: 1.6;">
+          Bạn có thể kiểm tra, tùy chỉnh thêm bớt triệu chứng hoặc thay đổi độ tin cậy (CF) ở danh sách bên trái. Sau đó nhấn nút <strong>"Thực hiện Suy diễn tiến"</strong> ở góc trên bên phải để bắt đầu chẩn đoán.
+        </p>
+        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+          <i class="fa-solid fa-arrow-up"></i> Sẵn sàng suy luận: Hãy nhấn "Thực hiện Suy diễn tiến"
+        </div>
+      </div>
+    `;
+    if (this.btnViewExplanation) {
+      this.btnViewExplanation.style.display = "none";
+    }
+    if (this.btnExportPDF) {
+      this.btnExportPDF.style.display = "none";
+    }
   }
 
   runInference() {
