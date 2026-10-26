@@ -64,8 +64,6 @@ class DiagnosisController {
     this.explanationContent = document.getElementById("explanationModalContent");
     this.modalBackward = document.getElementById("modalBackward");
     this.backwardContent = document.getElementById("backwardModalContent");
-    this.modalChainPipeline = document.getElementById("modalChainPipeline");
-    this.chainModalContent = document.getElementById("chainModalContent");
   }
 
   bindEvents() {
@@ -1272,11 +1270,14 @@ class DiagnosisController {
             </div>
           </div>
 
-          <div>
-            <button type="button" class="btn-toggle-chain-detail btn-open-chain-modal" style="cursor: pointer;" title="Xem chi tiết các bước từ triệu chứng đến hội chứng và bệnh đích">
-              <i class="fa-solid fa-diagram-project"></i>
-              <span>Xem chi tiết sơ đồ suy luận</span>
-              <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem; margin-left: 2px;"></i>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn-toggle-chain-detail btn-quick-view-rpg" style="cursor: pointer;" title="Xem đường suy diễn trên Đồ thị mạng luật RPG">
+              <i class="fa-solid fa-project-diagram"></i>
+              <span>Xem Đồ thị RPG</span>
+            </button>
+            <button type="button" class="btn-toggle-chain-detail btn-quick-view-fpg" style="cursor: pointer; background: rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.4); color: #38bdf8;" title="Xem lan truyền sự kiện trên Đồ thị FPG">
+              <i class="fa-solid fa-diagram-successor"></i>
+              <span>Xem Đồ thị FPG</span>
             </button>
           </div>
         </div>
@@ -1585,31 +1586,26 @@ class DiagnosisController {
       });
     });
 
-    const btnOpenChain = this.resultsContainer.querySelector(".btn-open-chain-modal");
-    if (btnOpenChain) {
-      btnOpenChain.addEventListener("click", () => {
-        this.openChainPipelineModal();
+    const btnQuickRpg = this.resultsContainer.querySelector(".btn-quick-view-rpg");
+    if (btnQuickRpg) {
+      btnQuickRpg.addEventListener("click", () => {
+        const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
+        if (this.onFocusGraph) this.onFocusGraph(topDisId);
+      });
+    }
+
+    const btnQuickFpg = this.resultsContainer.querySelector(".btn-quick-view-fpg");
+    if (btnQuickFpg) {
+      btnQuickFpg.addEventListener("click", () => {
+        const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
+        if (this.onFocusFpg) this.onFocusFpg(topDisId);
       });
     }
   }
 
   openChainPipelineModal() {
-    if (!this.lastInferenceResult || !this.modalChainPipeline || !this.chainModalContent) return;
-    const kb = this.kbManager.getKB();
-    const intermediateResults = this.lastInferenceResult.intermediateResults || [];
-    const convRules = this._findConvergentRules(this.lastInferenceResult.firedRules, intermediateResults);
-
-    let html = '';
-    if (convRules.length > 0) {
-      html += convRules.map(r => this._buildConvergentChainHtml(r, this.lastInferenceResult, kb)).join('');
-    } else {
-      html += intermediateResults
-        .map(im => this._buildSingleChainHtml(im, this.lastInferenceResult, kb))
-        .join('');
-    }
-
-    this.chainModalContent.innerHTML = html;
-    this.modalChainPipeline.classList.add("active");
+    const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
+    if (this.onFocusGraph) this.onFocusGraph(topDisId);
   }
 
   openBackwardInquiryModal(targetDiseaseId) {

@@ -25,7 +25,9 @@ class FPGVisualizer {
     // Trạng thái mô phỏng suy diễn tiến y tế
     this.currentTG = new Set();
     this.activeRuleId = null;
-    this.filterRelatedOnly = false;
+    this.thoaRules = new Set();
+    this.firedRules = new Set();
+    this.filterRelatedOnly = true;
 
     this.onNodeSelect = options.onNodeSelect || null;
     this.onNodeHover = options.onNodeHover || null;
@@ -199,11 +201,14 @@ class FPGVisualizer {
     this.autoFit();
   }
 
-  setSimulationState(tgSet, activeRuleId = null) {
+  setSimulationState(tgSet, activeRuleId = null, thoaSet = null, firedRules = null) {
     this.currentTG = tgSet instanceof Set ? tgSet : new Set(tgSet || []);
     this.activeRuleId = activeRuleId;
+    this.thoaRules = thoaSet instanceof Set ? thoaSet : new Set(thoaSet || []);
+    this.firedRules = firedRules instanceof Set ? firedRules : new Set(firedRules || []);
     if (this.filterRelatedOnly) {
       this.buildGraph();
+      this.autoFit();
     } else {
       this.render();
     }
@@ -224,71 +229,86 @@ class FPGVisualizer {
     const nodeMap = new Map();
     const klSet = this.fpgData.klSet;
 
-    // Phân loại sự kiện thành 3 cột kiến trúc FPG y tế:
-    // Cột 1: Triệu chứng lâm sàng (Symptoms - S)
-    // Cột 2: Hội chứng trung gian (Intermediate - I / HC)
-    // Cột 3: Bệnh kết luận (Diseases - D)
-    let symptoms = this.fpgData.nodes.filter(n => n.type === "SYMPTOM" || (n.id.startsWith("S") && !n.id.startsWith("HC")));
-    let intermediates = this.fpgData.nodes.filter(n => n.type === "INTERMEDIATE" || n.id.startsWith("I") || n.id.startsWith("HC"));
-    let diseases = this.fpgData.nodes.filter(n => n.type === "DISEASE" || n.id.startsWith("D"));
+    // Phân loại sự kiện chuẩn theo 3 cột tiến trình Suy diễn TIẾN (Slide 18 & 19 TS. Nguyễn Quốc Tuấn):
+    // Cột 1: Tập giả thiết ban đầu (f ∈ GT)
+    // Cột 3: Tập kết luận mục tiêu (f ∈ KL)
+    // Cột 2: Các sự kiện trung gian chuyển tiếp
+    let col1Nodes = [];
+    let col2Nodes = [];
+    let col3Nodes = [];
 
     if (this.filterRelatedOnly) {
-      symptoms = symptoms.filter(s => s.isGT || this.fpgData.gtSet.has(s.id));
-      intermediates = intermediates.filter(im => {
-        const distToKL = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(im.id, klSet, this.fpgData.edges);
-        return distToKL !== Infinity || this.currentTG.has(im.id);
+      col1Nodes = this.fpgData.nodes.filter(n => n.isGT || this.fpgData.gtSet.has(n.id));
+      col3Nodes = this.fpgData.nodes.filter(n => n.isKL || klSet.has(n.id));
+
+      const thoaConclusions = new Set();
+      this.thoaRules.forEach(ruleId => {
+        const r = (this.fpgData.rules || []).find(x => x.id === ruleId);
+        if (r && r.conclusion) thoaConclusions.add(r.conclusion);
       });
-      diseases = diseases.filter(d => d.isKL || klSet.has(d.id));
+      if (this.activeRuleId) {
+        const r = (this.fpgData.rules || []).find(x => x.id === this.activeRuleId);
+        if (r && r.conclusion) thoaConclusions.add(r.conclusion);
+      }
+
+      col2Nodes = this.fpgData.nodes.filter(n => {
+        if (n.isGT || n.isKL || this.fpgData.gtSet.has(n.id) || klSet.has(n.id)) return false;
+        return this.currentTG.has(n.id) || thoaConclusions.has(n.id);
+      });
+    } else {
+      col1Nodes = this.fpgData.nodes.filter(n => n.isGT || (n.type === "SYMPTOM" && !n.isKL));
+      col3Nodes = this.fpgData.nodes.filter(n => n.isKL || n.type === "DISEASE");
+      col2Nodes = this.fpgData.nodes.filter(n => !col1Nodes.includes(n) && !col3Nodes.includes(n));
     }
 
     const col1X = 180;
     const col2X = 520;
     const col3X = 860;
 
-    const symSpacing = this.filterRelatedOnly ? 90 : 80;
-    const interSpacing = this.filterRelatedOnly ? 100 : 90;
-    const disSpacing = this.filterRelatedOnly ? 110 : 85;
+    const spacing1 = this.filterRelatedOnly ? 95 : (col1Nodes.length > 6 ? 72 : 88);
+    const spacing2 = this.filterRelatedOnly ? 95 : (col2Nodes.length > 6 ? 72 : 88);
+    const spacing3 = this.filterRelatedOnly ? 95 : (col3Nodes.length > 6 ? 72 : 88);
 
-    const symStartY = this.filterRelatedOnly ? 120 : 75;
-    const interStartY = this.filterRelatedOnly ? 140 : 110;
-    const disStartY = this.filterRelatedOnly ? 160 : 95;
+    const startY1 = 110;
+    const startY2 = 110;
+    const startY3 = 110;
 
-    // 1. Tạo node Triệu chứng
-    symptoms.forEach((s, idx) => {
+    // 1. Tạo node Cột 1: Giả thiết (GT)
+    col1Nodes.forEach((s, idx) => {
       const distToKL = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(s.id, klSet, this.fpgData.edges);
       const node = {
         ...s,
         distToKL,
         x: col1X,
-        y: symStartY + idx * symSpacing,
-        radius: 24
+        y: startY1 + idx * spacing1,
+        radius: 25
       };
       this.nodes.push(node);
       nodeMap.set(s.id, node);
     });
 
-    // 2. Tạo node Hội chứng trung gian
-    intermediates.forEach((im, idx) => {
+    // 2. Tạo node Cột 2: Sự kiện trung gian
+    col2Nodes.forEach((im, idx) => {
       const distToKL = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(im.id, klSet, this.fpgData.edges);
       const node = {
         ...im,
         distToKL,
         x: col2X,
-        y: interStartY + idx * interSpacing,
+        y: startY2 + idx * spacing2,
         radius: 28
       };
       this.nodes.push(node);
       nodeMap.set(im.id, node);
     });
 
-    // 3. Tạo node Bệnh kết luận
-    diseases.forEach((d, idx) => {
-      const distToKL = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(d.id, klSet, this.fpgData.edges);
+    // 3. Tạo node Cột 3: Kết luận (KL)
+    col3Nodes.forEach((d, idx) => {
+      const distToKL = 0;
       const node = {
         ...d,
         distToKL,
         x: col3X,
-        y: disStartY + idx * disSpacing,
+        y: startY3 + idx * spacing3,
         radius: 30
       };
       this.nodes.push(node);
@@ -300,6 +320,14 @@ class FPGVisualizer {
       const fromNode = nodeMap.get(e.from);
       const toNode = nodeMap.get(e.to);
       if (fromNode && toNode) {
+        if (this.filterRelatedOnly) {
+          const isFired = this.firedRules.has(e.ruleId);
+          const isActive = this.activeRuleId === e.ruleId;
+          const isInThoa = this.thoaRules.has(e.ruleId);
+          if (!isFired && !isActive && !isInThoa) {
+            return;
+          }
+        }
         this.edges.push({
           from: fromNode,
           to: toNode,
@@ -370,13 +398,13 @@ class FPGVisualizer {
 
   drawFPGHeaders(ctx, isLight) {
     ctx.save();
-    ctx.font = "bold 13px sans-serif";
-    ctx.fillStyle = isLight ? "#64748b" : "#94a3b8";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = isLight ? "#475569" : "#94a3b8";
     ctx.textAlign = "center";
 
-    ctx.fillText("CỘT 1: TRIỆU CHỨNG LÂM SÀNG (S)", 180, 40);
-    ctx.fillText("CỘT 2: HỘI CHỨNG TRUNG GIAN (I)", 520, 40);
-    ctx.fillText("CỘT 3: BỆNH KẾT LUẬN (D)", 860, 40);
+    ctx.fillText("TẬP GIẢ THIẾT BAN ĐẦU: GT", 180, 45);
+    ctx.fillText("SỰ KIỆN TRUNG GIAN", 520, 45);
+    ctx.fillText("TẬP KẾT LUẬN MỤC TIÊU: KL", 860, 45);
     ctx.restore();
   }
 
@@ -385,12 +413,14 @@ class FPGVisualizer {
     const to = edge.to;
 
     const isRuleActive = this.activeRuleId && edge.ruleId === this.activeRuleId;
+    const isRuleFired = this.firedRules && this.firedRules.has(edge.ruleId);
+    const isRuleInThoa = this.thoaRules && this.thoaRules.has(edge.ruleId);
     const isNodeActive = this.currentTG.has(from.id) && this.currentTG.has(to.id);
     const isSelectedEdge = this.selectedNode && (edge.from.id === this.selectedNode.id || edge.to.id === this.selectedNode.id);
     const isHoveredEdge = this.hoveredNode && (edge.from.id === this.hoveredNode.id || edge.to.id === this.hoveredNode.id);
 
-    const isFired = isRuleActive || isNodeActive;
-    const isHighlighted = isFired || isSelectedEdge || isHoveredEdge;
+    const isFired = isRuleActive || isRuleFired || isNodeActive;
+    const isHighlighted = isFired || isRuleInThoa || isSelectedEdge || isHoveredEdge;
 
     ctx.save();
 
@@ -410,12 +440,22 @@ class FPGVisualizer {
 
     if (isRuleActive) {
       ctx.strokeStyle = "#10b981";
-      ctx.lineWidth = 3.5;
-      ctx.shadowColor = "rgba(16, 185, 129, 0.85)";
-      ctx.shadowBlur = 12;
+      ctx.lineWidth = 3.6;
+      ctx.shadowColor = "rgba(16, 185, 129, 0.95)";
+      ctx.shadowBlur = 14;
+    } else if (isFired) {
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 2.8;
+      ctx.shadowColor = "rgba(16, 185, 129, 0.65)";
+      ctx.shadowBlur = 8;
+    } else if (isRuleInThoa) {
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 2.8;
+      ctx.shadowColor = "rgba(245, 158, 11, 0.75)";
+      ctx.shadowBlur = 10;
     } else if (isHighlighted) {
       ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.8;
       ctx.shadowColor = "rgba(56, 189, 248, 0.7)";
       ctx.shadowBlur = 8;
     } else {
@@ -428,7 +468,7 @@ class FPGVisualizer {
 
     // Mũi tên
     const arrowAngle = Math.atan2(endY - cp2Y, endX - cp2X);
-    const arrowColor = isRuleActive ? "#10b981" : (isHighlighted ? "#38bdf8" : (isLight ? "#475569" : "#94a3b8"));
+    const arrowColor = (isRuleActive || isFired) ? "#10b981" : (isRuleInThoa ? "#f59e0b" : (isHighlighted ? "#38bdf8" : (isLight ? "#475569" : "#94a3b8")));
     this.drawArrowHeadAt(ctx, endX, endY, arrowAngle, arrowColor);
 
     // Nhãn mã luật R trên cung
