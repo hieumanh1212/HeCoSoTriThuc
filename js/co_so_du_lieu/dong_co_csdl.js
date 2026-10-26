@@ -13,10 +13,8 @@ class DatabaseEngine {
     this.db = null;
     this.isReady = false;
     this.isServerMode = false;
-    this.apiBase = (typeof window !== 'undefined' && window.location.protocol.startsWith('http'))
-      ? `${window.location.origin}/api`
-      : 'http://localhost:3000/api';
-    }
+    this.apiBase = 'http://localhost:3000/api';
+  }
 
   async init() {
     // 1. Thử kết nối tới Backend SQLite Server (may_chu.js)
@@ -458,6 +456,34 @@ class DatabaseEngine {
 
   async importFromKBObject(kb, reason = "Nhập dữ liệu vào CSDL") {
     if (!kb) return;
+
+    if (this.isServerMode) {
+      const response = await fetch(`${this.apiBase}/kb/catalog`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symptomGroups: kb.symptomGroups || [],
+          symptoms: kb.symptoms || [],
+          diseases: kb.diseases || []
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Không thể lưu danh mục tri thức lên SQLite.");
+      }
+
+      for (const rule of (kb.rules || [])) {
+        await this.put("tap_luat", {
+          id: rule.id,
+          name: rule.name,
+          conclusion: rule.conclusion,
+          cf: rule.cf,
+          description: rule.description || "",
+          premises: rule.premises || []
+        }, false);
+      }
+      return result.counts;
+    }
 
     if (kb.symptomGroups) {
       for (const grp of kb.symptomGroups) {

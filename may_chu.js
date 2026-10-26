@@ -152,6 +152,58 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 2b. Nhập/cập nhật danh mục nhóm triệu chứng, triệu chứng và bệnh từ Excel
+  if (pathname === '/api/kb/catalog' && req.method === 'POST') {
+    try {
+      const catalog = await parseRequestBody(req);
+      const groups = Array.isArray(catalog.symptomGroups) ? catalog.symptomGroups : [];
+      const symptoms = Array.isArray(catalog.symptoms) ? catalog.symptoms : [];
+      const diseases = Array.isArray(catalog.diseases) ? catalog.diseases : [];
+      db.exec('BEGIN');
+
+      const saveGroup = db.prepare(`
+        INSERT INTO nhom_trieu_chung (ma_nhom, ten_nhom, bieu_tuong, mo_ta) VALUES (?, ?, ?, ?)
+        ON CONFLICT(ma_nhom) DO UPDATE SET ten_nhom=excluded.ten_nhom, bieu_tuong=excluded.bieu_tuong, mo_ta=excluded.mo_ta;
+      `);
+      for (const group of groups) {
+        if (!group.id || !group.name) throw new Error('Nhóm triệu chứng cần có mã và tên.');
+        saveGroup.run(group.id, group.name, group.icon || 'fa-notes-medical', group.description || '');
+      }
+
+      const saveSymptom = db.prepare(`
+        INSERT INTO trieu_chung (ma_trieu_chung, ma_nhom, ten_trieu_chung, cau_hoi_suy_dien_lui, muc_do_canh_bao)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(ma_trieu_chung) DO UPDATE SET ma_nhom=excluded.ma_nhom, ten_trieu_chung=excluded.ten_trieu_chung,
+          cau_hoi_suy_dien_lui=excluded.cau_hoi_suy_dien_lui, muc_do_canh_bao=excluded.muc_do_canh_bao;
+      `);
+      for (const symptom of symptoms) {
+        if (!symptom.id || !symptom.name) throw new Error('Triệu chứng cần có mã và tên.');
+        saveSymptom.run(symptom.id, symptom.groupId, symptom.name, symptom.question || `Bệnh nhân có bị ${symptom.name} không?`, symptom.severity || 'Bình thường');
+      }
+
+      const saveDisease = db.prepare(`
+        INSERT INTO danh_muc_benh (ma_benh, ten_benh, ten_khoa_hoc, nhom_benh, muc_do_nguy_hiem, huong_xu_tri, trieu_chung_canh_bao)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(ma_benh) DO UPDATE SET ten_benh=excluded.ten_benh, ten_khoa_hoc=excluded.ten_khoa_hoc,
+          nhom_benh=excluded.nhom_benh, muc_do_nguy_hiem=excluded.muc_do_nguy_hiem, huong_xu_tri=excluded.huong_xu_tri,
+          trieu_chung_canh_bao=excluded.trieu_chung_canh_bao;
+      `);
+      for (const disease of diseases) {
+        if (!disease.id || !disease.name) throw new Error('Bệnh cần có mã và tên.');
+        saveDisease.run(disease.id, disease.name, disease.scientificName || '', disease.category || '', disease.severity || 'Trung bình',
+          disease.treatment || disease.recommendation || '', disease.warningSigns || '');
+      }
+
+      db.prepare("INSERT INTO nhat_ky_csdl (loai_thao_tac, ten_bang, chi_tiet) VALUES ('NHẬP_DANH_MỤC', 'danh_muc_tri_thuc', ?);")
+        .run(`Nhập Excel: ${groups.length} nhóm, ${symptoms.length} triệu chứng, ${diseases.length} bệnh`);
+      db.exec('COMMIT');
+      return sendJSON(res, 200, { ok: true, counts: { groups: groups.length, symptoms: symptoms.length, diseases: diseases.length } });
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch (rollbackError) {}
+      return sendJSON(res, 400, { ok: false, error: e.message });
+    }
+  }
+
   // 3. Thực thi SQL Console tương tác trực tiếp trên SQLite
   if (pathname === '/api/sql' && req.method === 'POST') {
     try {
