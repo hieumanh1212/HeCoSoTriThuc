@@ -317,14 +317,6 @@
             <label class="form-label" for="formDiseaseName">Tên bệnh:</label>
             <input id="formDiseaseName" class="form-control" required>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="formDiseaseScientificName">Tên khoa học:</label>
-            <input id="formDiseaseScientificName" class="form-control">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="formDiseaseCategory">Nhóm bệnh:</label>
-            <input id="formDiseaseCategory" class="form-control">
-          </div>
           <div class="form-group catalog-form-wide">
             <label class="form-label" for="formDiseaseSeverity">Mức độ nguy hiểm:</label>
             <input id="formDiseaseSeverity" class="form-control" placeholder="Ví dụ: Trung bình, cần theo dõi sát">
@@ -394,7 +386,6 @@
 
         <!-- Middle section: Thống kê & Bảng dữ liệu -->
         <div class="import-data-section">
-          <div id="catalogImportSummary" class="catalog-import-summary" style="display: none;"></div>
           <div class="import-status-bar">
             <div class="status-left">
               <span class="status-title"><i class="fa-solid fa-list-check"></i> Xem trước dữ liệu</span>
@@ -441,11 +432,12 @@
                   <th style="width: 80px; text-align: center;">Hệ số (CF)</th>
                   <th style="width: 160px;">Tiền đề (Mã triệu chứng)</th>
                   <th style="width: 240px;">Mô tả luật</th>
+                  <th style="width: 240px; display: none;"></th>
                 </tr>
               </thead>
               <tbody id="importPreviewTableBody">
                 <tr id="importEmptyRow">
-                  <td colspan="9" class="import-empty-state">
+                  <td colspan="10" class="import-empty-state">
                     <div class="empty-icon-box">
                       <i class="fa-solid fa-file-excel"></i>
                     </div>
