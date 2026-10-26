@@ -43,6 +43,17 @@ class DiagnosisController {
     this.btnCollapseAll = document.getElementById("btnCollapseAll");
     this.btnClear = document.getElementById("btnClearSymptoms");
 
+    // Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
+    this.diagnosisGrid = document.getElementById("diagnosisGrid");
+    this.symptomsCard = document.getElementById("diagnosisSymptomsCard");
+    this.btnToggleCollapseLeft = document.getElementById("btnToggleCollapseLeft");
+    this.leftSectionCollapsedBar = document.getElementById("leftSectionCollapsedBar");
+    this.btnExpandLeftSection = document.getElementById("btnExpandLeftSection");
+    this.collapsedSelectedCount = document.getElementById("collapsedSelectedCount");
+    this.btnRestoreLeftFromRight = document.getElementById("btnRestoreLeftFromRight");
+    this.rightBarSelectedCount = document.getElementById("rightBarSelectedCount");
+    this.isLeftCollapsed = false;
+
     // Right column & Results
     this.resultsContainer = document.getElementById("diagnosisResultsContainer");
     this.selectedCountNumber = document.getElementById("selectedCountNumber");
@@ -116,6 +127,23 @@ class DiagnosisController {
       this.btnClear.addEventListener("click", () => this.clearAll());
     }
 
+    // 5b. Nút Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
+    if (this.btnToggleCollapseLeft) {
+      this.btnToggleCollapseLeft.addEventListener("click", () => this.toggleLeftSection(true));
+    }
+    if (this.btnExpandLeftSection) {
+      this.btnExpandLeftSection.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleLeftSection(false);
+      });
+    }
+    if (this.leftSectionCollapsedBar) {
+      this.leftSectionCollapsedBar.addEventListener("click", () => this.toggleLeftSection(false));
+    }
+    if (this.btnRestoreLeftFromRight) {
+      this.btnRestoreLeftFromRight.addEventListener("click", () => this.toggleLeftSection(false));
+    }
+
     // 6. Nút Thực hiện Suy diễn tiến
     if (this.btnRun) {
       this.btnRun.addEventListener("click", () => {
@@ -177,6 +205,7 @@ class DiagnosisController {
   _handleRuleMouseOver(e) {
     const target = e.target.closest("[data-rule-id]");
     if (!target) return;
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
 
     const ruleId = target.getAttribute("data-rule-id");
     if (!ruleId) return;
@@ -195,6 +224,8 @@ class DiagnosisController {
   _handleRuleMouseOut(e) {
     const target = e.target.closest("[data-rule-id]");
     if (!target) return;
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
     const tooltip = document.getElementById("globalRuleHoverTooltip");
     if (tooltip) {
       tooltip.classList.remove("visible");
@@ -313,8 +344,8 @@ class DiagnosisController {
 
   _positionRuleTooltip(tooltip, target) {
     const rect = target.getBoundingClientRect();
-    const tooltipWidth = 360;
-    const tooltipHeight = 220;
+    const tooltipWidth = tooltip.offsetWidth || 360;
+    const tooltipHeight = tooltip.offsetHeight || 220;
 
     let left = rect.left + rect.width / 2 - tooltipWidth / 2;
     if (left < 10) left = 10;
@@ -325,6 +356,9 @@ class DiagnosisController {
     let top = rect.top - tooltipHeight - 12;
     if (top < 10) {
       top = rect.bottom + 12;
+    }
+    if (top + tooltipHeight > window.innerHeight - 10) {
+      top = Math.max(10, window.innerHeight - tooltipHeight - 10);
     }
 
     tooltip.style.left = `${Math.round(left)}px`;
@@ -601,6 +635,25 @@ class DiagnosisController {
     });
   }
 
+  /* --- 4b. THU NHỎ / MỞ RỘNG SECTION BÊN TRÁI --- */
+  toggleLeftSection(collapse) {
+    const shouldCollapse = collapse !== undefined ? collapse : !this.isLeftCollapsed;
+    this.isLeftCollapsed = shouldCollapse;
+
+    if (this.diagnosisGrid) {
+      this.diagnosisGrid.classList.toggle("left-collapsed", shouldCollapse);
+    }
+    if (this.symptomsCard) {
+      this.symptomsCard.classList.toggle("collapsed", shouldCollapse);
+    }
+    if (this.leftSectionCollapsedBar) {
+      this.leftSectionCollapsedBar.style.display = shouldCollapse ? "flex" : "none";
+    }
+    if (this.btnRestoreLeftFromRight) {
+      this.btnRestoreLeftFromRight.style.display = shouldCollapse ? "inline-flex" : "none";
+    }
+  }
+
   /* --- 5. CẬP NHẬT BADGES & STATS --- */
   updateBadges() {
     const kb = this.kbManager.getKB();
@@ -610,6 +663,8 @@ class DiagnosisController {
     if (this.totalSymptomsCount) this.totalSymptomsCount.textContent = symptoms.length;
     if (this.selectedSymptomsCount) this.selectedSymptomsCount.textContent = totalSelected;
     if (this.selectedCountNumber) this.selectedCountNumber.textContent = totalSelected;
+    if (this.collapsedSelectedCount) this.collapsedSelectedCount.textContent = totalSelected;
+    if (this.rightBarSelectedCount) this.rightBarSelectedCount.textContent = totalSelected;
 
     // Cập nhật thống kê trên từng nhóm
     if (this.container) {
@@ -1139,7 +1194,7 @@ class DiagnosisController {
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span class="badge" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;">
-              <i class="fa-solid fa-code-fork fa-rotate-180"></i> MÔ HÌNH SUY DIỄN HỘI TỤ (A,B→C & E,F→G ➔ C,G→M)
+              <i class="fa-solid fa-code-fork fa-rotate-180"></i> TIẾN TRÌNH SUY DIỄN HỘI TỤ ĐA HỘI CHỨNG
             </span>
             <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Quy tắc hội tụ [${convRule.ruleId}]</span>
           </div>
@@ -1158,13 +1213,24 @@ class DiagnosisController {
           <span style="display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
             <span>Nhánh 1 & Nhánh 2</span>
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <span class="clinical-rule-chip">[${branchesData.map(b => b.rule.ruleId || b.rule.id).join('], [')}]</span>
+            ${branchesData.map(b => {
+              const rId = b.rule.ruleId || b.rule.id;
+              return `<span class="clinical-rule-chip" data-rule-id="${rId}" style="cursor: pointer;" title="Rê chuột xem chi tiết quy tắc ${rId}">
+                <i class="fa-solid fa-bolt"></i> [${rId}]
+              </span>`;
+            }).join(' và ')}
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <strong style="color: #8b5cf6;">${imIds.join(' ∧ ')}</strong>
+            ${parentIms.map(im => `
+              <span class="badge" style="background: rgba(139, 92, 246, 0.18); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.35); font-weight: 700; font-size: 0.76rem; padding: 2px 7px; border-radius: 4px; cursor: help;" title="${im.name} (Độ tin cậy: ${Math.round(im.finalCF * 100)}%)">
+                ${im.id}: ${im.name}
+              </span>
+            `).join(' ∧ ')}
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <span class="clinical-rule-chip" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);">[${convRule.ruleId}] Hội tụ</span>
+            <span class="clinical-rule-chip" data-rule-id="${convRule.ruleId}" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc ${convRule.ruleId}">
+              <i class="fa-solid fa-bolt"></i> [${convRule.ruleId}] Hội tụ
+            </span>
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <strong style="color: var(--color-emerald);">${disMeta.name}</strong> (${finalCF}%)
+            <strong style="color: var(--color-emerald); cursor: help;" title="Chẩn đoán xác định bệnh đích [${disMeta.id}]">${disMeta.name}</strong> (${finalCF}%)
           </span>
         </div>
 
@@ -1172,7 +1238,7 @@ class DiagnosisController {
           <i class="fa-solid fa-comment-medical" style="color: var(--color-primary); margin-right: 0.4rem;"></i>
           <strong>Chu kỳ 1:</strong> Hệ thống kích hoạt song song 2 nhánh tiền đề ban đầu để tổng hợp thành 2 hội chứng trung gian ${branchNames}.<br>
           <i class="fa-solid fa-bolt" style="color: #10b981; margin-right: 0.4rem; margin-top: 0.35rem;"></i>
-          <strong>Chu kỳ 2 (Hội tụ):</strong> Cả 2 hội chứng trung gian đã nạp vào Bộ nhớ làm việc cùng thỏa mãn tiền đề của quy tắc hội tụ <strong>[${convRule.ruleId}] (${imIds.join(' ∧ ')} → ${disMeta.id})</strong> để chẩn đoán xác định bệnh <strong>"${disMeta.name}"</strong> với độ tin cậy <strong>${finalCF}%</strong>.
+          <strong>Chu kỳ 2 (Hội tụ):</strong> Cả 2 hội chứng trung gian đã nạp vào Bộ nhớ làm việc cùng thỏa mãn tiền đề của quy tắc hội tụ <strong>[${convRule.ruleId}]</strong> để chẩn đoán xác định bệnh <strong>"${disMeta.name}"</strong> với độ tin cậy <strong>${finalCF}%</strong>.
         </div>
       </div>
     `;

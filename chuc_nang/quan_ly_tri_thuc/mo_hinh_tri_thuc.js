@@ -564,8 +564,6 @@ class KnowledgeBaseManager {
     const disRows = (kb.diseases || []).map(d => ({
       "Mã Bệnh": d.id,
       "Tên Bệnh Học": d.name,
-      "Tên Khoa Học": d.scientificName || "",
-      "Nhóm Bệnh": d.category || "",
       "Mức Độ Nguy Hiểm": d.severity || "",
       "Hướng Xử Trí & Phác Đồ": d.treatment || d.recommendation || "",
       "Dấu Hiệu Cảnh Báo Nguy Hiểm": d.warningSigns || ""
@@ -600,9 +598,14 @@ class KnowledgeBaseManager {
     return filename;
   }
 
-  downloadExcelTemplate() {
+  downloadExcelTemplate(scope = "all") {
     if (typeof XLSX === "undefined") {
       throw new Error("Thư viện SheetJS chưa được tải!");
+    }
+
+    const supportedScopes = ["all", "rules", "symptoms", "diseases"];
+    if (!supportedScopes.includes(scope)) {
+      throw new Error(`Không hỗ trợ tải mẫu Excel cho phạm vi [${scope}].`);
     }
 
     const wb = XLSX.utils.book_new();
@@ -624,27 +627,30 @@ class KnowledgeBaseManager {
       { wch: 10 }, { wch: 40 }, { wch: 18 }, { wch: 30 },
       { wch: 18 }, { wch: 45 }, { wch: 50 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+    if (scope === "all" || scope === "rules") {
+      XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+    }
 
     // Mẫu triệu chứng
+    const sampleGroupId = (this.getKB().symptomGroups || [])[0]?.id || "group_fever";
     const sampleSyms = [
       {
         "Mã Triệu Chứng": "S99",
-        "Mã Nhóm": "G01",
+        "Mã Nhóm": sampleGroupId,
         "Tên Triệu Chứng": "Triệu chứng mẫu mới",
         "Câu Hỏi Truy Vấn (WHY)": "Bệnh nhân có biểu hiện triệu chứng mẫu này không?",
         "Mức Độ Cảnh Báo": "Bình thường"
       }
     ];
     const wsSyms = XLSX.utils.json_to_sheet(sampleSyms);
-    XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+    if (scope === "all" || scope === "symptoms") {
+      XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+    }
 
     const sampleDiseases = [
       {
         "Mã Bệnh": "D99",
         "Tên Bệnh Học": "Tên bệnh mẫu",
-        "Tên Khoa Học": "Scientific name",
-        "Nhóm Bệnh": "Nhóm bệnh",
         "Mức Độ Nguy Hiểm": "Trung bình",
         "Hướng Xử Trí & Phác Đồ": "Hướng xử trí theo hướng dẫn chuyên môn",
         "Dấu Hiệu Cảnh Báo Nguy Hiểm": "Dấu hiệu cần chuyển khám"
@@ -655,7 +661,9 @@ class KnowledgeBaseManager {
       { wch: 12 }, { wch: 35 }, { wch: 28 }, { wch: 30 }, { wch: 25 },
       { wch: 70 }, { wch: 70 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsDiseases, "DANH_MUC_BENH");
+    if (scope === "all" || scope === "diseases") {
+      XLSX.utils.book_append_sheet(wb, wsDiseases, "DANH_MUC_BENH");
+    }
 
     const sampleGroups = [
       {
@@ -665,7 +673,9 @@ class KnowledgeBaseManager {
         "Mô Tả Phân Loại": "Mô tả nhóm triệu chứng"
       }
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sampleGroups), "NHOM_TRIEU_CHUNG");
+    if (scope === "all") {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sampleGroups), "NHOM_TRIEU_CHUNG");
+    }
 
     // Mẫu hướng dẫn
     const guideRows = [
@@ -677,9 +687,17 @@ class KnowledgeBaseManager {
     ];
     const wsGuide = XLSX.utils.json_to_sheet(guideRows);
     wsGuide["!cols"] = [{ wch: 15 }, { wch: 90 }];
-    XLSX.utils.book_append_sheet(wb, wsGuide, "HUONG_DAN");
+    if (scope === "all") {
+      XLSX.utils.book_append_sheet(wb, wsGuide, "HUONG_DAN");
+    }
 
-    XLSX.writeFile(wb, "Mau_Nhap_Lieu_Tri_Thuc.xlsx");
+    const filenames = {
+      rules: "Mau_Nhap_Tap_Luat.xlsx",
+      symptoms: "Mau_Nhap_Danh_Muc_Trieu_Chung.xlsx",
+      diseases: "Mau_Nhap_Danh_Muc_Benh_Phac_Do.xlsx",
+      all: "Mau_Nhap_Toan_Bo_Tri_Thuc.xlsx"
+    };
+    XLSX.writeFile(wb, filenames[scope]);
   }
 
   async importExcel(input, { scope = "all", includeRules = true, includeCatalog = true } = {}) {
@@ -786,8 +804,6 @@ class KnowledgeBaseManager {
           ...prior,
           id,
           name,
-          scientificName: valueFor(row, key => key.includes("khoahoc") || key.includes("scientific")) || prior.scientificName || "",
-          category: valueFor(row, key => key.includes("nhombenh") || key === "category") || prior.category || "",
           severity: valueFor(row, key => key.includes("nguyhiem") || key === "severity") || prior.severity || "Trung bình",
           treatment: treatment || prior.treatment || prior.recommendation || "",
           recommendation: treatment || prior.recommendation || prior.treatment || "",

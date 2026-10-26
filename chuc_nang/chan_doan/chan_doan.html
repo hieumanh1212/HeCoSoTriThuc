@@ -67,18 +67,36 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="main-wrapper">
-    <div class="diagnosis-grid">
+    <div class="diagnosis-grid" id="diagnosisGrid">
       
       <!-- Cột trái: Toàn bộ danh mục triệu chứng với Custom Dropdown Menu -->
-      <div class="card diagnosis-symptoms-card">
+      <div class="card diagnosis-symptoms-card" id="diagnosisSymptomsCard">
+        
+        <!-- Thanh Mini Bar khi Thu Nhỏ Section Trái -->
+        <div id="leftSectionCollapsedBar" class="left-section-collapsed-bar" style="display: none;" title="Bấm để mở rộng danh mục triệu chứng">
+          <button type="button" id="btnExpandLeftSection" class="btn-expand-left" title="Mở rộng danh mục triệu chứng">
+            <i class="fa-solid fa-angles-right"></i>
+          </button>
+          <div class="collapsed-badge-wrap" title="Số triệu chứng đã chọn">
+            <i class="fa-solid fa-list-check"></i>
+            <span class="collapsed-count" id="collapsedSelectedCount">0</span>
+          </div>
+          <div class="collapsed-vertical-title">
+            <span>Danh mục triệu chứng</span>
+          </div>
+        </div>
+
         <div class="card-header">
           <div class="card-title">
             <i class="fa-solid fa-list-check"></i>
             <span>Danh Mục Triệu Chứng Lâm Sàng</span>
           </div>
-          <div class="card-actions">
+          <div class="card-actions" style="display: flex; align-items: center; gap: 0.45rem;">
             <button id="btnClearSymptoms" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Bỏ chọn tất cả triệu chứng">
               <i class="fa-solid fa-rotate-left"></i> Xóa chọn
+            </button>
+            <button id="btnToggleCollapseLeft" class="btn-secondary btn-collapse-left-action" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Thu nhỏ danh mục triệu chứng (mở rộng bảng kết quả)">
+              <i class="fa-solid fa-angles-left"></i> <span>Thu nhỏ</span>
             </button>
           </div>
         </div>
@@ -154,7 +172,10 @@
             <i class="fa-solid fa-clipboard-check"></i>
             <span>Kết quả Suy luận & Chẩn đoán</span>
           </div>
-          <div class="card-actions">
+          <div class="card-actions" style="display: flex; align-items: center; gap: 0.45rem;">
+            <button id="btnRestoreLeftFromRight" class="btn-secondary btn-restore-left" style="display: none; padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Mở lại danh mục triệu chứng bên trái">
+              <i class="fa-solid fa-list-check"></i> <span>Mở lại triệu chứng (<strong id="rightBarSelectedCount">0</strong>)</span>
+            </button>
             <button id="btnExportPDF" class="btn-secondary" style="display: none;" title="Xuất phiếu kết quả chẩn đoán y tế (PDF)">
               <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Xuất PDF
             </button>

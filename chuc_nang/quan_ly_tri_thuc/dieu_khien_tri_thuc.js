@@ -58,7 +58,6 @@ class KBController {
     this.importedWorkbook = null;
     this.catalogImportRows = [];
     this.catalogImportOnly = false;
-    this.catalogImportSummary = document.getElementById("catalogImportSummary");
     this.errorRowIndices = [];
     this.currentErrorIndex = -1;
 
@@ -111,6 +110,14 @@ class KBController {
     if (this.btnOpenImportModal) {
       this.btnOpenImportModal.innerHTML = `<i class="fa-solid fa-file-import"></i> Nhập ${selected.label}`;
       this.btnOpenImportModal.title = `Chỉ nhập dữ liệu ${selected.label} từ Excel`;
+    }
+    if (this.modalDownloadTemplateLink) {
+      this.modalDownloadTemplateLink.innerHTML = `<i class="fa-solid fa-download"></i> Tải mẫu ${selected.label} (.xlsx)`;
+      this.modalDownloadTemplateLink.title = `Tải tệp mẫu cho ${selected.label}`;
+    }
+    if (this.modalImportExcel && this.modalImportExcel.classList.contains("active")) {
+      this.importScope = selected.id;
+      this.configureImportPreviewColumns();
     }
   }
 
@@ -198,8 +205,6 @@ class KBController {
     kb.diseases.push({
       id,
       name,
-      scientificName: document.getElementById("formDiseaseScientificName").value.trim(),
-      category: document.getElementById("formDiseaseCategory").value.trim(),
       severity: document.getElementById("formDiseaseSeverity").value.trim() || "Trung bình",
       warningSigns: document.getElementById("formDiseaseWarningSigns").value.trim(),
       treatment,
@@ -312,7 +317,7 @@ class KBController {
     if (this.btnDownloadTemplate) {
       this.btnDownloadTemplate.addEventListener("click", () => {
         try {
-          this.kbManager.downloadExcelTemplate();
+          this.kbManager.downloadExcelTemplate(this.excelScope);
           ThongBao.thanhCong("Đã tải tệp mẫu Excel thành công!");
         } catch (err) {
           ThongBao.thatBai(`Lỗi tải mẫu Excel: ${err.message}`);
@@ -323,7 +328,7 @@ class KBController {
     if (this.modalDownloadTemplateLink) {
       this.modalDownloadTemplateLink.addEventListener("click", () => {
         try {
-          this.kbManager.downloadExcelTemplate();
+          this.kbManager.downloadExcelTemplate(this.importScope || this.excelScope);
           ThongBao.thanhCong("Đã tải tệp mẫu chuẩn thành công!");
         } catch (err) {
           ThongBao.thatBai(`Lỗi tải mẫu Excel: ${err.message}`);
@@ -441,17 +446,13 @@ class KBController {
     if (this.countValid) this.countValid.textContent = "0";
     if (this.countInvalid) this.countInvalid.textContent = "0";
     if (this.totalRowsBadge) this.totalRowsBadge.textContent = "0 dòng";
-    if (this.catalogImportSummary) {
-      this.catalogImportSummary.style.display = "none";
-      this.catalogImportSummary.innerHTML = "";
-    }
     const importTitle = document.querySelector(".import-modal-heading");
     if (importTitle) importTitle.textContent = `Nạp ${this.getExcelScopeLabel(this.importScope)} từ Excel`;
 
     if (this.importPreviewTableBody) {
       this.importPreviewTableBody.innerHTML = `
         <tr id="importEmptyRow">
-          <td colspan="9" class="import-empty-state">
+          <td colspan="10" class="import-empty-state">
             <div class="empty-icon-box"><i class="fa-solid fa-file-excel"></i></div>
             <div class="empty-text">Chưa có dữ liệu nào được tải lên</div>
             <div class="empty-subtext">Hãy bấm <strong>"Chọn tệp Excel"</strong> ở trên để nạp và xem trước dữ liệu</div>
@@ -459,6 +460,7 @@ class KBController {
         </tr>
       `;
     }
+    this.configureImportPreviewColumns();
 
     if (this.modalImportExcel) {
       this.modalImportExcel.classList.add("active");
@@ -468,6 +470,30 @@ class KBController {
   handleExcelFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    this.importedParsedRows = [];
+    this.catalogImportRows = [];
+    this.catalogImportOnly = this.importScope !== "rules";
+    this.importedWorkbook = null;
+    this.errorRowIndices = [];
+    this.currentErrorIndex = -1;
+    if (this.btnValidateExcel) this.btnValidateExcel.disabled = true;
+    if (this.btnSubmitImport) this.btnSubmitImport.disabled = true;
+    if (this.countValid) this.countValid.textContent = "0";
+    if (this.countInvalid) this.countInvalid.textContent = "0";
+    if (this.totalRowsBadge) this.totalRowsBadge.textContent = "0 dòng";
+    if (this.errorNavigatorGroup) this.errorNavigatorGroup.style.display = "none";
+    if (this.importPreviewTableBody) {
+      this.importPreviewTableBody.innerHTML = `
+        <tr id="importEmptyRow">
+          <td colspan="10" class="import-empty-state">
+            <div class="empty-icon-box"><i class="fa-solid fa-file-excel"></i></div>
+            <div class="empty-text">Đang đọc dữ liệu từ tệp Excel...</div>
+          </td>
+        </tr>
+      `;
+      this.configureImportPreviewColumns();
+    }
 
     const sizeKB = (file.size / 1024).toFixed(1);
     if (this.selectedFileName) {
@@ -506,7 +532,6 @@ class KBController {
           ? []
           : this.inspectCatalogWorkbook(workbook, this.importScope);
         this.catalogImportOnly = this.importScope !== "rules";
-        this.renderCatalogImportSummary();
 
         if (this.catalogImportOnly) {
           if (this.catalogImportRows.length === 0) {
@@ -518,9 +543,7 @@ class KBController {
           if (this.countInvalid) this.countInvalid.textContent = "0";
           if (this.btnValidateExcel) this.btnValidateExcel.disabled = false;
           if (this.btnSubmitImport) this.btnSubmitImport.disabled = true;
-          if (this.importPreviewTableBody) {
-            this.importPreviewTableBody.innerHTML = `<tr><td colspan="9" class="import-empty-state">Tệp này chứa danh mục triệu chứng/bệnh. Chi tiết xem trước và trạng thái được hiển thị phía trên.</td></tr>`;
-          }
+          this.renderImportPreviewTable();
           return;
         }
 
@@ -646,8 +669,6 @@ class KBController {
       .replace(/[^a-z0-9]/g, "");
     const catalogRows = [];
     const targetType = { symptoms: "symptom", diseases: "disease" }[scope] || scope;
-    const knownGroupIds = new Set((this.kbManager.getKB().symptomGroups || []).map(group => String(group.id).toUpperCase()));
-    const knownGroupNames = new Set((this.kbManager.getKB().symptomGroups || []).map(group => normalize(group.name)));
     const sheetTypes = workbook.SheetNames.map(sheetName => {
       const normalized = normalize(sheetName);
       if (normalized.includes("nhomtrieuchung") || normalized.includes("symptomgroup")) return "group";
@@ -657,21 +678,9 @@ class KBController {
     });
 
     workbook.SheetNames.forEach((sheetName, sheetIndex) => {
-      if (sheetTypes[sheetIndex] !== "group") return;
-      XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" }).forEach(row => {
-        const entries = Object.entries(row).map(([key, value]) => [normalize(key), String(value || "").trim()]);
-        const id = (entries.find(([key, value]) => value && (key.includes("manhom") || key === "id" || key === "groupid")) || ["", ""])[1];
-        const name = (entries.find(([key, value]) => value && (key.includes("tennhom") || key === "name" || key === "groupname")) || ["", ""])[1];
-        if (id) knownGroupIds.add(id.toUpperCase());
-        if (name) knownGroupNames.add(normalize(name));
-      });
-    });
-
-    workbook.SheetNames.forEach((sheetName, sheetIndex) => {
       const type = sheetTypes[sheetIndex];
       if (!type || (scope !== "all" && type !== targetType)) return;
       const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
-      const seenIds = new Set();
       rows.forEach((row, index) => {
         const entries = Object.entries(row).map(([key, value]) => [normalize(key), String(value || "").trim()]);
         const find = predicate => (entries.find(([key, value]) => value && predicate(key)) || ["", ""])[1];
@@ -686,80 +695,111 @@ class KBController {
             ? key.includes("tentrieuchung") || key === "name" || key === "symptomname"
             : key.includes("tenbenh") || key === "name" || key === "diseasename");
         if (!id && !name && entries.every(([, value]) => !value)) return;
-        const errors = [];
-        if (!id) errors.push("Thiếu mã");
-        if (!name) errors.push("Thiếu tên");
-        if (id && !/^[a-zA-Z0-9_-]+$/.test(id)) errors.push("Mã chỉ được gồm chữ, số, _ hoặc -");
-        const normalizedId = id.toUpperCase();
-        if (normalizedId && seenIds.has(normalizedId)) errors.push(`Trùng mã ${id} trong sheet`);
-        if (normalizedId) seenIds.add(normalizedId);
-
+        let fields;
         if (type === "symptom") {
           const groupId = find(key => key.includes("manhom") || key === "groupid");
           const groupName = find(key => key.includes("tennhom") || key === "groupname");
-          if ((groupId || groupName) && !knownGroupIds.has(groupId.toUpperCase()) && !knownGroupNames.has(normalize(groupName || groupId))) {
-            errors.push(`Nhóm triệu chứng [${groupId || groupName}] không tồn tại`);
-          }
-        }
-
-        let detail = "";
-        if (type === "symptom") {
-          detail = find(key => key.includes("cauhoi") || key.includes("question") || key.includes("why"));
+          fields = {
+            groupId,
+            groupName,
+            question: find(key => key.includes("cauhoi") || key.includes("question") || key.includes("why")),
+            severity: find(key => key.includes("canhbao") || key.includes("mucdo") || key === "severity")
+          };
         } else if (type === "disease") {
-          detail = find(key => key.includes("xutri") || key.includes("treatment") || key.includes("phacdo") || key.includes("recommendation"));
-        } else {
-          detail = find(key => key.includes("mota") || key === "description");
+          fields = {
+            severity: find(key => key.includes("nguyhiem") || key === "severity"),
+            treatment: find(key => key.includes("xutri") || key.includes("treatment") || key.includes("phacdo") || key.includes("recommendation")),
+            warningSigns: find(key => key.includes("canhbao") || key.includes("warning"))
+          };
         }
         catalogRows.push({
           type,
-          typeLabel: type === "group" ? "Nhóm triệu chứng" : type === "symptom" ? "Triệu chứng" : "Bệnh/phác đồ",
+          typeLabel: type === "symptom" ? "Triệu chứng" : "Bệnh/phác đồ",
           id,
           name,
-          detail,
+          fields,
           rowNumber: index + 2,
-          status: errors.length ? "INVALID" : "PENDING",
-          errors
+          status: "PENDING",
+          errors: []
         });
       });
     });
     return catalogRows;
   }
 
-  renderCatalogImportSummary() {
-    if (!this.catalogImportSummary) return;
-    if (!this.catalogImportRows.length) {
-      this.catalogImportSummary.style.display = "none";
-      this.catalogImportSummary.innerHTML = "";
-      return;
+  configureImportPreviewColumns() {
+    const headers = Array.from(document.querySelectorAll(".import-table thead th"));
+    if (headers.length === 0) return;
+
+    const common = ["STT", "Tình trạng", "Chi tiết kiểm tra / Lỗi"];
+    const columns = this.importScope === "symptoms"
+      ? [...common, "Mã triệu chứng", "Tên triệu chứng", "Mã nhóm", "Tên nhóm", "Câu hỏi WHY", "Mức cảnh báo"]
+      : this.importScope === "diseases"
+        ? [...common, "Mã bệnh", "Tên bệnh", "Mức độ nguy hiểm", "Hướng xử trí & phác đồ", "Dấu hiệu cảnh báo"]
+        : [...common, "Mã luật", "Tên luật sinh", "Bệnh kết luận", "Hệ số (CF)", "Tiền đề (Mã triệu chứng)", "Mô tả luật"];
+
+    headers.forEach((header, index) => {
+      const visible = index < columns.length;
+      header.textContent = visible ? columns[index] : "";
+      header.style.display = visible ? "" : "none";
+    });
+    const emptyCell = document.getElementById("importEmptyRow")?.querySelector("td");
+    if (emptyCell) emptyCell.colSpan = columns.length;
+  }
+
+  renderCatalogImportPreview() {
+    if (!this.importPreviewTableBody) return;
+    const escapeHtml = value => String(value || "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[char]));
+    const isSymptom = this.importScope === "symptoms";
+    const visibleColumnCount = isSymptom ? 9 : 10;
+
+    this.importPreviewTableBody.innerHTML = this.catalogImportRows.map((row, index) => {
+      const status = row.status || "PENDING";
+      const statusHtml = status === "VALID"
+        ? `<span class="import-badge-valid"><i class="fa-solid fa-circle-check"></i> Hợp lệ</span>`
+        : status === "INVALID"
+          ? `<span class="import-badge-error"><i class="fa-solid fa-circle-xmark"></i> Lỗi</span>`
+          : `<span class="import-badge-pending"><i class="fa-solid fa-clock"></i> Chưa kiểm tra</span>`;
+      const detailHtml = status === "INVALID"
+        ? `<div class="import-error-list">${row.errors.map(error => `<div class="import-error-item"><i class="fa-solid fa-circle-xmark"></i><span>${escapeHtml(error)}</span></div>`).join("")}</div>`
+        : status === "VALID"
+          ? `<div class="import-valid-text"><i class="fa-solid fa-circle-check"></i><span>Dữ liệu hợp lệ</span></div>`
+          : `<span style="color:var(--text-muted);font-size:.8rem;font-style:italic;">Chưa kiểm tra</span>`;
+      const values = isSymptom
+        ? [row.id, row.name, row.fields.groupId, row.fields.groupName, row.fields.question, row.fields.severity]
+        : [row.id, row.name, row.fields.severity, row.fields.treatment, row.fields.warningSigns];
+      const cells = values.map(value => `<td>${escapeHtml(value) || '<span style="color:var(--text-muted)">-</span>'}</td>`).join("");
+
+      return `<tr class="${status === "INVALID" ? "import-row-error" : status === "VALID" ? "import-row-valid" : ""}" data-row-index="${index}">
+        <td style="text-align:center;font-weight:600;">${row.stt || row.rowNumber || index + 1}</td>
+        <td style="text-align:center;">${statusHtml}</td>
+        <td class="cell-error-detail">${detailHtml}</td>
+        ${cells}
+      </tr>`;
+    }).join("");
+
+    const empty = this.importPreviewTableBody.querySelector("#importEmptyRow");
+    if (empty) {
+      const cell = empty.querySelector("td");
+      if (cell) cell.colSpan = visibleColumnCount;
     }
-    const counts = this.catalogImportRows.reduce((result, row) => {
-      result[row.typeLabel] = (result[row.typeLabel] || 0) + 1;
-      return result;
-    }, {});
-    const escape = value => String(value || "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-    this.catalogImportSummary.style.display = "block";
-    this.catalogImportSummary.innerHTML = `
-      <strong>Nội dung danh mục:</strong> ${Object.entries(counts).map(([label, count]) => `${label}: ${count}`).join(" · ")}
-      <div class="catalog-import-preview">
-        ${this.catalogImportRows.map(row => `
-          <div class="catalog-import-row ${row.status === "INVALID" ? "invalid" : ""}">
-            <span>${escape(row.typeLabel)}</span>
-            <strong>${escape(row.id || "[Thiếu mã]")}</strong>
-            <span>${escape(row.name || "[Thiếu tên]")}</span>
-            <span>${escape(row.errors.join("; ") || row.detail || (row.status === "VALID" ? "Hợp lệ" : "Chờ kiểm tra"))}</span>
-          </div>
-        `).join("")}
-      </div>
-    `;
   }
 
   renderImportPreviewTable() {
     if (!this.importPreviewTableBody) return;
+    this.configureImportPreviewColumns();
+
+    if (this.catalogImportOnly) {
+      this.renderCatalogImportPreview();
+      return;
+    }
 
     if (!this.importedParsedRows || this.importedParsedRows.length === 0) {
       this.importPreviewTableBody.innerHTML = `
         <tr id="importEmptyRow">
-          <td colspan="9" class="import-empty-state">
+          <td colspan="10" class="import-empty-state">
             <div class="empty-icon-box"><i class="fa-solid fa-file-excel"></i></div>
             <div class="empty-text">Chưa có dữ liệu nào được tải lên</div>
             <div class="empty-subtext">Hãy bấm <strong>"Chọn tệp Excel"</strong> ở trên để nạp và xem trước dữ liệu</div>
@@ -929,12 +969,65 @@ class KBController {
         return;
       }
 
-      const validCount = this.catalogImportRows.filter(row => row.errors.length === 0).length;
+      const normalize = value => String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/gi, "d")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      const groups = this.kbManager.getKB().symptomGroups || [];
+      const groupIds = new Set(groups.map(group => String(group.id).toUpperCase()));
+      const groupNames = new Set(groups.map(group => normalize(group.name)));
+      const seenIds = new Map();
+
+      this.catalogImportRows.forEach((row, index) => {
+        const errors = [];
+        const id = String(row.id || "").trim();
+        const name = String(row.name || "").trim();
+        const normalizedId = id.toUpperCase();
+
+        if (!id) errors.push("Mã không được để trống");
+        else if (!/^[a-zA-Z0-9_-]+$/.test(id)) errors.push(`Mã [${id}] không đúng định dạng (chỉ gồm chữ, số, _ hoặc -)`);
+        if (!name) errors.push("Tên không được để trống");
+
+        if (normalizedId) {
+          if (seenIds.has(normalizedId)) {
+            errors.push(`Trùng mã [${id}] với dòng ${seenIds.get(normalizedId)} trong file`);
+          } else {
+            seenIds.set(normalizedId, row.rowNumber || index + 1);
+          }
+        }
+
+        if (row.type === "symptom") {
+          const groupId = String(row.fields.groupId || "").trim();
+          const groupName = String(row.fields.groupName || "").trim();
+          if ((groupId || groupName) &&
+            !groupIds.has(groupId.toUpperCase()) &&
+            !groupNames.has(normalize(groupName || groupId))) {
+            errors.push(`Nhóm triệu chứng [${groupId || groupName}] không tồn tại`);
+          }
+        }
+
+        row.errors = errors;
+        row.status = errors.length ? "INVALID" : "VALID";
+      });
+
+      const validCount = this.catalogImportRows.filter(row => row.status === "VALID").length;
       const invalidCount = this.catalogImportRows.length - validCount;
-      this.catalogImportRows.forEach(row => { row.status = row.errors.length ? "INVALID" : "VALID"; });
-      this.renderCatalogImportSummary();
+      this.errorRowIndices = this.catalogImportRows
+        .map((row, index) => row.status === "INVALID" ? index : -1)
+        .filter(index => index >= 0);
       if (this.countValid) this.countValid.textContent = validCount;
       if (this.countInvalid) this.countInvalid.textContent = invalidCount;
+      this.renderImportPreviewTable();
+      if (this.totalRowsBadge) this.totalRowsBadge.textContent = `${this.catalogImportRows.length} dòng`;
+      if (this.errorRowIndices.length > 0) {
+        if (this.errorNavigatorGroup) this.errorNavigatorGroup.style.display = "inline-flex";
+        this.jumpToError(0);
+      } else {
+        this.currentErrorIndex = -1;
+        if (this.errorNavigatorGroup) this.errorNavigatorGroup.style.display = "none";
+      }
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = validCount === 0 || invalidCount > 0;
       if (invalidCount === 0 && validCount > 0) {
         ThongBao.thanhCong(`Kiểm tra hoàn tất: ${validCount} dòng danh mục hợp lệ. Có thể nạp vào CSDL.`);
@@ -1072,7 +1165,6 @@ class KBController {
     });
 
     this.catalogImportRows.forEach(row => { row.status = row.errors.length ? "INVALID" : "VALID"; });
-    this.renderCatalogImportSummary();
     const catalogValidCount = this.catalogImportRows.filter(row => row.status === "VALID").length;
     const catalogInvalidCount = this.catalogImportRows.length - catalogValidCount;
     const totalValidCount = validCount + catalogValidCount;
@@ -1679,7 +1771,7 @@ class KBController {
       optHtml += `</optgroup>`;
 
       if (intermediateList.length > 0) {
-        optHtml += `<optgroup label="2. Hội chứng trung gian (A+B &rarr; C)">`;
+        optHtml += `<optgroup label="2. Hội chứng lâm sàng trung gian">`;
         optHtml += intermediateList.map(hc => {
           const isSelected = hc.id === selectedConclusion;
           return `<option value="${hc.id}" ${isSelected ? 'selected' : ''}>[${hc.id}] ${hc.name} (Hội chứng)</option>`;
