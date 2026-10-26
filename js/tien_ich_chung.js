@@ -229,15 +229,19 @@ class XacNhanHeThong {
     this.modalEl = modal;
   }
 
-  hienThi({
-    title = "Xác nhận thao tác",
-    message = "Bạn có chắc chắn muốn thực hiện hành động này?",
-    detail = "",
-    type = "danger", // danger, warning, info, success
-    confirmText = "Đồng ý",
-    cancelText = "Hủy bỏ",
-    icon = null
-  } = {}) {
+  hienThi(options = {}) {
+    if (typeof options === "string") {
+      options = { message: options };
+    }
+    const {
+      title = "Xác nhận thao tác",
+      message = "Bạn có chắc chắn muốn thực hiện hành động này?",
+      detail = "",
+      type = "danger", // danger, warning, info, success
+      confirmText = "Đồng ý",
+      cancelText = "Hủy bỏ",
+      icon = null
+    } = options;
     this.initDOM();
     return new Promise((resolve) => {
       this.currentResolver = resolve;
@@ -356,6 +360,7 @@ class XacNhanHeThong {
 // Khởi tạo đối tượng toàn cục
 window.XacNhan = new XacNhanHeThong();
 window.ModalConfirm = window.XacNhan;
+window.ModalXacNhan = window.XacNhan;
 window.confirmAsync = (msg, options) => window.XacNhan.hienThi({ message: msg, ...options });
 
 // ============================================================================

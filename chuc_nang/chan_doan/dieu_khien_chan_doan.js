@@ -43,6 +43,17 @@ class DiagnosisController {
     this.btnCollapseAll = document.getElementById("btnCollapseAll");
     this.btnClear = document.getElementById("btnClearSymptoms");
 
+    // Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
+    this.diagnosisGrid = document.getElementById("diagnosisGrid");
+    this.symptomsCard = document.getElementById("diagnosisSymptomsCard");
+    this.btnToggleCollapseLeft = document.getElementById("btnToggleCollapseLeft");
+    this.leftSectionCollapsedBar = document.getElementById("leftSectionCollapsedBar");
+    this.btnExpandLeftSection = document.getElementById("btnExpandLeftSection");
+    this.collapsedSelectedCount = document.getElementById("collapsedSelectedCount");
+    this.btnRestoreLeftFromRight = document.getElementById("btnRestoreLeftFromRight");
+    this.rightBarSelectedCount = document.getElementById("rightBarSelectedCount");
+    this.isLeftCollapsed = false;
+
     // Right column & Results
     this.resultsContainer = document.getElementById("diagnosisResultsContainer");
     this.selectedCountNumber = document.getElementById("selectedCountNumber");
@@ -114,6 +125,23 @@ class DiagnosisController {
     // 5. Nút Xóa tất cả
     if (this.btnClear) {
       this.btnClear.addEventListener("click", () => this.clearAll());
+    }
+
+    // 5b. Nút Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
+    if (this.btnToggleCollapseLeft) {
+      this.btnToggleCollapseLeft.addEventListener("click", () => this.toggleLeftSection(true));
+    }
+    if (this.btnExpandLeftSection) {
+      this.btnExpandLeftSection.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleLeftSection(false);
+      });
+    }
+    if (this.leftSectionCollapsedBar) {
+      this.leftSectionCollapsedBar.addEventListener("click", () => this.toggleLeftSection(false));
+    }
+    if (this.btnRestoreLeftFromRight) {
+      this.btnRestoreLeftFromRight.addEventListener("click", () => this.toggleLeftSection(false));
     }
 
     // 6. Nút Thực hiện Suy diễn tiến
@@ -607,6 +635,25 @@ class DiagnosisController {
     });
   }
 
+  /* --- 4b. THU NHỎ / MỞ RỘNG SECTION BÊN TRÁI --- */
+  toggleLeftSection(collapse) {
+    const shouldCollapse = collapse !== undefined ? collapse : !this.isLeftCollapsed;
+    this.isLeftCollapsed = shouldCollapse;
+
+    if (this.diagnosisGrid) {
+      this.diagnosisGrid.classList.toggle("left-collapsed", shouldCollapse);
+    }
+    if (this.symptomsCard) {
+      this.symptomsCard.classList.toggle("collapsed", shouldCollapse);
+    }
+    if (this.leftSectionCollapsedBar) {
+      this.leftSectionCollapsedBar.style.display = shouldCollapse ? "flex" : "none";
+    }
+    if (this.btnRestoreLeftFromRight) {
+      this.btnRestoreLeftFromRight.style.display = shouldCollapse ? "inline-flex" : "none";
+    }
+  }
+
   /* --- 5. CẬP NHẬT BADGES & STATS --- */
   updateBadges() {
     const kb = this.kbManager.getKB();
@@ -616,6 +663,8 @@ class DiagnosisController {
     if (this.totalSymptomsCount) this.totalSymptomsCount.textContent = symptoms.length;
     if (this.selectedSymptomsCount) this.selectedSymptomsCount.textContent = totalSelected;
     if (this.selectedCountNumber) this.selectedCountNumber.textContent = totalSelected;
+    if (this.collapsedSelectedCount) this.collapsedSelectedCount.textContent = totalSelected;
+    if (this.rightBarSelectedCount) this.rightBarSelectedCount.textContent = totalSelected;
 
     // Cập nhật thống kê trên từng nhóm
     if (this.container) {
