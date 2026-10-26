@@ -72,23 +72,13 @@
     <!-- TOOLBAR ĐIỀU KHIỂN & BỘ CHỌN CA BỆNH LÂM SÀNG Y TẾ -->
     <div class="graph-toolbar">
       <div class="graph-controls">
-
-        <!-- Chuyển đổi chế độ Đồ thị RPG vs FPG -->
-        <div style="display: flex; gap: 0.35rem; background: rgba(15, 23, 42, 0.4); padding: 0.2rem; border-radius: 8px; border: 1px solid var(--border-color); margin-right: 0.5rem;">
-          <button id="btnModeRPG" class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;" title="Mạng Petri Luật sinh: Place (Sự kiện) &harr; Transition (Luật)">
-            <i class="fa-solid fa-diagram-project"></i> Mạng RPG (Luật)
-          </button>
-          <button id="btnModeFPG" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;" title="Mạng Quan hệ Phụ thuộc Sự kiện: Fact &rarr; Fact">
-            <i class="fa-solid fa-network-wired"></i> Mạng FPG (Sự kiện)
-          </button>
-        </div>
-
-        <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
-          Lọc theo bệnh:
+        <label
+          style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem;">
+          <i class="fa-solid fa-hospital-user" style="color: #38bdf8;"></i> Ca bệnh lâm sàng:
         </label>
-        <select id="rpgDiseaseFilter" class="form-control" style="width: 250px; padding: 0.45rem 0.75rem;">
-          <option value="ALL">-- Toàn bộ mạng luật --</option>
-
+        <select id="rpgCaseSelect" class="form-control"
+          style="width: 380px; padding: 0.45rem 0.75rem; font-weight: 600;">
+          <!-- Nạp động danh sách ca bệnh y tế -->
         </select>
 
         <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i></button>
@@ -111,15 +101,9 @@
           <span class="legend-shape shape-r-fired"></span>
           <span>Đã kích hoạt (VET)</span>
         </div>
-
-        <div class="legend-item">
-          <span class="legend-shape shape-place" style="border-color: #a78bfa; background: rgba(139, 92, 246, 0.25);"></span>
-          <span>Hội chứng trung gian (Intermediate)</span>
-        </div>
-        <div class="legend-item" id="legendTransitionItem">
-          <span class="legend-shape shape-trans"></span>
-          <span>Luật sinh (Transition)</span>
-
+        <div class="legend-item" title="Luật trung gian trong mạng luật y tế">
+          <span class="legend-shape shape-r-mid"></span>
+          <span>Luật trung gian <i>R</i> &isin; R</span>
         </div>
         <div class="legend-item" title="Cung R_i → R_j: kết luận hội chứng của R_i là tiền đề của R_j">
           <span class="legend-arrow">R<sub>i</sub> <i class="fa-solid fa-arrow-right"></i> R<sub>j</sub></span>
@@ -194,7 +178,8 @@
     <div class="card" style="margin-top: 1.5rem; padding: 1.25rem;">
       <h3
         style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
-        <i class="fa-solid fa-list-check" style="color: #10b981;"></i> Bảng Nhật Ký Diễn Biến Suy Diễn Tiến Chẩn Đoán (Đồ Thị RPG)
+        <i class="fa-solid fa-list-check" style="color: #10b981;"></i> Bảng Nhật Ký Diễn Biến Suy Diễn Tiến Chẩn Đoán
+        (Đồ Thị RPG)
       </h3>
       <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
         Tại mỗi chu kỳ chẩn đoán, hệ thống đánh giá hàm lượng giá <strong>h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr;
@@ -225,7 +210,8 @@
     <div class="card" style="margin-top: 1.5rem; padding: 1.25rem;">
       <h3
         style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
-        <i class="fa-solid fa-table-list" style="color: #38bdf8;"></i> Bảng Đánh Giá Hàm Lượng Giá Heuristic Trên Đồ Thị RPG: h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr; min
+        <i class="fa-solid fa-table-list" style="color: #38bdf8;"></i> Bảng Đánh Giá Hàm Lượng Giá Heuristic Trên Đồ Thị
+        RPG: h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr; min
       </h3>
       <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
         Áp dụng lý thuyết <em>"Mô tơ suy diễn"</em>: Luật y tế <strong>r</strong> được ưu tiên chọn
@@ -521,44 +507,11 @@
         }
       });
 
-
       btnAutoSim.addEventListener("click", () => {
         if (!simulationResult || !simulationResult.steps) return;
         currentStepIndex = simulationResult.steps.length - 1;
         updateSimulationUI();
       });
-
-      const btnModeRPG = document.getElementById("btnModeRPG");
-      const btnModeFPG = document.getElementById("btnModeFPG");
-      const legendTransitionItem = document.getElementById("legendTransitionItem");
-
-      function setMode(mode) {
-        if (mode === "RPG") {
-          btnModeRPG.className = "btn-primary";
-          btnModeFPG.className = "btn-secondary";
-          if (legendTransitionItem) legendTransitionItem.style.display = "flex";
-        } else {
-          btnModeRPG.className = "btn-secondary";
-          btnModeFPG.className = "btn-primary";
-          if (legendTransitionItem) legendTransitionItem.style.display = "none";
-        }
-        rpgVisualizer.setGraphMode(mode);
-      }
-
-      if (btnModeRPG) btnModeRPG.addEventListener("click", () => setMode("RPG"));
-      if (btnModeFPG) btnModeFPG.addEventListener("click", () => setMode("FPG"));
-
-      // Kiểm tra focus bệnh và chế độ đồ thị từ URL query (?focus=D01&mode=FPG)
-      const urlParams = new URLSearchParams(window.location.search);
-      const focusDisease = urlParams.get("focus");
-      if (focusDisease) {
-        const filterSelect = document.getElementById("rpgDiseaseFilter");
-        if (filterSelect) filterSelect.value = focusDisease;
-      }
-      const modeParam = urlParams.get("mode");
-      if (modeParam === "FPG" || modeParam === "RPG") {
-        setMode(modeParam);
-      }
 
       btnResetSim.addEventListener("click", () => {
         initSimulation();

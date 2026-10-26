@@ -1,10 +1,7 @@
 /**
-
- * FEATURE MODULE: GRAPH VISUALIZER (RPG - RULE PETRI GRAPH & FPG - FACT DEPENDENCY GRAPH)
- * Trực quan hóa Mạng Petri Luật sinh (RPG) và Mạng Quan hệ Phụ thuộc Sự kiện (FPG)
- * Hỗ trợ suy diễn đa tầng: Tiền đề cơ sở -> Hội chứng trung gian -> Bệnh đích.
- * Tuân thủ nghiêm ngặt chuẩn Cognitive Complexity < 10 của SonarQube.
-
+ * FEATURE MODULE: RPG VISUALIZER (RULES PRECEDENCE GRAPH) - BÀI TOÁN Y TẾ
+ * Áp dụng lý thuyết: "Mô tơ suy diễn" - TS. Nguyễn Quốc Tuấn (Slide 22 - 23)
+ * Trực quan hóa Mạng liên hệ trước giữa các luật chẩn đoán Y tế
  */
 
 class RPGVisualizer {
@@ -15,17 +12,9 @@ class RPGVisualizer {
 
     this.selectedCase = null;
     this.rpgData = null;
-    
-    this.kb = null;
-    this.activeFacts = new Set();
-    this.firedRules = new Set();
-    this.selectedDiseaseFilter = "ALL";
-    this.graphMode = "RPG"; // 'RPG' | 'FPG'
-
-    this.scale = 0.85;
-    this.offsetX = 40;
-    this.offsetY = 30;
-
+    this.scale = 0.95;
+    this.offsetX = 50;
+    this.offsetY = 40;
 
     this.isDragging = false;
     this.dragStartX = 0;
@@ -46,14 +35,6 @@ class RPGVisualizer {
 
     this.initEvents();
     this.resizeCanvas();
-  }
-
-  setGraphMode(mode) {
-    if (this.graphMode !== mode) {
-      this.graphMode = mode;
-      this.buildGraph();
-      this.autoFit();
-    }
   }
 
   resizeCanvas() {
@@ -141,35 +122,16 @@ class RPGVisualizer {
       const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
       const newScale = Math.max(0.3, Math.min(2.5, this.scale * zoomFactor));
 
-  _findNodeAt(mouseX, mouseY) {
-    for (const node of this.nodes) {
-      if (node.type === "FACT" || node.type === "INTERMEDIATE") {
-        const dist = Math.hypot(mouseX - node.x, mouseY - node.y);
-        if (dist <= (node.radius || 20) + 6) return node;
-      } else {
-        const halfW = (node.width || 80) / 2 + 4;
-        const halfH = (node.height || 40) / 2 + 4;
-        if (mouseX >= node.x - halfW && mouseX <= node.x + halfW &&
-            mouseY >= node.y - halfH && mouseY <= node.y + halfH) {
-          return node;
-        }
-      }
-    }
-    return null;
-  }
-
-  zoom(factor, clientX = null, clientY = null) {
-    const prevScale = this.scale;
-    this.scale = Math.min(2.5, Math.max(0.25, this.scale * factor));
-
-    if (clientX !== null && clientY !== null) {
       const rect = this.canvas.getBoundingClientRect();
-      const canvasX = clientX - rect.left;
-      const canvasY = clientY - rect.top;
-      this.offsetX = canvasX - (canvasX - this.offsetX) * (this.scale / prevScale);
-      this.offsetY = canvasY - (canvasY - this.offsetY) * (this.scale / prevScale);
-    }
-    this.render();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      this.offsetX = mouseX - (mouseX - this.offsetX) * (newScale / this.scale);
+      this.offsetY = mouseY - (mouseY - this.offsetY) * (newScale / this.scale);
+      this.scale = newScale;
+
+      this.render();
+    });
   }
 
   findNodeAt(x, y) {
@@ -181,7 +143,8 @@ class RPGVisualizer {
   }
 
   zoomIn() {
-    this.zoom(1.2);
+    this.scale = Math.min(2.5, this.scale * 1.2);
+    this.render();
   }
 
   zoomOut() {
@@ -294,7 +257,6 @@ class RPGVisualizer {
       this.nodes.push(node);
       nodeMap.set(r.id, node);
     });
-  }
 
     // 2. Tạo node luật Tầng 2
     stage2Rules.forEach((r, idx) => {
@@ -339,60 +301,6 @@ class RPGVisualizer {
     });
   }
 
-  _buildFPG() {
-    const { targetRules, targetDiseases } = this._filterRulesAndDiseases();
-    const intermediateIds = new Set(
-      (this.kb.symptoms || []).filter(s => s.isIntermediate || String(s.id).startsWith("HC")).map(s => s.id)
-    );
-
-    const primitiveSymptoms = [];
-    const intermediateSymptoms = [];
-
-    const usedPremiseIds = new Set();
-    targetRules.forEach(r => (r.premises || []).forEach(p => usedPremiseIds.add(p)));
-
-    (this.kb.symptoms || []).forEach(s => {
-      const isUsed = usedPremiseIds.has(s.id) || targetRules.some(r => r.conclusion === s.id);
-      if (!isUsed) return;
-      if (intermediateIds.has(s.id)) {
-        intermediateSymptoms.push(s);
-      } else {
-        primitiveSymptoms.push(s);
-      }
-    });
-
-    const colX = {
-      primitives: 260,
-      intermediates: 660,
-      diseases: 1060
-    };
-
-    const nodeMap = new Map();
-    this._layoutFactNodes(primitiveSymptoms, colX.primitives, "FACT", nodeMap);
-    this._layoutFactNodes(intermediateSymptoms, colX.intermediates, "INTERMEDIATE", nodeMap);
-    this._layoutDiseaseNodes(targetDiseases, colX.diseases, targetRules, nodeMap);
-
-    // Xây dựng cung trực tiếp giữa các Sự kiện qua luật
-    targetRules.forEach(r => {
-      const targetNode = nodeMap.get(r.conclusion);
-      if (!targetNode) return;
-
-      const isRuleActive = this.firedRules.has(r.id);
-
-      (r.premises || []).forEach(pId => {
-        const sourceNode = nodeMap.get(pId);
-        if (sourceNode) {
-          this.edges.push({
-            from: sourceNode,
-            to: targetNode,
-            isFired: sourceNode.isActive && isRuleActive,
-            label: `${r.id} (${r.cf})`
-          });
-        }
-      });
-    });
-  }
-
   render() {
     if (!this.canvas || !this.ctx) return;
     const ctx = this.ctx;
@@ -408,23 +316,7 @@ class RPGVisualizer {
     ctx.fillStyle = isLight ? "#f8fafc" : "#0b1120";
     ctx.fillRect(0, 0, width, height);
 
-    this._drawGrid(ctx, width, height, isLight);
-
-    ctx.save();
-    ctx.translate(this.offsetX, this.offsetY);
-    ctx.scale(this.scale, this.scale);
-
-    this.edges.forEach(edge => this.drawEdge(ctx, edge, isLight));
-    this.nodes.forEach(node => this.drawNode(ctx, node, isLight));
-
-    if (this.hoveredNode) {
-      this.drawTooltip(ctx, this.hoveredNode, isLight);
-    }
-
-    ctx.restore();
-  }
-
-  _drawGrid(ctx, width, height, isLight) {
+    // Grid chấm nền
     ctx.save();
     ctx.fillStyle = isLight ? "rgba(100, 116, 139, 0.2)" : "rgba(148, 163, 184, 0.12)";
     const dotSize = 1.5;
@@ -435,7 +327,7 @@ class RPGVisualizer {
     for (let x = startX; x < width; x += dotGap) {
       for (let y = startY; y < height; y += dotGap) {
         ctx.beginPath();
-        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx.arc(x, y, dotSize, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -499,11 +391,13 @@ class RPGVisualizer {
     const endY = to.y;
 
     const cp1X = startX + (endX - startX) * 0.5;
-    const cp2X = cp1X;
+    const cp1Y = startY;
+    const cp2X = startX + (endX - startX) * 0.5;
+    const cp2Y = endY;
 
     ctx.beginPath();
     ctx.moveTo(startX, startY);
-    ctx.bezierCurveTo(cp1X, startY, cp2X, endY, endX, endY);
+    ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
 
     if (isEdgeActive) {
       ctx.strokeStyle = "#10b981";
@@ -522,16 +416,6 @@ class RPGVisualizer {
     }
 
     ctx.stroke();
-    this.drawArrowHead(ctx, cp2X, endY, endX, endY, isFired ? "#10b981" : (isLight ? "#64748b" : "#94a3b8"));
-
-    if (label) {
-      const midX = (startX + endX) / 2;
-      const midY = (startY + endY) / 2 - 6;
-      ctx.fillStyle = isLight ? "#475569" : "#94a3b8";
-      ctx.font = "bold 9px Inter, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(label, midX, midY);
-    }
 
     // Mũi tên
     const arrowAngle = Math.atan2(endY - cp2Y, endX - cp2X);
@@ -724,19 +608,8 @@ class RPGVisualizer {
         ctx.stroke();
       }
     }
-    ctx.fill();
-    ctx.stroke();
 
-    ctx.fillStyle = node.isActive ? "#ffffff" : (isLight ? "#991b1b" : "#ffffff");
-    ctx.font = "bold 13px Inter, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillText(node.label, node.x, y + 9);
-
-    ctx.fillStyle = node.isActive ? "#fee2e2" : (isLight ? "#475569" : "#cbd5e1");
-    ctx.font = "11px Inter, sans-serif";
-    const shortDis = node.subLabel.length > 20 ? node.subLabel.substring(0, 18) + "..." : node.subLabel;
-    ctx.fillText(shortDis, node.x, y + 28);
+    ctx.restore();
   }
 
   drawBadgeText(ctx, text, x, y, color, isLight) {
