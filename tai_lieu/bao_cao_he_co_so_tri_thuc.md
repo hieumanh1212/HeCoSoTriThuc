@@ -129,12 +129,20 @@ Hệ thống được thiết kế dạng Single Page Application không phụ t
 * `js/kb_manager.js`: Quản trị tri thức (CRUD, Import/Export JSON, LocalStorage).
 * `js/app.js`: Điều phối giao diện người dùng.
 
-### 5.2. Biểu diễn Đồ thị Mạng luật RPG (Rule Petri Graph)
-Đồ thị Petri mạng luật được mô hình hóa theo lý thuyết hệ chuyên gia chuẩn:
-* **Places (Nút tròn):** Biểu diễn các Sự kiện/Triệu chứng ($S$) và Bệnh kết luận ($D$).
-* **Transitions (Nút chữ nhật):** Biểu diễn các Luật sinh ($R$) kèm hệ số $CF$.
-* **Directed Arcs (Cung có hướng):** Nối từ Fact Place $\rightarrow$ Rule Transition $\rightarrow$ Goal Place.
-* **Active Tokens:** Khi suy diễn thành công, các nút và đường đi tham gia vào kết luận sẽ tự động phát sáng (Emerald Glow), cho phép người dùng trực quan hóa chính xác đường đi suy luận logic.
+### 5.2. Biểu diễn Trực quan hóa Đồ thị kép RPG (Rule Petri Graph) & FPG (Fact Dependency Graph)
+Hệ thống cung cấp 2 góc nhìn trực quan hóa mạnh mẽ cho chuỗi suy luận logic:
+1. **Đồ thị Mạng luật RPG (Rule Petri Graph):**
+   * **Places (Nút tròn):** 
+     - Triệu chứng cơ sở ($S_i$): Vòng tròn xanh lục/xanh dương.
+     - Hội chứng trung gian ($HC_i$): Vòng tròn màu tím đặc trưng, vừa là Output Place của luật cấp 1, vừa là Input Place của luật cấp 2.
+     - Bệnh kết luận đích ($D_j$): Khung bo tròn màu đỏ.
+   * **Transitions (Nút chữ nhật):** Biểu diễn các Luật sinh ($R_k$) kèm hệ số $CF$.
+   * **Directed Arcs (Cung có hướng):** Nối từ Fact Place $\rightarrow$ Rule Transition $\rightarrow$ Intermediate Place $\rightarrow$ Next Rule $\rightarrow$ Goal Place.
+   * **Active Glow:** Đường dẫn logic kích hoạt phát sáng màu xanh ngọc bích rực rỡ (Emerald Glow).
+
+2. **Đồ thị Mạng Sự kiện FPG (Fact Dependency Graph):**
+   * Tập trung trực tiếp vào mạng lưới phụ thuộc giữa các sự kiện lâm sàng: $\{A, B\} \xrightarrow{R_1} C$ và $\{C, D\} \xrightarrow{R_2} E$.
+   * Trên mỗi cung nối trực tiếp hiển thị mã luật và hệ số tin cậy tương ứng, giúp chuyên gia quan sát cây phân cấp tri thức từ triệu chứng $\rightarrow$ hội chứng $\rightarrow$ bệnh đích.
 
 ### 5.3. Biểu diễn Đồ thị Ưu tiên Sự kiện FPG (Fact Precedence Graph) & Mạng Ngữ Nghĩa Luật
 Bên cạnh mạng luật RPG tập trung vào luật sinh, hệ thống tích hợp phân hệ **Đồ thị FPG** dựa trên cấu trúc lý thuyết học phần (Slide Tuần 5 - Tuần 6 của Thầy Phạm Văn Hải):

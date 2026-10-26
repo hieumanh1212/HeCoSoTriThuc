@@ -66,15 +66,99 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="main-wrapper">
-    <div style="margin-bottom: 1.5rem;">
-      <h2 style="font-size: 1.25rem; font-weight: 700;">Bộ Ca Bệnh Kiểm Thử Mẫu Lâm Sàng (Benchmark)</h2>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-        Kiểm chứng độ chính xác và tính tương đồng của hệ chuyên gia so với chẩn đoán chuẩn của bác sĩ lâm sàng.
-      </p>
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h2 style="font-size: 1.25rem; font-weight: 700;">Bộ Ca Bệnh Kiểm Thử Mẫu Lâm Sàng (Benchmark)</h2>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+          Kiểm chứng độ chính xác và tính tương đồng của hệ chuyên gia so với chẩn đoán chuẩn của bác sĩ lâm sàng.
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button id="btnResetTestCases" class="btn-secondary" title="Khôi phục danh sách ca mẫu về mặc định">
+          <i class="fa-solid fa-rotate-left"></i> Khôi phục mặc định
+        </button>
+        <button id="btnOpenAddTestCaseModal" class="btn-primary">
+          <i class="fa-solid fa-plus"></i> Thêm ca kiểm thử mới
+        </button>
+      </div>
     </div>
 
     <div class="test-cases-grid" id="testCasesContainer"></div>
   </main>
+
+  <!-- ==================== MODAL: THÊM / SỬA CA KIỂM THỬ ==================== -->
+  <div id="modalTestCaseForm" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-vial-circle-check" style="color: var(--color-primary);"></i>
+          <span id="modalTcTitle">Thêm Ca Bệnh Kiểm Thử Mới</span>
+        </div>
+        <button class="modal-close-btn" data-close="modalTestCaseForm">&times;</button>
+      </div>
+
+      <form id="formTestCase" onsubmit="return false;">
+        <div class="modal-form-grid">
+          <div class="form-group">
+            <label class="form-label" for="tcFormId">Mã Ca Kiểm Thử (ID)</label>
+            <input type="text" id="tcFormId" class="form-control" placeholder="Tự sinh (VD: TC06)" />
+            <small style="font-size: 0.72rem; color: var(--text-muted);">Để trống hệ thống sẽ tự động tạo mã kế tiếp</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="tcFormDisease">Chẩn Đoán Kết Luận Chuẩn (Bác sĩ) <span style="color: #ef4444;">*</span></label>
+            <select id="tcFormDisease" class="form-control" required></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tcFormName">Tên Ca Bệnh Lâm Sàng <span style="color: #ef4444;">*</span></label>
+          <input type="text" id="tcFormName" class="form-control" placeholder="VD: Ca bệnh 6: Nghi nhiễm Sốt Rét thể ác tính" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tcFormPatient">Thông Tin / Dịch Tễ Bệnh Nhân</label>
+          <input type="text" id="tcFormPatient" class="form-control" placeholder="VD: Nam, 35 tuổi, vừa trở về từ vùng rừng rậm Tây Nguyên" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tcFormNote">Ghi Chú Lâm Sàng / Lập Luận Y Khoa</label>
+          <textarea id="tcFormNote" class="form-control" rows="2" placeholder="Ghi chú về triệu chứng khu biệt, diễn tiến hoặc lưu ý cận lâm sàng..."></textarea>
+        </div>
+
+        <!-- SYMPTOM PICKER -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label" style="margin-bottom: 0;">
+              Danh Sách Triệu Chứng Lâm Sàng <span style="color: #ef4444;">*</span>
+            </label>
+            <span id="tcSelectedCountBadge" class="badge badge-medium">Đã chọn: 0</span>
+          </div>
+
+          <div class="symptom-picker-container">
+            <div class="symptom-picker-header">
+              <div style="position: relative; flex: 1;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--text-muted);"></i>
+                <input type="text" id="tcSymptomSearch" class="form-control" style="padding-left: 2rem; font-size: 0.8rem;" placeholder="Tìm kiếm nhanh triệu chứng..." />
+              </div>
+              <select id="tcCategoryFilter" class="form-control" style="width: auto; max-width: 170px; font-size: 0.8rem;">
+                <option value="all">Tất cả nhóm</option>
+              </select>
+            </div>
+
+            <div class="symptom-picker-list" id="tcSymptomsList"></div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+          <button type="button" class="btn-secondary modal-close-btn" data-close="modalTestCaseForm">Hủy bỏ</button>
+          <button type="button" id="btnSaveTestCase" class="btn-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Lưu ca kiểm thử
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
@@ -103,7 +187,7 @@
         }
       });
 
-      testcasesController.renderTestCases();
+      testcasesController.init();
     });
   </script>
 </body>

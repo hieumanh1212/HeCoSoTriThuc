@@ -219,6 +219,33 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: SƠ ĐỒ SUY DIỄN ĐA TẦNG (MULTI-STAGE PIPELINE) ==================== -->
+  <div id="modalChainPipeline" class="modal-backdrop">
+    <div class="modal-card modal-card-pipeline">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-network-wired" style="color: #8b5cf6;"></i>
+          <span>Sơ Đồ Tiến Trình Suy Luận Chẩn Đoán Lâm Sàng</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <a href="../do_thi_rpg/do_thi_rpg.html?mode=RPG" class="btn-chain-graph btn-chain-rpg" title="Mở đồ thị mạng Petri RPG">
+            <i class="fa-solid fa-project-diagram"></i> Mạng RPG
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html?mode=FPG" class="btn-chain-graph btn-chain-fpg" title="Mở mạng phụ thuộc sự kiện FPG">
+            <i class="fa-solid fa-circle-nodes"></i> Mạng FPG
+          </a>
+          <button class="modal-close-btn" data-close="modalChainPipeline">&times;</button>
+        </div>
+      </div>
+
+      <div id="chainModalContent"></div>
+
+      <div style="display: flex; justify-content: flex-end; padding-top: 0.75rem; border-top: 1px solid var(--border-color); margin-top: 0.5rem; flex-shrink: 0;">
+        <button class="btn-primary" data-close="modalChainPipeline">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
     <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
@@ -250,6 +277,10 @@
         forwardEngine,
         backwardEngine,
         onInferenceComplete: (inferenceResult, selectedSymptoms) => {
+          sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(selectedSymptoms || {}));
+          if (inferenceResult) {
+            sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(inferenceResult.firedRules || []));
+          }
           if (dbEngine && dbEngine.isReady && inferenceResult && Object.keys(selectedSymptoms || {}).length > 0) {
             dbEngine.saveInferenceSession(selectedSymptoms, inferenceResult.results || [], inferenceResult.traceLogs || [])
               .catch(err => console.warn(err));
@@ -305,9 +336,9 @@
         sessionStorage.removeItem("RELOAD_DIAGNOSIS_SYMPTOMS");
         try {
           const symptomsMap = JSON.parse(reloadHistoryCase);
-          diagnosisController.setSymptoms(symptomsMap);
-          if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
-            ThongBao.thanhCong("Đã nạp lại dữ liệu ca chẩn đoán từ lịch sử!");
+          diagnosisController.setSymptoms(symptomsMap, false);
+          if (typeof ThongBao !== "undefined" && ThongBao.thongTin) {
+            ThongBao.thongTin("Đã nạp triệu chứng từ lịch sử. Bạn có thể tùy chỉnh và nhấn 'Thực hiện Suy diễn tiến'!", "Nạp thành công");
           }
         } catch (e) {
           diagnosisController.renderAll();
@@ -316,7 +347,10 @@
         sessionStorage.removeItem("LOAD_TESTCASE_SYMPTOMS");
         try {
           const symptomsMap = JSON.parse(savedCase);
-          diagnosisController.setSymptoms(symptomsMap);
+          diagnosisController.setSymptoms(symptomsMap, false);
+          if (typeof ThongBao !== "undefined" && ThongBao.thongTin) {
+            ThongBao.thongTin("Đã nạp triệu chứng từ ca kiểm thử. Hãy tùy chỉnh nếu cần và nhấn 'Thực hiện Suy diễn tiến'!", "Nạp ca kiểm thử");
+          }
         } catch (e) {
           diagnosisController.renderAll();
         }
@@ -324,11 +358,15 @@
         const urlParams = new URLSearchParams(window.location.search);
         const testcaseId = urlParams.get("testcase");
         if (testcaseId) {
-          const tc = (kbManager.getKB().testCases || []).find(c => c.id === testcaseId);
+          const allCases = kbManager.getTestCases ? kbManager.getTestCases() : (kbManager.getKB().testCases || []);
+          const tc = allCases.find(c => c.id === testcaseId);
           if (tc) {
             const symptomsMap = {};
-            tc.selectedSymptoms.forEach(s => symptomsMap[s.id] = s.cf);
-            diagnosisController.setSymptoms(symptomsMap);
+            (tc.selectedSymptoms || []).forEach(s => symptomsMap[s.id] = s.cf);
+            diagnosisController.setSymptoms(symptomsMap, false);
+            if (typeof ThongBao !== "undefined" && ThongBao.thongTin) {
+              ThongBao.thongTin(`Đã nạp triệu chứng ca [${tc.id}]. Nhấn 'Thực hiện Suy diễn tiến' để chẩn đoán!`, "Nạp ca mẫu");
+            }
           } else {
             diagnosisController.renderAll();
           }

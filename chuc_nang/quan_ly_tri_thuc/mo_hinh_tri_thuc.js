@@ -63,7 +63,12 @@ class KnowledgeBaseManager {
     try {
       const dbKB = await this.db.toKnowledgeBaseObject();
       if (dbKB && dbKB.rules && dbKB.rules.length > 0) {
-        this.kb = this.sanitizeKB(dbKB);
+        const mergedKB = this._mergeWithDefaults(dbKB, window.DEFAULT_KNOWLEDGE_BASE || {});
+        const currentTestCases = this.getTestCases();
+        this.kb = this.sanitizeKB(mergedKB);
+        if (currentTestCases && currentTestCases.length > 0) {
+          this.kb.testCases = currentTestCases;
+        }
         this.saveToStorage();
         this.notifyListeners();
       }
@@ -72,12 +77,48 @@ class KnowledgeBaseManager {
     }
   }
 
+  _mergeWithDefaults(parsed, def) {
+    if (!parsed || !def || !Array.isArray(parsed.rules)) return parsed;
+
+    const existingRuleIds = new Set(parsed.rules.map(r => r.id));
+    (def.rules || []).forEach(r => {
+      if (!existingRuleIds.has(r.id)) parsed.rules.push(r);
+    });
+
+    const existingSymIds = new Set((parsed.symptoms || []).map(s => s.id));
+    (def.symptoms || []).forEach(s => {
+      if (!existingSymIds.has(s.id)) (parsed.symptoms = parsed.symptoms || []).push(s);
+    });
+
+    const existingGrpIds = new Set((parsed.symptomGroups || []).map(g => g.id));
+    (def.symptomGroups || []).forEach(g => {
+      if (!existingGrpIds.has(g.id)) (parsed.symptomGroups = parsed.symptomGroups || []).push(g);
+    });
+
+    return parsed;
+  }
+
   loadFromStorage() {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const cleanKB = this.sanitizeKB(parsed);
+        if (!parsed.testCases || !Array.isArray(parsed.testCases) || parsed.testCases.length === 0) {
+          const customTC = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+          if (customTC) {
+            try { parsed.testCases = JSON.parse(customTC); } catch (e) {}
+          }
+          if (!parsed.testCases || parsed.testCases.length === 0) {
+            const defKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            parsed.testCases = JSON.parse(JSON.stringify(defKB.testCases || []));
+          }
+        }
+        const def = window.DEFAULT_KNOWLEDGE_BASE || {};
+        const merged = this._mergeWithDefaults(parsed, def);
+        const cleanKB = this.sanitizeKB(merged);
+        if (parsed.testCases) {
+          cleanKB.testCases = parsed.testCases;
+        }
         // Tự động làm sạch localStorage nếu trước đó bị lưu trùng lặp
         try {
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanKB));
@@ -87,13 +128,21 @@ class KnowledgeBaseManager {
     } catch (e) {
       console.warn("Lỗi đọc LocalStorage, sử dụng dữ liệu mặc định:", e);
     }
-    return this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
+    const def = JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {}));
+    const customTC = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+    if (customTC) {
+      try { def.testCases = JSON.parse(customTC); } catch (e) {}
+    }
+    return this.sanitizeKB(def);
   }
 
   async saveToStorage() {
     try {
       this.kb = this.sanitizeKB(this.kb);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      if (this.kb && this.kb.testCases) {
+        localStorage.setItem("MED_EXPERT_CUSTOM_TESTCASES", JSON.stringify(this.kb.testCases));
+      }
       if (this.db) {
         await this.db.importFromKBObject(this.kb, "Cập nhật qua KnowledgeBaseManager");
       }
@@ -120,6 +169,7 @@ class KnowledgeBaseManager {
 
   resetToDefault() {
     this.kb = this.sanitizeKB(JSON.parse(JSON.stringify(window.DEFAULT_KNOWLEDGE_BASE || {})));
+    localStorage.removeItem("MED_EXPERT_CUSTOM_TESTCASES");
     this.saveToStorage();
     return this.kb;
   }
@@ -327,11 +377,134 @@ class KnowledgeBaseManager {
     return diseaseData;
   }
 
+  // --- TEST CASES CRUD ---
+  getTestCases() {
+    if (this.kb && Array.isArray(this.kb.testCases) && this.kb.testCases.length > 0) {
+      return this.kb.testCases;
+    }
+    try {
+      const backup = localStorage.getItem("MED_EXPERT_CUSTOM_TESTCASES");
+      if (backup) {
+        const parsed = JSON.parse(backup);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (this.kb) this.kb.testCases = parsed;
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    const defaultCases = (window.DEFAULT_KNOWLEDGE_BASE && window.DEFAULT_KNOWLEDGE_BASE.testCases)
+      ? window.DEFAULT_KNOWLEDGE_BASE.testCases
+      : [];
+    if (this.kb) this.kb.testCases = JSON.parse(JSON.stringify(defaultCases));
+    return this.kb ? (this.kb.testCases || []) : [];
+  }
+
+  getTestCaseById(id) {
+    return this.getTestCases().find(c => c.id === id) || null;
+  }
+
+  saveTestCases() {
+    try {
+      localStorage.setItem("MED_EXPERT_CUSTOM_TESTCASES", JSON.stringify(this.kb.testCases || []));
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.kb));
+      this.notifyListeners();
+    } catch (e) {
+      console.error("Lỗi lưu trữ ca kiểm thử:", e);
+    }
+  }
+
+  addTestCase(tcData) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+
+    let tcId = (tcData.id || "").trim();
+    if (!tcId) {
+      const existingMax = this.kb.testCases.reduce((max, c) => {
+        const num = parseInt(String(c.id || "").replace(/[^0-9]/g, ""), 10);
+        return !isNaN(num) && num > max ? num : max;
+      }, 0);
+      tcId = `TC${String(existingMax + 1).padStart(2, "0")}`;
+    }
+
+    if (this.kb.testCases.some(c => c.id.toUpperCase() === tcId.toUpperCase())) {
+      throw new Error(`Mã ca kiểm thử "${tcId}" đã tồn tại! Vui lòng chọn mã khác.`);
+    }
+
+    if (!tcData.name || !tcData.name.trim()) {
+      throw new Error("Tên ca bệnh kiểm thử không được để trống!");
+    }
+
+    if (!tcData.selectedSymptoms || tcData.selectedSymptoms.length === 0) {
+      throw new Error("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng cho ca kiểm thử!");
+    }
+
+    const newCase = {
+      id: tcId,
+      name: tcData.name.trim(),
+      patientInfo: (tcData.patientInfo || "").trim() || "Bệnh nhân ngoại trú",
+      selectedSymptoms: tcData.selectedSymptoms,
+      expectedDisease: tcData.expectedDisease || "",
+      clinicalNote: (tcData.clinicalNote || "").trim() || "Ca bệnh kiểm chứng do chuyên gia thiết lập."
+    };
+
+    this.kb.testCases.push(newCase);
+    this.saveTestCases();
+    return newCase;
+  }
+
+  updateTestCase(id, tcData) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+    const index = this.kb.testCases.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Không tìm thấy ca kiểm thử có mã "${id}" để cập nhật!`);
+    }
+
+    if (!tcData.name || !tcData.name.trim()) {
+      throw new Error("Tên ca bệnh kiểm thử không được để trống!");
+    }
+
+    if (!tcData.selectedSymptoms || tcData.selectedSymptoms.length === 0) {
+      throw new Error("Vui lòng chọn ít nhất 1 triệu chứng lâm sàng cho ca kiểm thử!");
+    }
+
+    this.kb.testCases[index] = {
+      id: id,
+      name: tcData.name.trim(),
+      patientInfo: (tcData.patientInfo || "").trim() || "Bệnh nhân ngoại trú",
+      selectedSymptoms: tcData.selectedSymptoms,
+      expectedDisease: tcData.expectedDisease || "",
+      clinicalNote: (tcData.clinicalNote || "").trim() || "Ca bệnh kiểm chứng do chuyên gia thiết lập."
+    };
+
+    this.saveTestCases();
+    return this.kb.testCases[index];
+  }
+
+  deleteTestCase(id) {
+    if (!this.kb.testCases) this.kb.testCases = [];
+    const index = this.kb.testCases.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Không tìm thấy ca kiểm thử có mã "${id}" để xóa!`);
+    }
+
+    const deleted = this.kb.testCases.splice(index, 1)[0];
+    this.saveTestCases();
+    return deleted;
+  }
+
+  resetTestCasesToDefault() {
+    const defaultCases = (window.DEFAULT_KNOWLEDGE_BASE && window.DEFAULT_KNOWLEDGE_BASE.testCases)
+      ? window.DEFAULT_KNOWLEDGE_BASE.testCases
+      : [];
+    this.kb.testCases = JSON.parse(JSON.stringify(defaultCases));
+    this.saveTestCases();
+    return this.kb.testCases;
+  }
+
   // ============================================================================
   // XUẤT / NHẬP EXCEL (.XLSX) BẰNG THƯ VIỆN SHEETJS
   // ============================================================================
 
-  exportExcel() {
+  exportExcel(scope = "all") {
     if (typeof XLSX === "undefined") {
       throw new Error("Thư viện SheetJS chưa được tải. Vui lòng kiểm tra kết nối mạng!");
     }
@@ -363,7 +536,9 @@ class KnowledgeBaseManager {
       { wch: 10 }, { wch: 45 }, { wch: 18 }, { wch: 30 },
       { wch: 18 }, { wch: 40 }, { wch: 60 }, { wch: 50 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+    if (scope === "all" || scope === "rules") {
+      XLSX.utils.book_append_sheet(wb, wsRules, "TAP_LUAT");
+    }
 
     // 2. Sheet DANH MỤC TRIỆU CHỨNG
     const symsRows = (kb.symptoms || []).map(s => {
@@ -381,7 +556,9 @@ class KnowledgeBaseManager {
     wsSyms["!cols"] = [
       { wch: 15 }, { wch: 12 }, { wch: 30 }, { wch: 45 }, { wch: 65 }, { wch: 18 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+    if (scope === "all" || scope === "symptoms") {
+      XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
+    }
 
     // 3. Sheet DANH MỤC BỆNH HỌC
     const disRows = (kb.diseases || []).map(d => ({
@@ -398,7 +575,9 @@ class KnowledgeBaseManager {
       { wch: 12 }, { wch: 35 }, { wch: 30 }, { wch: 35 },
       { wch: 30 }, { wch: 70 }, { wch: 70 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsDis, "DANH_MUC_BENH");
+    if (scope === "all" || scope === "diseases") {
+      XLSX.utils.book_append_sheet(wb, wsDis, "DANH_MUC_BENH");
+    }
 
     // 4. Sheet NHÓM TRIỆU CHỨNG
     const grpRows = (kb.symptomGroups || []).map(g => ({
@@ -409,10 +588,14 @@ class KnowledgeBaseManager {
     }));
     const wsGrp = XLSX.utils.json_to_sheet(grpRows);
     wsGrp["!cols"] = [{ wch: 12 }, { wch: 35 }, { wch: 25 }, { wch: 50 }];
-    XLSX.utils.book_append_sheet(wb, wsGrp, "NHOM_TRIEU_CHUNG");
+    if (scope === "all") {
+      XLSX.utils.book_append_sheet(wb, wsGrp, "NHOM_TRIEU_CHUNG");
+    }
 
     // Tự động tải file Excel
-    const filename = `Co_So_Tri_Thuc_Y_Te_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const scopeNames = { rules: "Tap_Luat", symptoms: "Danh_Muc_Trieu_Chung", diseases: "Danh_Muc_Benh", all: "Toan_Bo_Tri_Thuc" };
+    const scopeName = scopeNames[scope] || scopeNames.all;
+    const filename = `Co_So_Tri_Thuc_${scopeName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(wb, filename);
     return filename;
   }
@@ -456,12 +639,41 @@ class KnowledgeBaseManager {
     const wsSyms = XLSX.utils.json_to_sheet(sampleSyms);
     XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
 
+    const sampleDiseases = [
+      {
+        "Mã Bệnh": "D99",
+        "Tên Bệnh Học": "Tên bệnh mẫu",
+        "Tên Khoa Học": "Scientific name",
+        "Nhóm Bệnh": "Nhóm bệnh",
+        "Mức Độ Nguy Hiểm": "Trung bình",
+        "Hướng Xử Trí & Phác Đồ": "Hướng xử trí theo hướng dẫn chuyên môn",
+        "Dấu Hiệu Cảnh Báo Nguy Hiểm": "Dấu hiệu cần chuyển khám"
+      }
+    ];
+    const wsDiseases = XLSX.utils.json_to_sheet(sampleDiseases);
+    wsDiseases["!cols"] = [
+      { wch: 12 }, { wch: 35 }, { wch: 28 }, { wch: 30 }, { wch: 25 },
+      { wch: 70 }, { wch: 70 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsDiseases, "DANH_MUC_BENH");
+
+    const sampleGroups = [
+      {
+        "Mã Nhóm": "G99",
+        "Tên Nhóm Triệu Chứng": "Nhóm mẫu",
+        "Biểu Tượng FontAwesome": "fa-notes-medical",
+        "Mô Tả Phân Loại": "Mô tả nhóm triệu chứng"
+      }
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sampleGroups), "NHOM_TRIEU_CHUNG");
+
     // Mẫu hướng dẫn
     const guideRows = [
-      { "Mục": "Quy tắc 1", "Nội dung": "Không đổi tên các Sheet: TAP_LUAT, TRIEU_CHUNG, DANH_MUC_BENH" },
-      { "Mục": "Quy tắc 2", "Nội dung": "Cột 'Danh Sách Mã Triệu Chứng': nhập các mã triệu chứng cách nhau bằng dấu phẩy (Ví dụ: S01, S04, S05)" },
-      { "Mục": "Quy tắc 3", "Nội dung": "Hệ số tin cậy CF là số thập phân từ 0.1 đến 1.0 (Ví dụ: 0.85 hoặc 0.9)" },
-      { "Mục": "Quy tắc 4", "Nội dung": "Mã bệnh kết luận phải khớp với mã trong sheet DANH_MUC_BENH (Ví dụ: D01, D02, D03...)" }
+      { "Mục": "Quy tắc 1", "Nội dung": "Các sheet được nhận diện: TAP_LUAT, TRIEU_CHUNG, DANH_MUC_BENH, NHOM_TRIEU_CHUNG; giữ lại các cột mẫu để ánh xạ chính xác." },
+      { "Mục": "Quy tắc 2", "Nội dung": "Mã và tên là bắt buộc cho mỗi triệu chứng, bệnh và nhóm; mã phải duy nhất trong cùng sheet." },
+      { "Mục": "Quy tắc 3", "Nội dung": "Sheet DANH_MUC_BENH hỗ trợ tên khoa học, nhóm bệnh, mức độ nguy hiểm, hướng xử trí/phác đồ và dấu hiệu cảnh báo." },
+      { "Mục": "Quy tắc 4", "Nội dung": "Với TAP_LUAT, tiền đề là danh sách mã triệu chứng cách nhau bằng dấu phẩy và CF nằm trong khoảng 0.01 đến 1.0." },
+      { "Mục": "Quy tắc 5", "Nội dung": "Có thể sửa các dòng hiện có bằng cùng mã; dòng trùng mã trong chính file sẽ bị báo lỗi." }
     ];
     const wsGuide = XLSX.utils.json_to_sheet(guideRows);
     wsGuide["!cols"] = [{ wch: 15 }, { wch: 90 }];
@@ -470,23 +682,20 @@ class KnowledgeBaseManager {
     XLSX.writeFile(wb, "Mau_Nhap_Lieu_Tri_Thuc.xlsx");
   }
 
-  async importExcel(arrayBuffer) {
+  async importExcel(input, { scope = "all", includeRules = true, includeCatalog = true } = {}) {
     if (typeof XLSX === "undefined") {
       throw new Error("Thư viện SheetJS chưa sẵn sàng!");
     }
 
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const workbook = input && Array.isArray(input.SheetNames)
+      ? input
+      : XLSX.read(input, { type: "array" });
     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error("Tệp Excel không chứa bất kỳ trang tính nào!");
     }
 
-    let importedRules = 0;
-    let importedSyms = 0;
-    let importedDiseases = 0;
-
-    // Helper chuẩn hóa text key
-    const normalizeKey = (str) => {
-      return String(str || "")
+    const normalizeKey = value => {
+      return String(value || "")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/đ/g, "d")
@@ -494,159 +703,143 @@ class KnowledgeBaseManager {
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "");
     };
-
-    // 1. Phân tích Sheet Tập Luật
-    const ruleSheetName = workbook.SheetNames.find(name => {
-      const n = normalizeKey(name);
-      return n.includes("luat") || n.includes("rule") || n.includes("tapluat");
-    }) || workbook.SheetNames[0];
-
-    if (ruleSheetName) {
-      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[ruleSheetName]);
-      if (rows && rows.length > 0) {
-        const existingRules = this.kb.rules || [];
-
-        for (const row of rows) {
-          // Tìm các trường linh hoạt
-          let rId = null, rName = null, rConclusion = null, rCF = 0.85, rPremises = [], rDesc = "";
-
-          for (const [k, v] of Object.entries(row)) {
-            if (v === undefined || v === null || String(v).trim() === "") continue;
-            const nk = normalizeKey(k);
-            const strVal = String(v).trim();
-
-            if (nk.includes("maluat") || nk === "id" || nk === "ma" || nk.includes("ruleid") || nk === "sttluat") {
-              rId = strVal;
-            } else if (nk.includes("tenluat") || nk === "name" || (nk.includes("ten") && !nk.includes("benh") && !nk.includes("trieuchung")) || nk.includes("rulename")) {
-              rName = strVal;
-            } else if (nk.includes("mabenh") || nk === "conclusion" || nk === "ketluan" || (nk.includes("ketluan") && !nk.includes("ten")) || nk.includes("then")) {
-              rConclusion = strVal;
-            } else if (nk.includes("cf") || nk.includes("tincay") || nk.includes("heso") || nk.includes("certainty")) {
-              const val = strVal.replace("%", "").replace(",", ".");
-              const parsed = parseFloat(val);
-              if (!isNaN(parsed)) {
-                rCF = parsed > 1.0 && parsed <= 100 ? parsed / 100 : parsed;
-              }
-            } else if (nk.includes("matrieuchung") || nk.includes("danhsach") || (nk.includes("tiende") && !nk.includes("ten")) || (nk.includes("trieuchung") && !nk.includes("ten")) || nk.includes("premises") || nk === "if") {
-              rPremises = strVal.split(/[,;\n\r\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
-            } else if (nk.includes("mota") || nk.includes("description") || nk.includes("ghichu") || nk.includes("note")) {
-              rDesc = strVal;
-            }
-          }
-
-          if (rConclusion) {
-            const matchedDis = (this.kb.diseases || []).find(d => 
-              d.id.toUpperCase() === rConclusion.toUpperCase() || 
-              normalizeKey(d.name) === normalizeKey(rConclusion)
-            );
-            if (matchedDis) {
-              rConclusion = matchedDis.id;
-            }
-          }
-
-          if (rId && rConclusion) {
-            const newRuleObj = {
-              id: rId,
-              name: rName || `Luật ${rId}`,
-              conclusion: rConclusion,
-              cf: isNaN(rCF) ? 0.85 : rCF,
-              premises: rPremises,
-              description: rDesc
-            };
-
-            const existIdx = existingRules.findIndex(r => r.id === rId);
-            if (existIdx >= 0) {
-              existingRules[existIdx] = newRuleObj;
-            } else {
-              existingRules.push(newRuleObj);
-            }
-            importedRules++;
-          }
-        }
-        this.kb.rules = existingRules;
-      }
-    }
-
-    // 2. Phân tích Sheet Triệu Chứng (nếu có)
-    const symSheetName = workbook.SheetNames.find(name => /trieu_chung|symptom/i.test(name));
-    if (symSheetName) {
-      const symRows = XLSX.utils.sheet_to_json(workbook.Sheets[symSheetName]);
-      const existingSyms = this.kb.symptoms || [];
-
-      for (const row of symRows) {
-        let sId = null, sGroupId = "G01", sName = null, sQuestion = null, sSeverity = "Bình thường";
-        for (const [k, v] of Object.entries(row)) {
-          const nk = norm(k);
-          if (nk.includes("matrieuchung") || nk === "id") sId = String(v).trim();
-          else if (nk.includes("manhom") || nk === "groupid") sGroupId = String(v).trim();
-          else if (nk.includes("tentrieuchung") || nk === "name") sName = String(v).trim();
-          else if (nk.includes("cauhoi") || nk.includes("question") || nk.includes("why")) sQuestion = String(v).trim();
-          else if (nk.includes("canhbao") || nk.includes("mucdo") || nk.includes("severity")) sSeverity = String(v).trim();
-        }
-
-        if (sId && sName) {
-          const sObj = {
-            id: sId,
-            groupId: sGroupId,
-            name: sName,
-            question: sQuestion || `Bệnh nhân có bị ${sName} không?`,
-            severity: sSeverity
-          };
-          const existIdx = existingSyms.findIndex(s => s.id === sId);
-          if (existIdx >= 0) existingSyms[existIdx] = sObj;
-          else existingSyms.push(sObj);
-          importedSyms++;
-        }
-      }
-      this.kb.symptoms = existingSyms;
-    }
-
-    // 3. Phân tích Sheet Bệnh (nếu có)
-    const disSheetName = workbook.SheetNames.find(name => /benh|disease/i.test(name));
-    if (disSheetName) {
-      const disRows = XLSX.utils.sheet_to_json(workbook.Sheets[disSheetName]);
-      const existingDis = this.kb.diseases || [];
-
-      for (const row of disRows) {
-        let dId = null, dName = null, dSci = "", dCat = "", dSev = "Trung bình", dTreat = "", dWarn = "";
-        for (const [k, v] of Object.entries(row)) {
-          const nk = norm(k);
-          if (nk.includes("mabenh") || nk === "id") dId = String(v).trim();
-          else if (nk.includes("tenbenh") || nk === "name") dName = String(v).trim();
-          else if (nk.includes("khoahoc") || nk.includes("scientific")) dSci = String(v).trim();
-          else if (nk.includes("nhombenh") || nk.includes("category")) dCat = String(v).trim();
-          else if (nk.includes("nguyhiem") || nk.includes("severity")) dSev = String(v).trim();
-          else if (nk.includes("xutri") || nk.includes("treatment") || nk.includes("phacdo")) dTreat = String(v).trim();
-          else if (nk.includes("canhbao") || nk.includes("warning")) dWarn = String(v).trim();
-        }
-
-        if (dId && dName) {
-          const dObj = {
-            id: dId,
-            name: dName,
-            scientificName: dSci,
-            category: dCat,
-            severity: dSev,
-            treatment: dTreat,
-            recommendation: dTreat,
-            warningSigns: dWarn
-          };
-          const existIdx = existingDis.findIndex(d => d.id === dId);
-          if (existIdx >= 0) existingDis[existIdx] = dObj;
-          else existingDis.push(dObj);
-          importedDiseases++;
-        }
-      }
-      this.kb.diseases = existingDis;
-    }
-
-    // Lưu vĩnh viễn vào CSDL (SQLite / IndexedDB) và cập nhật giao diện
-    await this.saveToStorage();
-    return {
-      importedRules,
-      importedSyms,
-      importedDiseases
+    const getSheet = (patterns, excludedPatterns = []) => {
+      const name = workbook.SheetNames.find(sheetName => {
+        const normalizedName = normalizeKey(sheetName);
+        return patterns.some(pattern => normalizedName.includes(pattern)) &&
+          !excludedPatterns.some(pattern => normalizedName.includes(pattern));
+      });
+      return name ? XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: "" }) : [];
     };
+    const valueFor = (row, predicate) => {
+      const entry = Object.entries(row).find(([key, value]) =>
+        value !== undefined && value !== null && String(value).trim() !== "" && predicate(normalizeKey(key))
+      );
+      return entry ? String(entry[1]).trim() : "";
+    };
+    const upsertById = (items, item) => {
+      const index = items.findIndex(existing => String(existing.id).toUpperCase() === item.id.toUpperCase());
+      if (index >= 0) items[index] = { ...items[index], ...item };
+      else items.push(item);
+    };
+
+    const imported = { importedRules: 0, importedSyms: 0, importedDiseases: 0, importedGroups: 0 };
+    const includeGroups = includeCatalog && (scope === "all" || scope === "groups");
+    const includeSymptoms = includeCatalog && (scope === "all" || scope === "symptoms");
+    const includeDiseases = includeCatalog && (scope === "all" || scope === "diseases");
+
+    if (includeCatalog) {
+      const groups = this.kb.symptomGroups || [];
+      const groupRows = includeGroups ? getSheet(["nhomtrieuchung", "symptomgroup", "symptomgroups"]) : [];
+      for (const row of groupRows) {
+        const id = valueFor(row, key => key.includes("manhom") || key === "id" || key === "groupid");
+        const name = valueFor(row, key => key.includes("tennhom") || key === "name" || key === "groupname");
+        if (!id || !name) continue;
+        upsertById(groups, {
+          id,
+          name,
+          icon: valueFor(row, key => key.includes("bieutuong") || key === "icon") || "fa-notes-medical",
+          description: valueFor(row, key => key.includes("mota") || key === "description")
+        });
+        imported.importedGroups++;
+      }
+      this.kb.symptomGroups = groups;
+
+      const symptomRows = includeSymptoms
+        ? getSheet(["trieuchung", "symptom"], ["nhomtrieuchung", "symptomgroup"])
+        : [];
+      const symptoms = this.kb.symptoms || [];
+      for (const row of symptomRows) {
+        const id = valueFor(row, key => key.includes("matrieuchung") || key === "id" || key === "symptomid");
+        const name = valueFor(row, key => key.includes("tentrieuchung") || key === "name" || key === "symptomname");
+        if (!id || !name) continue;
+
+        const groupName = valueFor(row, key => key.includes("tennhom") || key === "groupname");
+        const rawGroupId = valueFor(row, key => key.includes("manhom") || key === "groupid");
+        const matchedGroup = groups.find(group =>
+          String(group.id).toUpperCase() === rawGroupId.toUpperCase() ||
+          normalizeKey(group.name) === normalizeKey(groupName || rawGroupId)
+        );
+        const prior = symptoms.find(symptom => String(symptom.id).toUpperCase() === id.toUpperCase());
+        upsertById(symptoms, {
+          ...(prior || {}),
+          id,
+          name,
+          groupId: matchedGroup ? matchedGroup.id : (rawGroupId || prior?.groupId || groups[0]?.id || "group_fever"),
+          question: valueFor(row, key => key.includes("cauhoi") || key.includes("question") || key.includes("why")) || prior?.question || `Bệnh nhân có bị ${name} không?`,
+          severity: valueFor(row, key => key.includes("canhbao") || key.includes("mucdo") || key === "severity") || prior?.severity || "Bình thường"
+        });
+        imported.importedSyms++;
+      }
+      this.kb.symptoms = symptoms;
+
+      const diseaseRows = includeDiseases ? getSheet(["danhmucbenh", "benh", "disease"]) : [];
+      const diseases = this.kb.diseases || [];
+      for (const row of diseaseRows) {
+        const id = valueFor(row, key => key.includes("mabenh") || key === "id" || key === "diseaseid");
+        const name = valueFor(row, key => key.includes("tenbenh") || key === "name" || key === "diseasename");
+        if (!id || !name) continue;
+
+        const prior = diseases.find(disease => String(disease.id).toUpperCase() === id.toUpperCase()) || {};
+        const treatment = valueFor(row, key => key.includes("xutri") || key.includes("treatment") || key.includes("phacdo") || key.includes("recommendation"));
+        upsertById(diseases, {
+          ...prior,
+          id,
+          name,
+          scientificName: valueFor(row, key => key.includes("khoahoc") || key.includes("scientific")) || prior.scientificName || "",
+          category: valueFor(row, key => key.includes("nhombenh") || key === "category") || prior.category || "",
+          severity: valueFor(row, key => key.includes("nguyhiem") || key === "severity") || prior.severity || "Trung bình",
+          treatment: treatment || prior.treatment || prior.recommendation || "",
+          recommendation: treatment || prior.recommendation || prior.treatment || "",
+          warningSigns: valueFor(row, key => key.includes("canhbao") || key.includes("warning")) || prior.warningSigns || ""
+        });
+        imported.importedDiseases++;
+      }
+      this.kb.diseases = diseases;
+    }
+
+    if (includeRules && (scope === "all" || scope === "rules")) {
+      const ruleRows = getSheet(["tapluat", "rule"]);
+      const rules = this.kb.rules || [];
+      const symptoms = this.kb.symptoms || [];
+      const diseases = this.kb.diseases || [];
+      for (const row of ruleRows) {
+        const id = valueFor(row, key => key.includes("maluat") || key === "id" || key === "ruleid");
+        const name = valueFor(row, key => key.includes("tenluat") || key === "name" || key === "rulename");
+        let conclusion = valueFor(row, key => key.includes("mabenh") || key === "conclusion" || key.includes("ketluan") || key === "then");
+        const rawCF = valueFor(row, key => key === "cf" || key.includes("tincay") || key.includes("heso") || key.includes("certainty"));
+        const parsedCF = Number(rawCF.replace("%", "").replace(",", "."));
+        const cf = parsedCF > 1 && parsedCF <= 100 ? parsedCF / 100 : parsedCF;
+        const premiseText = valueFor(row, key => key.includes("danhsach") || key.includes("tiende") || key.includes("matrieuchung") || key.includes("premises") || key === "if");
+        const premises = premiseText.split(/[,;\n\r\s]+/).map(value => value.trim().toUpperCase()).filter(Boolean);
+        if (!id || !conclusion || !premises.length || !Number.isFinite(cf) || cf <= 0 || cf > 1) continue;
+
+        const matchedDisease = diseases.find(disease =>
+          String(disease.id).toUpperCase() === conclusion.toUpperCase() || normalizeKey(disease.name) === normalizeKey(conclusion)
+        );
+        if (matchedDisease) conclusion = matchedDisease.id;
+        const validPremises = premises.every(premise => symptoms.some(symptom => symptom.id.toUpperCase() === premise));
+        if (!matchedDisease || !validPremises) continue;
+
+        upsertById(rules, {
+          id,
+          name: name || `Luật ${id}`,
+          conclusion,
+          cf: Number(cf.toFixed(4)),
+          premises,
+          description: valueFor(row, key => key.includes("mota") || key.includes("description") || key.includes("ghichu"))
+        });
+        imported.importedRules++;
+      }
+      this.kb.rules = rules;
+    }
+
+    if (!Object.values(imported).some(count => count > 0)) {
+      throw new Error("Không tìm thấy dòng dữ liệu hợp lệ trong các sheet Nhóm triệu chứng, Triệu chứng, Danh mục bệnh hoặc Tập luật.");
+    }
+
+    await this.saveToStorage();
+    return imported;
   }
 }
 

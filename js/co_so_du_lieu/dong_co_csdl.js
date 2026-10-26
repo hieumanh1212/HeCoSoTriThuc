@@ -13,10 +13,8 @@ class DatabaseEngine {
     this.db = null;
     this.isReady = false;
     this.isServerMode = false;
-    this.apiBase = (typeof window !== 'undefined' && window.location.protocol.startsWith('http'))
-      ? `${window.location.origin}/api`
-      : 'http://localhost:3000/api';
-    }
+    this.apiBase = 'http://localhost:3000/api';
+  }
 
   async init() {
     // 1. Thử kết nối tới Backend SQLite Server (may_chu.js)
@@ -122,10 +120,13 @@ class DatabaseEngine {
   }
 
   async seedInitialDataIfEmpty() {
+    const defaultKB = window.DEFAULT_KNOWLEDGE_BASE;
+    if (!defaultKB) return;
     const rulesCount = await this.count("tap_luat");
-    if (rulesCount === 0 && window.DEFAULT_KNOWLEDGE_BASE) {
-      console.log("Khởi tạo dữ liệu mẫu chuẩn y tế vào IndexedDB...");
-      await this.importFromKBObject(window.DEFAULT_KNOWLEDGE_BASE, "Hệ thống tự động khởi tạo dữ liệu mẫu");
+    const defRulesCount = (defaultKB.rules || []).length;
+    if (rulesCount < defRulesCount) {
+      console.log(`Đồng bộ bổ sung tri thức mới (${rulesCount} -> ${defRulesCount} luật) vào CSDL...`);
+      await this.importFromKBObject(defaultKB, "Hệ thống tự động cập nhật tri thức mới");
     }
   }
 
@@ -429,23 +430,60 @@ class DatabaseEngine {
 
     const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
 
+    const mergeList = (dbList, defProp) => {
+      const merged = [...(dbList || [])];
+      const existingIds = new Set(merged.map(item => item.id));
+      (defaultKB[defProp] || []).forEach(item => {
+        if (!existingIds.has(item.id)) merged.push(item);
+      });
+      return merged;
+    };
+
     return {
       metadata: {
         domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
-        version: "2.0.0",
+        version: "2.5.0",
         lastUpdated: new Date().toISOString(),
         author: "Hệ Cơ Sở Tri Thức (Thạc sĩ CNTT)"
       },
-      symptomGroups: symptomGroups.length > 0 ? symptomGroups : (defaultKB.symptomGroups || []),
-      symptoms: symptoms.length > 0 ? symptoms : (defaultKB.symptoms || []),
-      diseases: diseases.length > 0 ? diseases : (defaultKB.diseases || []),
-      rules: finalRules.length > 0 ? finalRules : (defaultKB.rules || []),
+      symptomGroups: mergeList(symptomGroups, "symptomGroups"),
+      symptoms: mergeList(symptoms, "symptoms"),
+      diseases: mergeList(diseases, "diseases"),
+      rules: mergeList(finalRules, "rules"),
       testCases: defaultKB.testCases || []
     };
   }
 
   async importFromKBObject(kb, reason = "Nhập dữ liệu vào CSDL") {
     if (!kb) return;
+
+    if (this.isServerMode) {
+      const response = await fetch(`${this.apiBase}/kb/catalog`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symptomGroups: kb.symptomGroups || [],
+          symptoms: kb.symptoms || [],
+          diseases: kb.diseases || []
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Không thể lưu danh mục tri thức lên SQLite.");
+      }
+
+      for (const rule of (kb.rules || [])) {
+        await this.put("tap_luat", {
+          id: rule.id,
+          name: rule.name,
+          conclusion: rule.conclusion,
+          cf: rule.cf,
+          description: rule.description || "",
+          premises: rule.premises || []
+        }, false);
+      }
+      return result.counts;
+    }
 
     if (kb.symptomGroups) {
       for (const grp of kb.symptomGroups) {
