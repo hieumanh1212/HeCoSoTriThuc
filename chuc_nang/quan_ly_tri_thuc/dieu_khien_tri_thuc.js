@@ -1679,7 +1679,7 @@ class KBController {
       optHtml += `</optgroup>`;
 
       if (intermediateList.length > 0) {
-        optHtml += `<optgroup label="2. Hội chứng trung gian (A+B &rarr; C)">`;
+        optHtml += `<optgroup label="2. Hội chứng lâm sàng trung gian">`;
         optHtml += intermediateList.map(hc => {
           const isSelected = hc.id === selectedConclusion;
           return `<option value="${hc.id}" ${isSelected ? 'selected' : ''}>[${hc.id}] ${hc.name} (Hội chứng)</option>`;

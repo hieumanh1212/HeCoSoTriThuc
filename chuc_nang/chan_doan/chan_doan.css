@@ -1815,6 +1815,11 @@
   white-space: nowrap;
 }
 
+.clinical-rule-chip i,
+.chain-rule-pill i {
+  pointer-events: none;
+}
+
 [data-theme="dark"] .clinical-rule-chip {
   color: #c4b5fd;
 }
