@@ -59,6 +59,11 @@ $$\mathbf{R_k}: \text{IF } P_1 \land P_2 \land \dots \land P_m \text{ THEN } D_j
    Khi có $n$ luật độc lập cùng suy ra một bệnh $D$ với các độ tin cậy $CF_1, CF_2, \dots, CF_n$:
    $$CF_{\text{combine}}(CF_1, CF_2) = CF_1 + CF_2 - (CF_1 \times CF_2) \quad (\text{với } CF_1, CF_2 \ge 0)$$
 
+### 3.4. Định nghĩa Bệnh bằng Frames
+Khái niệm **Bệnh** được biểu diễn bằng một Frame có tên `DiseaseFrame`. Mỗi bệnh là một thể hiện của Frame và có các slot: mã bệnh, tên bệnh, tên khoa học, nhóm bệnh, mức độ nguy hiểm, mô tả lâm sàng, dấu hiệu cảnh báo, hướng xử trí, nguồn tham khảo và danh sách luật suy ra bệnh.
+
+Slot `luatSuyDien` liên kết trực tiếp với các luật có cùng mã kết luận, gồm mã luật, các tiền đề triệu chứng, CF luật và mô tả. Vì vậy Frame vừa mô tả ngữ nghĩa của bệnh vừa cho phép truy nguyên bệnh về cơ sở tri thức.
+
 ---
 
 ## 4. CƠ CHẾ SUY DIỄN & PHÂN HỆ GIẢI THÍCH (INFERENCE & EXPLANATION)
@@ -105,7 +110,9 @@ $$\mathbf{R_k}: \text{IF } P_1 \land P_2 \land \dots \land P_m \text{ THEN } D_j
 * Sau khi người dùng trả lời, hệ thống cập nhật $WM$ và tự động tái kích hoạt suy diễn tiến.
 
 ### 4.3. Phân hệ Giải thích (Explanation Facility)
-* **Giải thích HOW:** Cung cấp toàn bộ Execution Trace Log (chu kỳ quét, luật nào được kích hoạt, giá trị $CF$ vế trái, công thức nhân trọng số và công thức kết hợp tích lũy).
+* **Giải thích HOW:** Cung cấp toàn bộ Execution Trace Log (bộ nhớ triệu chứng ban đầu, chu kỳ quét, luật được kích hoạt, luật bị bỏ qua và các tiền đề còn thiếu, giá trị $CF$ vế trái, công thức nhân trọng số và công thức kết hợp tích lũy).
+* Với luật được kích hoạt, hệ thống hiển thị chuỗi `Triệu chứng đầu vào -> Tiền đề AND -> Luật -> Bệnh kết luận`, sau đó tính $CF(\text{Premise}) = \min(CF(S_i))$ và $CF(\text{Rule}) = CF(\text{Premise}) \times CF(\text{RuleBase})$.
+* Với luật bị bỏ qua, hệ thống chỉ rõ từng tiền đề chưa xuất hiện trong bộ nhớ làm việc; đây là lý do kết quả có thể chưa xuất hiện hoặc có CF thấp. Frame bệnh hiển thị tiếp các slot mô tả và các luật liên quan.
 * **Giải thích WHY:** Giải thích ngữ nghĩa lâm sàng của từng câu hỏi truy vấn bổ sung.
 
 ---
@@ -122,12 +129,28 @@ Hệ thống được thiết kế dạng Single Page Application không phụ t
 * `js/kb_manager.js`: Quản trị tri thức (CRUD, Import/Export JSON, LocalStorage).
 * `js/app.js`: Điều phối giao diện người dùng.
 
-### 5.2. Biểu diễn Đồ thị Mạng luật RPG (Rule Petri Graph)
-Đồ thị Petri mạng luật được mô hình hóa theo lý thuyết hệ chuyên gia chuẩn:
-* **Places (Nút tròn):** Biểu diễn các Sự kiện/Triệu chứng ($S$) và Bệnh kết luận ($D$).
-* **Transitions (Nút chữ nhật):** Biểu diễn các Luật sinh ($R$) kèm hệ số $CF$.
-* **Directed Arcs (Cung có hướng):** Nối từ Fact Place $\rightarrow$ Rule Transition $\rightarrow$ Goal Place.
-* **Active Tokens:** Khi suy diễn thành công, các nút và đường đi tham gia vào kết luận sẽ tự động phát sáng (Emerald Glow), cho phép người dùng trực quan hóa chính xác đường đi suy luận logic.
+### 5.2. Biểu diễn Trực quan hóa Đồ thị kép RPG (Rule Petri Graph) & FPG (Fact Dependency Graph)
+Hệ thống cung cấp 2 góc nhìn trực quan hóa mạnh mẽ cho chuỗi suy luận logic:
+1. **Đồ thị Mạng luật RPG (Rule Petri Graph):**
+   * **Places (Nút tròn):** 
+     - Triệu chứng cơ sở ($S_i$): Vòng tròn xanh lục/xanh dương.
+     - Hội chứng trung gian ($HC_i$): Vòng tròn màu tím đặc trưng, vừa là Output Place của luật cấp 1, vừa là Input Place của luật cấp 2.
+     - Bệnh kết luận đích ($D_j$): Khung bo tròn màu đỏ.
+   * **Transitions (Nút chữ nhật):** Biểu diễn các Luật sinh ($R_k$) kèm hệ số $CF$.
+   * **Directed Arcs (Cung có hướng):** Nối từ Fact Place $\rightarrow$ Rule Transition $\rightarrow$ Intermediate Place $\rightarrow$ Next Rule $\rightarrow$ Goal Place.
+   * **Active Glow:** Đường dẫn logic kích hoạt phát sáng màu xanh ngọc bích rực rỡ (Emerald Glow).
+
+2. **Đồ thị Mạng Sự kiện FPG (Fact Dependency Graph):**
+   * Tập trung trực tiếp vào mạng lưới phụ thuộc giữa các sự kiện lâm sàng: $\{A, B\} \xrightarrow{R_1} C$ và $\{C, D\} \xrightarrow{R_2} E$.
+   * Trên mỗi cung nối trực tiếp hiển thị mã luật và hệ số tin cậy tương ứng, giúp chuyên gia quan sát cây phân cấp tri thức từ triệu chứng $\rightarrow$ hội chứng $\rightarrow$ bệnh đích.
+
+### 5.3. Biểu diễn Đồ thị Ưu tiên Sự kiện FPG (Fact Precedence Graph) & Mạng Ngữ Nghĩa Luật
+Bên cạnh mạng luật RPG tập trung vào luật sinh, hệ thống tích hợp phân hệ **Đồ thị FPG** dựa trên cấu trúc lý thuyết học phần (Slide Tuần 5 - Tuần 6 của Thầy Phạm Văn Hải):
+* **Bản chất mô hình:** $FPG = (F, A)$ với các đỉnh là tập sự kiện $F$. Cung có hướng $(e_i \to e_j)$ thể hiện quan hệ dẫn xuất nhân quả giữa các sự kiện qua các luật sinh.
+* **Cổng logic hội AND ($\land$):** Hội tụ các triệu chứng tiền đề của cùng một luật sinh, tính toán độ tin cậy $CF(\text{Premise}) = \min(CF_1, CF_2, \dots)$.
+* **Cổng logic tuyển OR ($\lor$):** Cho phép kết hợp các nguồn chứng cứ độc lập cùng suy ra một kết luận, tính $CF$ theo công thức tích lũy MYCIN.
+* **Xử lý sự kiện phủ định NOT ($\neg$):** Tuân theo quy tắc đảo dấu $CF(\neg e) = -CF(e)$.
+* **Bộ kiểm thử bài tập mẫu (Slide Tuần 6):** Tích hợp kiểm thử mô phỏng trực tiếp bài tập trong slide ($R_1: A \to B$, $R_2: C \to D$, $R_3: \neg F \to G$, $R_4: (B \land \neg D) \lor I \to J$), cho ra kết quả nghiệm chính xác $CF(J) = 0.100$.
 
 ---
 

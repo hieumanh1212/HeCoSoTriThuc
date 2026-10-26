@@ -13,9 +13,7 @@ class DatabaseEngine {
     this.db = null;
     this.isReady = false;
     this.isServerMode = false;
-    this.apiBase = (typeof window !== 'undefined' && window.location.protocol.startsWith('http'))
-      ? `${window.location.origin}/api`
-      : 'http://localhost:3000/api';
+    this.apiBase = 'http://localhost:3000/api';
   }
 
   async init() {
@@ -122,10 +120,13 @@ class DatabaseEngine {
   }
 
   async seedInitialDataIfEmpty() {
+    const defaultKB = window.DEFAULT_KNOWLEDGE_BASE;
+    if (!defaultKB) return;
     const rulesCount = await this.count("tap_luat");
-    if (rulesCount === 0 && window.DEFAULT_KNOWLEDGE_BASE) {
-      console.log("Khởi tạo dữ liệu mẫu chuẩn y tế vào IndexedDB...");
-      await this.importFromKBObject(window.DEFAULT_KNOWLEDGE_BASE, "Hệ thống tự động khởi tạo dữ liệu mẫu");
+    const defRulesCount = (defaultKB.rules || []).length;
+    if (rulesCount < defRulesCount) {
+      console.log(`Đồng bộ bổ sung tri thức mới (${rulesCount} -> ${defRulesCount} luật) vào CSDL...`);
+      await this.importFromKBObject(defaultKB, "Hệ thống tự động cập nhật tri thức mới");
     }
   }
 
@@ -364,6 +365,23 @@ class DatabaseEngine {
           const kbData = await res.json();
           if (kbData.ok) {
             const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+            const defaultDiseases = defaultKB.diseases || [];
+            const normalizedDiseases = (kbData.diseases || []).map(disease => {
+              const defaultDisease = defaultDiseases.find(item => item.id === disease.id) || {};
+              const mergedDisease = {
+                ...defaultDisease,
+                ...disease,
+                recommendation: disease.recommendation || disease.treatment || defaultDisease.recommendation || "",
+                treatment: disease.treatment || disease.recommendation || defaultDisease.treatment || defaultDisease.recommendation || ""
+              };
+              if (typeof DiseaseFrame !== "undefined") {
+                mergedDisease.frame = DiseaseFrame.fromDisease(mergedDisease, {
+                  rules: kbData.rules || []
+                });
+              }
+              return mergedDisease;
+            });
+
             return {
               metadata: {
                 domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
@@ -373,7 +391,7 @@ class DatabaseEngine {
               },
               symptomGroups: kbData.symptomGroups,
               symptoms: kbData.symptoms,
-              diseases: kbData.diseases,
+              diseases: normalizedDiseases,
               rules: kbData.rules,
               testCases: defaultKB.testCases || []
             };
@@ -391,32 +409,81 @@ class DatabaseEngine {
     const premises = await this.getAll("tien_de_luat");
 
     const rulesWithPremises = rules.map(r => {
-      const rulePrems = premises.filter(p => p.ruleId === r.id).map(p => p.symptomId);
+      const rawRulePrems = premises
+        .filter(p => (p.ruleId || p.ma_luat) === r.id)
+        .map(p => p.symptomId || p.ma_trieu_chung);
+      const rulePrems = Array.from(new Set(rawRulePrems.filter(Boolean)));
+      const fallbackPrems = Array.from(new Set((r.premises || []).filter(Boolean)));
       return {
         ...r,
-        premises: rulePrems.length > 0 ? rulePrems : (r.premises || [])
+        premises: rulePrems.length > 0 ? rulePrems : fallbackPrems
       };
     });
 
+    const uniqueRulesMap = new Map();
+    rulesWithPremises.forEach(r => {
+      if (r && r.id && !uniqueRulesMap.has(r.id)) {
+        uniqueRulesMap.set(r.id, r);
+      }
+    });
+    const finalRules = Array.from(uniqueRulesMap.values());
+
     const defaultKB = window.DEFAULT_KNOWLEDGE_BASE || {};
+
+    const mergeList = (dbList, defProp) => {
+      const merged = [...(dbList || [])];
+      const existingIds = new Set(merged.map(item => item.id));
+      (defaultKB[defProp] || []).forEach(item => {
+        if (!existingIds.has(item.id)) merged.push(item);
+      });
+      return merged;
+    };
 
     return {
       metadata: {
         domain: "Chẩn đoán bệnh truyền nhiễm và sốt cấp tính",
-        version: "2.0.0",
+        version: "2.5.0",
         lastUpdated: new Date().toISOString(),
         author: "Hệ Cơ Sở Tri Thức (Thạc sĩ CNTT)"
       },
-      symptomGroups: symptomGroups.length > 0 ? symptomGroups : (defaultKB.symptomGroups || []),
-      symptoms: symptoms.length > 0 ? symptoms : (defaultKB.symptoms || []),
-      diseases: diseases.length > 0 ? diseases : (defaultKB.diseases || []),
-      rules: rulesWithPremises.length > 0 ? rulesWithPremises : (defaultKB.rules || []),
+      symptomGroups: mergeList(symptomGroups, "symptomGroups"),
+      symptoms: mergeList(symptoms, "symptoms"),
+      diseases: mergeList(diseases, "diseases"),
+      rules: mergeList(finalRules, "rules"),
       testCases: defaultKB.testCases || []
     };
   }
 
   async importFromKBObject(kb, reason = "Nhập dữ liệu vào CSDL") {
     if (!kb) return;
+
+    if (this.isServerMode) {
+      const response = await fetch(`${this.apiBase}/kb/catalog`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symptomGroups: kb.symptomGroups || [],
+          symptoms: kb.symptoms || [],
+          diseases: kb.diseases || []
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Không thể lưu danh mục tri thức lên SQLite.");
+      }
+
+      for (const rule of (kb.rules || [])) {
+        await this.put("tap_luat", {
+          id: rule.id,
+          name: rule.name,
+          conclusion: rule.conclusion,
+          cf: rule.cf,
+          description: rule.description || "",
+          premises: rule.premises || []
+        }, false);
+      }
+      return result.counts;
+    }
 
     if (kb.symptomGroups) {
       for (const grp of kb.symptomGroups) {
@@ -436,29 +503,41 @@ class DatabaseEngine {
       }
     }
 
-    const currentPremises = await this.getAll("tien_de_luat");
-    for (const p of currentPremises) {
-      await this.delete("tien_de_luat", p.id, false);
+    if (this.db && this.db.objectStoreNames.contains("tien_de_luat")) {
+      await new Promise((resolve) => {
+        try {
+          const tx = this.db.transaction(["tien_de_luat"], "readwrite");
+          const store = tx.objectStore("tien_de_luat");
+          const req = store.clear();
+          req.onsuccess = () => resolve();
+          req.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
     }
 
     if (kb.rules) {
+      const processedRuleIds = new Set();
       for (const rule of kb.rules) {
+        if (!rule || !rule.id || processedRuleIds.has(rule.id)) continue;
+        processedRuleIds.add(rule.id);
+
+        const uniquePrems = Array.from(new Set((rule.premises || []).filter(Boolean)));
         await this.put("tap_luat", {
           id: rule.id,
           name: rule.name,
           conclusion: rule.conclusion,
           cf: rule.cf,
           description: rule.description || "",
-          premises: rule.premises || []
+          premises: uniquePrems
         }, false);
 
-        if (rule.premises && Array.isArray(rule.premises)) {
-          for (const pId of rule.premises) {
-            await this.put("tien_de_luat", {
-              ruleId: rule.id,
-              symptomId: pId
-            }, false);
-          }
+        for (const pId of uniquePrems) {
+          await this.put("tien_de_luat", {
+            ruleId: rule.id,
+            symptomId: pId
+          }, false);
         }
       }
     }

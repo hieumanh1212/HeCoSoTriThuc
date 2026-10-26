@@ -61,6 +61,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
       }
       window.location.href = `chuc_nang/do_thi_rpg/do_thi_rpg.html?focus=${diseaseId}`;
+    },
+    onFocusFpg: (diseaseId) => {
+      sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
+      if (diagnosisController.lastInferenceResult) {
+        sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
+      }
+      window.location.href = `chuc_nang/do_thi_fpg/do_thi_fpg.html?focus=${diseaseId}`;
     }
   });
 

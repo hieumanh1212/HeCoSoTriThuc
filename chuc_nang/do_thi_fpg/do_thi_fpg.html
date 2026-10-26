@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đồ Thị Ưu Tiên Sự Kiện FPG - Hệ Cơ Sở Tri Thức</title>
+
+  <!-- FontAwesome Icons & CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../../css/tong_hop.css">
+  <link rel="stylesheet" href="do_thi_fpg.css">
+</head>
+
+<body>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <a href="../../index.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.85rem;">
+          <div class="brand-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="brand-text">
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
+            <p>Trực quan hóa Đồ thị ưu tiên sự kiện FPG & Mạng ngữ nghĩa luật (Certainty Factor)</p>
+          </div>
+        </a>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <nav class="nav-tabs">
+          <a href="../../index.html" class="nav-btn">
+            <i class="fa-solid fa-house"></i> Trang chủ
+          </a>
+          <a href="../chan_doan/chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-stethoscope"></i> Chẩn đoán
+          </a>
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
+            <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
+          </a>
+          <a href="do_thi_fpg.html" class="nav-btn active">
+            <i class="fa-solid fa-diagram-successor"></i> Đồ thị FPG
+          </a>
+          <a href="../quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="nav-btn">
+            <i class="fa-solid fa-database"></i> Quản lý Tri thức
+          </a>
+          <a href="../quan_tri_csdl/quan_tri_csdl.html" class="nav-btn">
+            <i class="fa-solid fa-server"></i> Quản trị CSDL
+          </a>
+          <a href="../ca_kiem_thu/ca_kiem_thu.html" class="nav-btn">
+            <i class="fa-solid fa-vial-circle-check"></i> Ca kiểm thử
+          </a>
+          <a href="../ly_thuyet/ly_thuyet.html" class="nav-btn">
+            <i class="fa-solid fa-book-medical"></i> Lý thuyết
+          </a>
+          <a href="../lich_su_chan_doan/lich_su_chan_doan.html" class="nav-btn">
+            <i class="fa-solid fa-clock-rotate-left"></i> Lịch sử
+          </a>
+        </nav>
+
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi Chế độ Sáng / Tối">
+          <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="main-wrapper">
+    <div class="graph-toolbar">
+      <div class="graph-controls">
+        <label id="fpgFilterLabel"
+          style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); margin-left: 0.5rem;">
+          Lọc theo bệnh:
+        </label>
+        <select id="fpgDiseaseFilter" class="form-control" style="width: 270px; padding: 0.45rem 0.75rem;">
+          <option value="ALL">-- Toàn bộ mạng luật --</option>
+        </select>
+        <button id="btnZoomIn" class="btn-secondary" title="Phóng to"><i class="fa-solid fa-plus"></i> Phóng to</button>
+        <button id="btnZoomOut" class="btn-secondary" title="Thu nhỏ"><i class="fa-solid fa-minus"></i> Thu nhỏ</button>
+        <button id="btnResetGraph" class="btn-secondary" title="Căn giữa tự động"><i class="fa-solid fa-expand"></i> Căn
+          giữa</button>
+      </div>
+
+      <div class="graph-legend">
+        <div class="legend-item">
+          <span class="legend-shape shape-fact-input"></span>
+          <span>Sự kiện / Triệu chứng (Fact)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-gate-and">∧</span>
+          <span>Cổng hội (AND ∧)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-gate-or">∨</span>
+          <span>Cổng tuyển (OR ∨)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-fact-goal"></span>
+          <span>Kết luận / Bệnh (Goal)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shape shape-active-glow" style="width: 14px; height: 14px; border-radius: 50%;"></span>
+          <span>Đã kích hoạt (Active)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 2 Cột: Canvas bên trái & Fact Inspector bên phải -->
+    <div class="fpg-layout">
+      <div class="canvas-container">
+        <canvas id="fpgCanvas"></canvas>
+      </div>
+
+      <!-- Sidebar Inspector -->
+      <aside class="fpg-inspector">
+        <div class="inspector-header">
+          <h3><i class="fa-solid fa-circle-nodes"></i> Phân tích Lan truyền FPG & CF</h3>
+        </div>
+
+        <div id="inspectorContent" class="inspector-body">
+          <p style="margin-bottom: 0.75rem;">
+            Nhấp chuột vào bất kỳ <strong>Sự kiện (Fact)</strong>, <strong>Cổng Hội AND (∧)</strong>, <strong>Cổng Tuyển
+              OR (∨)</strong> hoặc <strong>Bệnh (Goal)</strong> trên đồ thị để kiểm tra chi tiết công thức và vết tính
+            toán lan truyền.
+          </p>
+
+          <div class="stat-pill success" style="margin-bottom: 0.5rem;">
+            <i class="fa-solid fa-circle-check"></i> Đồ thị Lan truyền sự kiện FPG (Fact Propagation Graph)
+          </div>
+
+          <div class="formula-card" style="margin-top: 0.75rem;">
+            <strong>Mô hình cổng logic FPG:</strong><br>
+            • <strong>Cổng Hội (AND ∧):</strong> Gom tiền đề: CF(Tiền đề) = min(CF₁..)<br>
+            • <strong>Luật kích hoạt:</strong> CF(Luật) = CF(Tiền đề) × CF(r)<br>
+            • <strong>Cổng Tuyển (OR ∨):</strong> Gom bệnh qua hàm kết hợp MYCIN:<br>
+            &nbsp;&nbsp;CF_combine = CF₁ + CF₂ - (CF₁ × CF₂)
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="app-footer">
+    <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Đồ Thị FPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
+  </footer>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="../quan_ly_tri_thuc/mo_hinh_tri_thuc.js"></script>
+  <script src="ve_do_thi_fpg.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const dbEngine = new DatabaseEngine();
+      try { await dbEngine.init(); } catch (e) { }
+
+      const kbManager = new KnowledgeBaseManager(dbEngine);
+      const inspectorContent = document.getElementById("inspectorContent");
+      const fpgModeSelect = document.getElementById("fpgModeSelect");
+      const fpgDiseaseFilter = document.getElementById("fpgDiseaseFilter");
+      const fpgFilterLabel = document.getElementById("fpgFilterLabel");
+
+      // Khởi tạo visualizer với callback khi chọn node hoặc hover node
+      const fpgVisualizer = new FPGVisualizer("fpgCanvas", {
+        onNodeSelect: (node) => {
+          renderInspector(node);
+        },
+        onNodeHover: (node) => {
+          renderInspector(node || fpgVisualizer.selectedNode);
+        }
+      });
+
+      function renderInspector(node) {
+        if (!node) {
+          inspectorContent.innerHTML = `
+            <p style="margin-bottom: 0.75rem;">
+              Nhấp chuột vào bất kỳ <strong>Sự kiện (Fact)</strong>, <strong>Cổng Hội AND (∧)</strong>, <strong>Cổng Tuyển OR (∨)</strong> hoặc <strong>Bệnh (Goal)</strong> trên đồ thị để kiểm tra chi tiết công thức và vết tính toán lan truyền.
+            </p>
+            <div class="stat-pill success" style="margin-bottom: 0.5rem;">
+              <i class="fa-solid fa-circle-check"></i> Đồ thị Lan truyền sự kiện FPG (Fact Propagation Graph)
+            </div>
+            <div class="formula-card" style="margin-top: 0.75rem;">
+              <strong>Kiến trúc Mạng Ngữ Nghĩa Logic FPG:</strong><br>
+              • <strong>Cổng Hội (AND ∧):</strong> Gom các sự kiện tiền đề: CF(Tiền đề) = min(CF₁, CF₂, ...)<br>
+              • <strong>Nhân hệ số luật:</strong> CF(Kích hoạt) = CF(Tiền đề) × CF(Luật)<br>
+              • <strong>Cổng Tuyển (OR ∨):</strong> Gom các luật cùng kết luận qua mô hình tích lũy MYCIN:<br>
+              &nbsp;&nbsp;CF_combine = CF₁ + CF₂ - (CF₁ × CF₂)<br>
+              • <strong>Kết luận (Goal):</strong> Chẩn đoán bệnh với Certainty Factor tổng hợp.
+            </div>
+          `;
+          return;
+        }
+
+        const kb = kbManager.getKB() || {};
+        const isFact = node.type === "FACT";
+        const isGateAnd = node.type === "GATE_AND" || node.type === "RULE";
+        const isGateOr = node.type === "GATE_OR";
+        const isGoal = node.type === "GOAL" || node.type === "DISEASE";
+
+        let typeLabel = "Sự kiện (Fact)";
+        if (isGateAnd) typeLabel = "Cổng Hội AND (∧)";
+        else if (isGateOr) typeLabel = "Cổng Tuyển OR (∨)";
+        else if (isGoal) typeLabel = "Kết luận / Bệnh (Goal)";
+
+        let html = `
+          <div style="margin-bottom: 0.75rem;">
+            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">
+              [${node.id}] ${node.subLabel ? `<span style="font-size: 0.85rem; font-weight: normal; color: var(--text-secondary);">- ${node.subLabel}</span>` : ''}
+            </div>
+            <div style="margin-top: 0.35rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+              <span class="stat-pill ${node.isActive ? 'success' : 'warning'}">
+                ${node.isActive ? 'Đang kích hoạt (Active)' : 'Chưa kích hoạt'}
+              </span>
+              <span class="stat-pill">
+                ${typeLabel}
+              </span>
+            </div>
+          </div>
+        `;
+
+        // 1. FACT NODE
+        if (isFact) {
+          if (node.id && node.id.startsWith("FACT_")) {
+            // Slide Benchmark Fact
+            html += `
+              <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Mã sự kiện:</strong> ${node.label}<br>
+                <strong>Hệ số tin cậy:</strong> <span style="color: #38bdf8; font-weight: bold;">CF = ${node.cf !== undefined ? node.cf : 'N/A'}</span>
+              </div>
+              <div class="formula-card">
+                <strong>Ý nghĩa sự kiện trong Slide Tuần 6:</strong><br>
+                ${node.label === 'A' ? 'Sự kiện tiền đề gốc: CF(A) = 0.25' : ''}
+                ${node.label === 'B' ? 'Suy ra từ R1: CF(B) = CF(A) × CF(R1) = 0.25 × 0.5 = 0.125' : ''}
+                ${node.label === 'C' ? 'Sự kiện tiền đề gốc: CF(C) = 0.5' : ''}
+                ${node.label === 'D' ? 'Suy ra từ R2: CF(D) = CF(C) × CF(R2) = 0.5 × 0.25 = 0.125' : ''}
+                ${node.label === '¬D' ? 'Phủ định NOT D: CF(¬D) = -CF(D) = -0.125' : ''}
+                ${node.label === 'F' ? 'Sự kiện tiền đề gốc: CF(F) = -0.5' : ''}
+                ${node.label === '¬F' ? 'Phủ định NOT F: CF(¬F) = -CF(F) = 0.5' : ''}
+                ${node.label === 'I' ? 'Sự kiện tiền đề gốc: CF(I) = 0.4' : ''}
+              </div>
+            `;
+          } else if (node.data) {
+            // Clinical Symptom Fact
+            const s = node.data;
+            const relatedRulesMap = new Map();
+            (kb.rules || []).forEach(r => {
+              const prems = Array.from(new Set(r.premises || []));
+              if (prems.includes(s.id) && !relatedRulesMap.has(r.id)) {
+                relatedRulesMap.set(r.id, { ...r, premises: prems });
+              }
+            });
+            const relatedRules = Array.from(relatedRulesMap.values());
+            html += `
+              <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+                <strong>Tên triệu chứng:</strong> ${s.name}<br>
+                <strong>Câu hỏi truy vấn:</strong><br>
+                <em>"${s.question || 'Bạn có triệu chứng này không?'}"</em>
+              </div>
+              <div class="formula-card">
+                <strong>Lan truyền tới Cổng Hội AND (∧) của ${relatedRules.length} luật:</strong><br>
+                ${relatedRules.map(r => `• Cổng <strong>∧ ${r.id}</strong>: IF ... ${s.id} ... THEN ${r.conclusion}`).join('<br>')}
+              </div>
+            `;
+          }
+        }
+        // 2. GATE_AND NODE
+        else if (isGateAnd) {
+          if (node.id === "GATE_AND_B_NOTD") {
+            // Slide Benchmark AND gate
+            html += `
+              <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Tên cổng:</strong> Cổng Hội AND (∧)<br>
+                <strong>Đầu vào:</strong> B (CF=0.125) và ¬D (CF=-0.125)<br>
+                <strong>Hệ số tin cậy hội:</strong> <span style="color: #38bdf8; font-weight: bold;">CF = ${node.cf}</span>
+              </div>
+              <div class="formula-card">
+                <strong>Công thức Cổng Hội (AND ∧):</strong><br>
+                CF(B ∧ ¬D) = min(CF(B), CF(¬D))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= min(0.125, -0.125)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= -0.125
+              </div>
+            `;
+          } else if (node.ruleData || node.data) {
+            // Clinical Gate AND
+            const r = node.ruleData || node.data;
+            const { activeFacts } = getActiveState();
+            const uniquePremises = Array.from(new Set(r.premises || []));
+            const activePremises = uniquePremises.filter(pId => activeFacts.has(pId));
+
+            html += `
+              <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+                <strong>Cổng Hội logic cho Luật:</strong> ${r.id} (${r.name || r.id})<br>
+                <strong>Hệ số tin cậy luật:</strong> CF(R) = ${r.cf}<br>
+                <strong>Điều kiện tiền đề:</strong> ${activePremises.length} / ${uniquePremises.length} triệu chứng thỏa mãn<br>
+                <strong>Kết nối tới:</strong> Cổng Tuyển OR (∨) của Bệnh ${r.conclusion}
+              </div>
+              <div class="formula-card">
+                <strong>Biểu thức Hội (AND ∧) tiền đề:</strong><br>
+                IF ${uniquePremises.join(' ∧ ')}<br>
+                THEN ${r.conclusion} [CF=${r.cf}]<br><br>
+                <strong>Công thức lan truyền CF:</strong><br>
+                • CF(Tiền đề) = min(${uniquePremises.map(p => `CF(${p})`).join(', ')})<br>
+                • CF(Đầu ra Cổng AND) = CF(Tiền đề) × CF(${r.id}) = CF(Tiền đề) × ${r.cf}
+              </div>
+            `;
+          }
+        }
+        // 3. GATE_OR NODE
+        else if (isGateOr) {
+          if (node.id === "GATE_OR_R4") {
+            // Slide Benchmark OR gate
+            html += `
+              <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Tên cổng:</strong> Cổng Tuyển OR (∨)<br>
+                <strong>Đầu vào:</strong> (B ∧ ¬D) [CF=-0.125] và I [CF=0.4]<br>
+                <strong>Hệ số tin cậy tuyển:</strong> <span style="color: #c084fc; font-weight: bold;">CF = ${node.cf}</span>
+              </div>
+              <div class="formula-card">
+                <strong>Công thức Cổng Tuyển (OR ∨):</strong><br>
+                CF((B ∧ ¬D) ∨ I) = max(CF(B ∧ ¬D), CF(I))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= max(-0.125, 0.4)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0.400
+              </div>
+            `;
+          } else {
+            // Clinical Gate OR
+            const d = node.diseaseData || {};
+            const incomingRules = node.incomingRules || [];
+
+            html += `
+              <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+                <strong>Cổng Tuyển logic cho Bệnh:</strong> [${node.diseaseId || d.id}] ${d.name || ''}<br>
+                <strong>Số luật sinh cạnh tranh hội tụ:</strong> ${incomingRules.length} luật<br>
+                <strong>Đích đến:</strong> Nút Bệnh / Kết luận [${node.diseaseId || d.id}]
+              </div>
+              <div class="formula-card">
+                <strong>Các luật sinh hội tụ vào cổng OR này:</strong><br>
+                ${incomingRules.map(r => `• <strong>${r.id}</strong> [CF=${r.cf}]: IF ${(r.premises || []).join(' ∧ ')}`).join('<br>')}<br><br>
+                <strong>Thuật toán kết hợp chứng cứ MYCIN (Cổng OR ∨):</strong><br>
+                • Khi CF₁, CF₂ ≥ 0:<br>
+                &nbsp;&nbsp;CF_combine = CF₁ + CF₂ - (CF₁ × CF₂)<br>
+                • Khi CF₁, CF₂ < 0:<br>
+                &nbsp;&nbsp;CF_combine = CF₁ + CF₂ + (CF₁ × CF₂)<br>
+                • Khi CF₁ × CF₂ < 0 (trái dấu):<br>
+                &nbsp;&nbsp;CF_combine = (CF₁ + CF₂) / (1 - min(|CF₁|, |CF₂|))
+              </div>
+            `;
+          }
+        }
+        // 4. GOAL NODE
+        else if (isGoal) {
+          if (node.id === "FACT_G") {
+            html += `
+              <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Kết luận trung gian:</strong> G = R3(¬F)<br>
+                <strong>Hệ số tin cậy:</strong> <span style="color: #f87171; font-weight: bold;">CF(G) = ${node.cf}</span>
+              </div>
+              <div class="formula-card">
+                <strong>Tính toán suy diễn R3:</strong><br>
+                • CF(¬F) = -CF(F) = -(-0.5) = 0.5<br>
+                • CF(G) = CF(¬F) × CF(R3) = 0.5 × 0.75 = 0.375
+              </div>
+            `;
+          } else if (node.id === "FACT_J") {
+            html += `
+              <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Kết luận cuối cùng (Goal):</strong> J = R4(∨)<br>
+                <strong>Hệ số tin cậy:</strong> <span style="color: #f87171; font-weight: bold; font-size: 1rem;">CF(J) = 0.100</span>
+              </div>
+              <div class="formula-card">
+                <strong>Tính toán toàn bộ chuỗi suy luận (Slide Tuần 6):</strong><br>
+                1. CF(B) = CF(A) × CF(R1) = 0.25 × 0.5 = 0.125<br>
+                2. CF(D) = CF(C) × CF(R2) = 0.5 × 0.25 = 0.125<br>
+                3. CF(¬D) = -0.125<br>
+                4. Cổng AND: CF(B ∧ ¬D) = min(0.125, -0.125) = -0.125<br>
+                5. Cổng OR: CF((B ∧ ¬D) ∨ I) = max(-0.125, 0.4) = 0.4<br>
+                6. Áp dụng R4: CF(J) = 0.4 × CF(R4) = 0.4 × 0.25 = <strong>0.100</strong>
+              </div>
+            `;
+          } else if (node.data) {
+            const d = node.data;
+            const incomingRulesMap = new Map();
+            (kb.rules || []).forEach(r => {
+              if (r && r.conclusion === d.id && r.id && !incomingRulesMap.has(r.id)) {
+                incomingRulesMap.set(r.id, {
+                  ...r,
+                  premises: Array.from(new Set(r.premises || []))
+                });
+              }
+            });
+            const incomingRules = Array.from(incomingRulesMap.values());
+            html += `
+              <div style="font-size: 0.82rem; margin-top: 0.5rem;">
+                <strong>Tên bệnh:</strong> ${d.name}<br>
+                <strong>Mức độ nguy hiểm:</strong> ${d.severity || 'Cần theo dõi y tế'}<br>
+                <strong>Cổng Tuyển OR kết nối:</strong> ∨ ${d.id}<br>
+                <strong>Số luật sinh xác nhận:</strong> ${incomingRules.length} luật
+              </div>
+              ${d.warningSigns ? `
+                <div style="font-size: 0.8rem; color: #f87171; margin-top: 0.4rem;">
+                  <i class="fa-solid fa-triangle-exclamation"></i> <strong>Cảnh báo:</strong> ${d.warningSigns}
+                </div>
+              ` : ''}
+              <div class="formula-card">
+                <strong>Kết luận bệnh từ Cổng Tuyển OR (∨ ${d.id}):</strong><br>
+                Hệ thống tổng hợp Certainty Factor từ các Cổng AND (${incomingRules.map(r => r.id).join(', ')}) qua hàm kết hợp MYCIN để xác định khả năng mắc bệnh.
+              </div>
+            `;
+          }
+        }
+
+        inspectorContent.innerHTML = html;
+      }
+
+      function populateFilters() {
+        if (!fpgDiseaseFilter) return;
+        const kb = kbManager.getKB() || {};
+        fpgDiseaseFilter.innerHTML = `<option value="ALL">-- Toàn bộ mạng luật (${(kb.rules || []).length} luật) --</option>`;
+        (kb.diseases || []).forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.textContent = `[${d.id}] ${d.name}`;
+          fpgDiseaseFilter.appendChild(opt);
+        });
+      }
+
+      function getActiveState() {
+        let activeFacts = new Set();
+        let firedRules = new Set();
+        try {
+          const rawSyms = sessionStorage.getItem("RPG_ACTIVE_SYMPTOMS");
+          if (rawSyms) {
+            const symMap = JSON.parse(rawSyms);
+            activeFacts = new Set(Object.keys(symMap).filter(k => symMap[k] > 0));
+          }
+          const rawRules = sessionStorage.getItem("RPG_FIRED_RULES");
+          if (rawRules) {
+            const rulesArr = JSON.parse(rawRules);
+            firedRules = new Set(rulesArr.map(r => r.ruleId || r));
+          }
+        } catch (e) {
+          console.warn("Lỗi đọc trạng thái FPG:", e);
+        }
+        return { activeFacts, firedRules };
+      }
+
+      function updateGraph() {
+        if (fpgModeSelect && fpgModeSelect.value === "SLIDE_BENCHMARK") {
+          fpgVisualizer.setMode("SLIDE_BENCHMARK");
+          renderInspector(null);
+          return;
+        }
+        const diseaseFilter = fpgDiseaseFilter ? fpgDiseaseFilter.value : "ALL";
+        const { activeFacts, firedRules } = getActiveState();
+        fpgVisualizer.setData(kbManager.getKB(), activeFacts, firedRules, diseaseFilter);
+        renderInspector(null);
+      }
+
+      populateFilters();
+
+      // Kiểm tra URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlMode = urlParams.get("mode");
+      if (urlMode === "slide" && fpgModeSelect) {
+        fpgModeSelect.value = "SLIDE_BENCHMARK";
+        if (fpgDiseaseFilter) fpgDiseaseFilter.disabled = true;
+        if (fpgFilterLabel) fpgFilterLabel.style.opacity = "0.5";
+      }
+
+      const focusDisease = urlParams.get("focus");
+      if (focusDisease && fpgDiseaseFilter) {
+        fpgDiseaseFilter.value = focusDisease;
+      }
+
+      setTimeout(() => {
+        fpgVisualizer.resizeCanvas();
+        updateGraph();
+      }, 50);
+
+      // Bắt sự kiện chuyển đổi chế độ
+      if (fpgModeSelect) {
+        fpgModeSelect.addEventListener("change", (e) => {
+          const mode = e.target.value;
+          if (mode === "SLIDE_BENCHMARK") {
+            if (fpgDiseaseFilter) fpgDiseaseFilter.disabled = true;
+            if (fpgFilterLabel) fpgFilterLabel.style.opacity = "0.5";
+            fpgVisualizer.setMode("SLIDE_BENCHMARK");
+          } else {
+            if (fpgDiseaseFilter) fpgDiseaseFilter.disabled = false;
+            if (fpgFilterLabel) fpgFilterLabel.style.opacity = "1";
+            fpgVisualizer.setMode("CLINICAL");
+            updateGraph();
+          }
+          renderInspector(null);
+        });
+      }
+
+      if (fpgDiseaseFilter) {
+        fpgDiseaseFilter.addEventListener("change", updateGraph);
+      }
+
+      document.getElementById("btnZoomIn").addEventListener("click", () => fpgVisualizer.zoomIn());
+      document.getElementById("btnZoomOut").addEventListener("click", () => fpgVisualizer.zoomOut());
+      document.getElementById("btnResetGraph").addEventListener("click", () => fpgVisualizer.resetView());
+
+      kbManager.onUpdate(() => {
+        populateFilters();
+        updateGraph();
+      });
+    });
+  </script>
+</body>
+
+</html>

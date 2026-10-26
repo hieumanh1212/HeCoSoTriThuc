@@ -39,6 +39,9 @@
           <a href="../do_thi_rpg/do_thi_rpg.html" class="nav-btn">
             <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
           </a>
+          <a href="../do_thi_fpg/do_thi_fpg.html" class="nav-btn">
+            <i class="fa-solid fa-diagram-successor"></i> Đồ thị FPG
+          </a>
           <a href="quan_ly_tri_thuc.html" class="nav-btn active">
             <i class="fa-solid fa-database"></i> Quản lý Tri thức
           </a>
@@ -181,6 +184,7 @@
               <th style="width: 80px;">Mã</th>
               <th>Tên Bệnh</th>
               <th>Mức độ nguy hiểm</th>
+              <th>Hướng xử trí & phác đồ</th>
               <th>Dấu hiệu cảnh báo nguy cấp</th>
               <th>Nguồn tham khảo y tế</th>
             </tr>
@@ -251,6 +255,97 @@
     </div>
   </div>
 
+  <div id="modalSymptomForm" class="modal-backdrop">
+    <div class="modal-card catalog-form-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-virus" style="color: var(--color-primary);"></i>
+          <span>Thêm triệu chứng lâm sàng</span>
+        </div>
+        <button class="modal-close-btn" data-close="modalSymptomForm">&times;</button>
+      </div>
+      <form id="symptomForm">
+        <div class="form-group">
+          <label class="form-label" for="formSymptomId">Mã triệu chứng:</label>
+          <input id="formSymptomId" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="formSymptomName">Tên triệu chứng:</label>
+          <input id="formSymptomName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="formSymptomGroupId">Nhóm triệu chứng:</label>
+          <select id="formSymptomGroupId" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="formSymptomQuestion">Câu hỏi suy diễn lùi (WHY):</label>
+          <textarea id="formSymptomQuestion" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="formSymptomSeverity">Mức độ cảnh báo:</label>
+          <select id="formSymptomSeverity" class="form-control">
+            <option>Bình thường</option>
+            <option>Cảnh báo</option>
+            <option>Cao</option>
+            <option>Nguy hiểm</option>
+          </select>
+        </div>
+        <div class="catalog-form-actions">
+          <button type="button" class="btn-secondary" data-close="modalSymptomForm">Hủy</button>
+          <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Lưu triệu chứng</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalDiseaseForm" class="modal-backdrop">
+    <div class="modal-card catalog-form-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-disease" style="color: #ef4444;"></i>
+          <span>Thêm bệnh & phác đồ</span>
+        </div>
+        <button class="modal-close-btn" data-close="modalDiseaseForm">&times;</button>
+      </div>
+      <form id="diseaseForm">
+        <div class="catalog-form-grid">
+          <div class="form-group">
+            <label class="form-label" for="formDiseaseId">Mã bệnh:</label>
+            <input id="formDiseaseId" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="formDiseaseName">Tên bệnh:</label>
+            <input id="formDiseaseName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="formDiseaseScientificName">Tên khoa học:</label>
+            <input id="formDiseaseScientificName" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="formDiseaseCategory">Nhóm bệnh:</label>
+            <input id="formDiseaseCategory" class="form-control">
+          </div>
+          <div class="form-group catalog-form-wide">
+            <label class="form-label" for="formDiseaseSeverity">Mức độ nguy hiểm:</label>
+            <input id="formDiseaseSeverity" class="form-control" placeholder="Ví dụ: Trung bình, cần theo dõi sát">
+          </div>
+          <div class="form-group catalog-form-wide">
+            <label class="form-label" for="formDiseaseWarningSigns">Dấu hiệu cảnh báo:</label>
+            <textarea id="formDiseaseWarningSigns" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="form-group catalog-form-wide">
+            <label class="form-label" for="formDiseaseTreatment">Hướng xử trí & phác đồ:</label>
+            <textarea id="formDiseaseTreatment" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="catalog-form-actions">
+          <button type="button" class="btn-secondary" data-close="modalDiseaseForm">Hủy</button>
+          <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Lưu bệnh</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==================== MODAL: NẠP DỮ LIỆU EXCEL (MODERN SAAS UI) ==================== -->
   <div id="modalImportExcel" class="modal-backdrop">
     <div class="modal-card modal-card-xl modern-import-modal">
@@ -299,6 +394,7 @@
 
         <!-- Middle section: Thống kê & Bảng dữ liệu -->
         <div class="import-data-section">
+          <div id="catalogImportSummary" class="catalog-import-summary" style="display: none;"></div>
           <div class="import-status-bar">
             <div class="status-left">
               <span class="status-title"><i class="fa-solid fa-list-check"></i> Xem trước dữ liệu</span>
@@ -411,6 +507,7 @@
           kbSubtabBtns.forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           const subtab = btn.getAttribute("data-subtab");
+          kbController.setExcelScope(subtab);
 
           document.getElementById("subtab-rules").style.display = subtab === "rules-table" ? "block" : "none";
           document.getElementById("subtab-symptoms").style.display = subtab === "symptoms-table" ? "block" : "none";
