@@ -117,10 +117,27 @@
 
 .history-filter-body {
   display: grid;
-  grid-template-columns: 1.5fr 1.2fr 1fr 1fr auto;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
   gap: 1rem;
   padding: 1.15rem 1.25rem;
   align-items: flex-end;
+}
+
+.filter-cf-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.filter-cf-inputs input {
+  text-align: center;
+  padding: 0.65rem 0.4rem;
+}
+
+.filter-cf-separator {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.9rem;
 }
 
 .filter-group {

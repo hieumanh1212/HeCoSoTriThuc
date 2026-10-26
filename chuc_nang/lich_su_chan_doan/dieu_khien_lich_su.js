@@ -30,6 +30,10 @@ class HistoryController {
     // Filters
     this.filterSearch = document.getElementById("filterSearch");
     this.filterDisease = document.getElementById("filterDisease");
+    this.filterCFRange = document.getElementById("filterCFRange");
+    this.groupCFCustom = document.getElementById("groupCFCustom");
+    this.filterCFMin = document.getElementById("filterCFMin");
+    this.filterCFMax = document.getElementById("filterCFMax");
     this.filterDateFrom = document.getElementById("filterDateFrom");
     this.filterDateTo = document.getElementById("filterDateTo");
     this.btnResetFilter = document.getElementById("btnResetFilter");
@@ -66,6 +70,20 @@ class HistoryController {
     }
     if (this.filterDisease) {
       this.filterDisease.addEventListener("change", () => this.applyFilters());
+    }
+    if (this.filterCFRange) {
+      this.filterCFRange.addEventListener("change", () => {
+        if (this.groupCFCustom) {
+          this.groupCFCustom.style.display = this.filterCFRange.value === "custom" ? "flex" : "none";
+        }
+        this.applyFilters();
+      });
+    }
+    if (this.filterCFMin) {
+      this.filterCFMin.addEventListener("input", () => this.applyFilters());
+    }
+    if (this.filterCFMax) {
+      this.filterCFMax.addEventListener("input", () => this.applyFilters());
     }
     if (this.filterDateFrom) {
       this.filterDateFrom.addEventListener("change", () => this.applyFilters());
@@ -149,6 +167,9 @@ class HistoryController {
   applyFilters() {
     const q = (this.filterSearch ? this.filterSearch.value : "").trim().toLowerCase();
     const diseaseFilter = (this.filterDisease ? this.filterDisease.value : "").trim();
+    const cfRange = this.filterCFRange ? this.filterCFRange.value : "all";
+    const cfMinVal = (this.filterCFMin && this.filterCFMin.value !== "") ? parseFloat(this.filterCFMin.value) : null;
+    const cfMaxVal = (this.filterCFMax && this.filterCFMax.value !== "") ? parseFloat(this.filterCFMax.value) : null;
     const fromDateStr = this.filterDateFrom ? this.filterDateFrom.value : "";
     const toDateStr = this.filterDateTo ? this.filterDateTo.value : "";
 
@@ -169,7 +190,24 @@ class HistoryController {
         if (disName !== diseaseFilter && session.topDiseaseId !== diseaseFilter) return false;
       }
 
-      // 3. Lọc theo khoảng ngày
+      // 3. Lọc theo khoảng độ tin cậy CF
+      const cf = Number(session.topCF || 0);
+      const cfPercent = Math.round(cf * 100);
+
+      if (cfRange === "very_high") {
+        if (cfPercent < 80) return false;
+      } else if (cfRange === "high") {
+        if (cfPercent < 60 || cfPercent >= 80) return false;
+      } else if (cfRange === "medium") {
+        if (cfPercent < 40 || cfPercent >= 60) return false;
+      } else if (cfRange === "low") {
+        if (cfPercent >= 40) return false;
+      } else if (cfRange === "custom") {
+        if (cfMinVal !== null && !isNaN(cfMinVal) && cfPercent < cfMinVal) return false;
+        if (cfMaxVal !== null && !isNaN(cfMaxVal) && cfPercent > cfMaxVal) return false;
+      }
+
+      // 4. Lọc theo khoảng ngày
       if (fromTime || toTime) {
         const sessionTime = new Date(session.timestamp || 0).getTime();
         if (fromTime && sessionTime < fromTime) return false;
@@ -186,6 +224,10 @@ class HistoryController {
   resetFilters() {
     if (this.filterSearch) this.filterSearch.value = "";
     if (this.filterDisease) this.filterDisease.value = "";
+    if (this.filterCFRange) this.filterCFRange.value = "all";
+    if (this.groupCFCustom) this.groupCFCustom.style.display = "none";
+    if (this.filterCFMin) this.filterCFMin.value = "";
+    if (this.filterCFMax) this.filterCFMax.value = "";
     if (this.filterDateFrom) this.filterDateFrom.value = "";
     if (this.filterDateTo) this.filterDateTo.value = "";
     this.applyFilters();
