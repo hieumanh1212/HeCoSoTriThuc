@@ -25,6 +25,7 @@ class FPGVisualizer {
     // Trạng thái mô phỏng suy diễn tiến y tế
     this.currentTG = new Set();
     this.activeRuleId = null;
+    this.filterRelatedOnly = false;
 
     this.onNodeSelect = options.onNodeSelect || null;
     this.onNodeHover = options.onNodeHover || null;
@@ -201,7 +202,17 @@ class FPGVisualizer {
   setSimulationState(tgSet, activeRuleId = null) {
     this.currentTG = tgSet instanceof Set ? tgSet : new Set(tgSet || []);
     this.activeRuleId = activeRuleId;
-    this.render();
+    if (this.filterRelatedOnly) {
+      this.buildGraph();
+    } else {
+      this.render();
+    }
+  }
+
+  setFilterRelatedOnly(filterOnly) {
+    this.filterRelatedOnly = !!filterOnly;
+    this.buildGraph();
+    this.autoFit();
   }
 
   buildGraph() {
@@ -215,23 +226,32 @@ class FPGVisualizer {
 
     // Phân loại sự kiện thành 3 cột kiến trúc FPG y tế:
     // Cột 1: Triệu chứng lâm sàng (Symptoms - S)
-    // Cột 2: Hội chứng trung gian (Intermediate - I)
+    // Cột 2: Hội chứng trung gian (Intermediate - I / HC)
     // Cột 3: Bệnh kết luận (Diseases - D)
-    const symptoms = this.fpgData.nodes.filter(n => n.type === "SYMPTOM");
-    const intermediates = this.fpgData.nodes.filter(n => n.type === "INTERMEDIATE");
-    const diseases = this.fpgData.nodes.filter(n => n.type === "DISEASE");
+    let symptoms = this.fpgData.nodes.filter(n => n.type === "SYMPTOM" || (n.id.startsWith("S") && !n.id.startsWith("HC")));
+    let intermediates = this.fpgData.nodes.filter(n => n.type === "INTERMEDIATE" || n.id.startsWith("I") || n.id.startsWith("HC"));
+    let diseases = this.fpgData.nodes.filter(n => n.type === "DISEASE" || n.id.startsWith("D"));
+
+    if (this.filterRelatedOnly) {
+      symptoms = symptoms.filter(s => s.isGT || this.fpgData.gtSet.has(s.id));
+      intermediates = intermediates.filter(im => {
+        const distToKL = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(im.id, klSet, this.fpgData.edges);
+        return distToKL !== Infinity || this.currentTG.has(im.id);
+      });
+      diseases = diseases.filter(d => d.isKL || klSet.has(d.id));
+    }
 
     const col1X = 180;
     const col2X = 520;
     const col3X = 860;
 
-    const symSpacing = symptoms.length > 12 ? 46 : 56;
-    const interSpacing = 90;
-    const disSpacing = 85;
+    const symSpacing = this.filterRelatedOnly ? 90 : 80;
+    const interSpacing = this.filterRelatedOnly ? 100 : 90;
+    const disSpacing = this.filterRelatedOnly ? 110 : 85;
 
-    const symStartY = 75;
-    const interStartY = 110;
-    const disStartY = 95;
+    const symStartY = this.filterRelatedOnly ? 120 : 75;
+    const interStartY = this.filterRelatedOnly ? 140 : 110;
+    const disStartY = this.filterRelatedOnly ? 160 : 95;
 
     // 1. Tạo node Triệu chứng
     symptoms.forEach((s, idx) => {

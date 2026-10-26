@@ -914,10 +914,10 @@ class DiagnosisController {
                 ${target.diseaseName}
               </div>
               <div class="chain-stage-actions">
-                <a href="../do_thi_rpg/do_thi_rpg.html?focus=${target.diseaseId}&mode=RPG" class="btn-stage-mini" title="Xem vị trí bệnh trên Mạng Petri RPG">
+                <a href="../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${target.diseaseId}" class="btn-stage-mini" title="Xem vị trí bệnh trên Mạng Petri RPG">
                   <i class="fa-solid fa-project-diagram"></i> Mạng RPG
                 </a>
-                <a href="../do_thi_rpg/do_thi_rpg.html?focus=${target.diseaseId}&mode=FPG" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc sự kiện FPG">
+                <a href="../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS&disease=${target.diseaseId}" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc sự kiện FPG">
                   <i class="fa-solid fa-network-wired"></i> Mạng FPG
                 </a>
               </div>
@@ -1171,10 +1171,10 @@ class DiagnosisController {
               ${disMeta.name}
             </div>
             <div class="chain-stage-actions">
-              <a href="../do_thi_rpg/do_thi_rpg.html?focus=${disMeta.id}&mode=RPG" class="btn-stage-mini" title="Xem trên Mạng Petri RPG">
+              <a href="../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${disMeta.id}" class="btn-stage-mini" title="Xem trên Mạng Petri RPG">
                 <i class="fa-solid fa-project-diagram"></i> Mạng RPG
               </a>
-              <a href="../do_thi_rpg/do_thi_rpg.html?focus=${disMeta.id}&mode=FPG" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc FPG">
+              <a href="../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS&disease=${disMeta.id}" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc FPG">
                 <i class="fa-solid fa-network-wired"></i> Mạng FPG
               </a>
             </div>
