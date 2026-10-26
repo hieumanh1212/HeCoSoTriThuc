@@ -38,14 +38,14 @@ HeCoSoTriThuc/
 │   │   ├── chan_doan.css                      # CSS riêng cho bộ chọn triệu chứng & bảng kết quả
 │   │   └── dieu_khien_chan_doan.js            # Controller xử lý chọn triệu chứng, suy diễn, modal HOW/WHY
 │   │
-│   ├── do_thi_rpg/                            # 🕸️ Màn hình Đồ thị Mạng luật RPG (Rule Petri Graph)
+│   ├── do_thi_rpg/                            # 🕸️ Màn hình Đồ thị Liên hệ trước giữa các luật RPG (Rules Precedence Graph)
 │   │   ├── do_thi_rpg.css                     # CSS riêng cho toolbar & canvas đồ thị
-│   │   └── ve_do_thi_rpg.js                   # Engine vẽ Canvas & trực quan hóa mạng luật RPG
+│   │   └── ve_do_thi_rpg.js                   # Engine vẽ Canvas & phân tích liên hệ trước giữa các luật RPG
 │   │
-│   ├── do_thi_fpg/                            # 🌿 Màn hình Đồ thị Ưu tiên Sự kiện FPG (Fact Precedence Graph)
-│   │   ├── do_thi_fpg.html                    # Giao diện FPG & Mô phỏng Slide Tuần 6
+│   ├── do_thi_fpg/                            # 🌿 Màn hình Đồ thị Liên hệ trước sự kiện FPG (Facts Precedence Graph)
+│   │   ├── do_thi_fpg.html                    # Giao diện FPG & Mô phỏng vết suy diễn
 │   │   ├── do_thi_fpg.css                     # CSS riêng cho toolbar, legend & inspector
-│   │   └── ve_do_thi_fpg.js                   # Engine vẽ Mạng ngữ nghĩa luật & Lan truyền CF
+│   │   └── ve_do_thi_fpg.js                   # Engine vẽ đồ thị sự kiện FPG & hàm heuristic
 │   │
 │   ├── quan_ly_tri_thuc/                      # 📚 Màn hình Quản lý Cơ sở tri thức
 │   │   ├── quan_ly_tri_thuc.css               # CSS riêng cho bảng quản trị luật

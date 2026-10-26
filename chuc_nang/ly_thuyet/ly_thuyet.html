@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nguồn & Lý Thuyết - Hệ Cơ Sở Tri Thức</title>
-  
+
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../../css/tong_hop.css">
 </head>
+
 <body>
 
   <!-- ==================== APP HEADER ==================== -->
@@ -71,30 +73,38 @@
         <i class="fa-solid fa-certificate"></i> Nguồn gốc và Độ tin cậy của Tri thức Y khoa
       </h2>
       <p style="margin-bottom: 0.8rem; font-size: 0.95rem;">
-        Toàn bộ tri thức y khoa trong hệ thống được trích xuất, chuẩn hóa và số hóa từ các văn bản quy chuẩn quốc gia của <strong>Bộ Y Tế Việt Nam</strong> và hướng dẫn chuyên môn của <strong>Tổ chức Y tế Thế giới (WHO)</strong>:
+        Toàn bộ tri thức y khoa trong hệ thống được trích xuất, chuẩn hóa và số hóa từ các văn bản quy chuẩn quốc gia
+        của <strong>Bộ Y Tế Việt Nam</strong> và hướng dẫn chuyên môn của <strong>Tổ chức Y tế Thế giới (WHO)</strong>:
       </p>
       <ul style="padding-left: 1.5rem; color: var(--text-secondary); line-height: 2; font-size: 0.9rem;">
-        <li><strong>Sốt xuất huyết Dengue:</strong> Quyết định số 2760/QĐ-BYT Hướng dẫn chẩn đoán, điều trị sốt xuất huyết Dengue.</li>
+        <li><strong>Sốt xuất huyết Dengue:</strong> Quyết định số 2760/QĐ-BYT Hướng dẫn chẩn đoán, điều trị sốt xuất
+          huyết Dengue.</li>
         <li><strong>Cúm mùa & Cúm A:</strong> Quyết định số 2078/QĐ-BYT Hướng dẫn chẩn đoán và điều trị Cúm mùa.</li>
-        <li><strong>Bệnh Sởi:</strong> Quyết định số 1327/QĐ-BYT Hướng dẫn chẩn đoán, điều trị bệnh Sởi ở trẻ em và người lớn.</li>
-        <li><strong>Bệnh Tay Chân Miệng:</strong> Quyết định số 1003/QĐ-BYT Hướng dẫn chẩn đoán, điều trị bệnh Tay - Chân - Miệng.</li>
+        <li><strong>Bệnh Sởi:</strong> Quyết định số 1327/QĐ-BYT Hướng dẫn chẩn đoán, điều trị bệnh Sởi ở trẻ em và
+          người lớn.</li>
+        <li><strong>Bệnh Tay Chân Miệng:</strong> Quyết định số 1003/QĐ-BYT Hướng dẫn chẩn đoán, điều trị bệnh Tay -
+          Chân - Miệng.</li>
         <li><strong>COVID-19:</strong> Quyết định số 250/QĐ-BYT Hướng dẫn chẩn đoán và điều trị COVID-19.</li>
-        <li><strong>Bệnh Thủy đậu:</strong> Quyết định số 3409/QĐ-BYT Hướng dẫn chẩn đoán và điều trị bệnh Thủy đậu.</li>
+        <li><strong>Bệnh Thủy đậu:</strong> Quyết định số 3409/QĐ-BYT Hướng dẫn chẩn đoán và điều trị bệnh Thủy đậu.
+        </li>
       </ul>
     </div>
 
     <div class="card theory-section">
       <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--color-primary);">
-        <i class="fa-solid fa-square-root-variable"></i> Cơ sở Lý thuyết & Mô hình Tính toán Hệ số Tin cậy Certainty Factor (MYCIN)
+        <i class="fa-solid fa-square-root-variable"></i> Cơ sở Lý thuyết & Mô hình Tính toán Hệ số Tin cậy Certainty
+        Factor (MYCIN)
       </h2>
       <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
-        <p><strong>1. Biểu diễn tri thức bất định:</strong> Mỗi luật sinh có dạng: <code>NẾU &lt;Tiền đề&gt; THÌ &lt;Kết luận&gt; [CF]</code> với $CF \in (0, 1]$.</p>
+        <p><strong>1. Biểu diễn tri thức bất định:</strong> Mỗi luật sinh có dạng:
+          <code>NẾU &lt;Tiền đề&gt; THÌ &lt;Kết luận&gt; [CF]</code> với <i>CF</i> &isin; (0, 1].
+        </p>
         <p><strong>2. Độ tin cậy của tiền đề phức hợp dạng hội (AND):</strong></p>
         <pre class="math-formula-box">CF(E1 ∧ E2 ∧ ... ∧ En) = min(CF(E1), CF(E2), ..., CF(En))</pre>
-        
+
         <p><strong>3. Độ tin cậy của một luật kích hoạt:</strong></p>
         <pre class="math-formula-box">CF(Rule) = CF(Premise) × CF_Rule_Base</pre>
-        
+
         <p><strong>4. Kết hợp nhiều luật cùng suy ra một bệnh (Công thức kết hợp MYCIN):</strong></p>
         <pre class="math-formula-box">CF_combine(CF1, CF2) = CF1 + CF2 - (CF1 × CF2)   (khi CF1 >= 0 và CF2 >= 0)
 CF_combine(CF1, CF2) = CF1 + CF2 + (CF1 × CF2)   (khi CF1 < 0 và CF2 < 0)
@@ -112,25 +122,52 @@ CF_combine(CF1, CF2) = (CF1 + CF2) / (1 - min(|CF1|, |CF2|))  (khi CF1 và CF2 k
       </h2>
       <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
         <p>
-          Trong mô hình suy diễn tiến (Forward Chaining) và giải quyết xung đột (Conflict Resolution), lý thuyết hệ cơ sở tri thức (Học phần IT4361 - Thầy Phạm Văn Hải) định nghĩa hai cấu trúc đồ thị tương hỗ:
+          Trong mô hình suy diễn tiến (Forward Chaining) và giải quyết xung đột (Conflict Resolution), lý thuyết hệ cơ
+          sở tri thức định nghĩa hai cấu trúc đồ thị tương hỗ:
         </p>
         <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
           <li>
-            <strong>RPG (Rule Precedence Graph - Đồ thị ưu tiên luật):</strong> 
-            Tập trung vào mối quan hệ thứ tự giữa các <em>Luật sinh</em> $R_i \to R_j$ (kết luận của luật này kích hoạt tiền đề của luật kế tiếp) nhằm lập lịch thứ tự kích hoạt luật tối ưu, tránh quay lui (backtracking).
+            <strong>FPG (Facts Precedence Graph - Đồ thị liên hệ trước sự kiện, Slide 18 - 21):</strong>
+            Mỗi sự kiện là một đỉnh (<i>f</i> &isin; F). Mỗi luật <i>r</i>: left &rarr; <i>q</i> tương ứng một tập cung
+            <i>f</i> &rarr; <i>q</i> mang
+            nhãn luật <i>r</i> (với <i>f</i> &isin; left). Đỉnh <i>f</i> &isin; GT biểu thị sự kiện giả thiết ban đầu,
+            <i>f</i> &isin; KL biểu
+            thị sự kiện kết luận mục tiêu.
+            <br>
+            • <em>Hàm lượng giá suy diễn tiến:</em> <code>h&#770;(r) = KC<sub>FPG</sub>(q, KL) &rarr; min</code> (chọn
+            luật có vế phải tới
+            kết luận ngắn nhất).
+            <br>
+            • <em>Hàm lượng giá suy diễn lùi (Slide 28):</em>
+            <code>h(r, GT) = max<sub>f &isin; left</sub> d(f, GT) &rarr; min</code>.
           </li>
           <li>
-            <strong>FPG (Fact Precedence Graph - Đồ thị ưu tiên sự kiện & Mạng ngữ nghĩa luật):</strong> 
-            Tập trung vào dòng chảy và sự lan truyền của các <em>Sự kiện (Facts)</em> từ triệu chứng ban đầu qua các cổng hội AND ($\land$), tuyển OR ($\lor$), phủ định NOT ($\neg$) tới đích kết luận kèm trọng số tin cậy $CF$.
+            <strong>RPG (Rules Precedence Graph - Đồ thị liên hệ trước giữa các luật, Slide 22 - 23):</strong>
+            Mỗi đỉnh là một luật trong tập luật (<i>R</i> &isin; R). Cung R<sub>i</sub> &rarr; R<sub>j</sub> khi và chỉ
+            khi tồn tại sự kiện <i>f</i> sao
+            cho R<sub>i</sub> suy ra <i>f</i> và <i>f</i> &isin; left<sub>j</sub> (R<sub>i</sub> là liên hệ trước của
+            R<sub>j</sub>).
+            <br>
+            • <em>Tập R<sub>GT</sub>:</em> { <i>r</i>: left &rarr; <i>q</i> | left &sube; GT } (Luật thỏa mãn ngay từ
+            đầu).
+            <br>
+            • <em>Tập R<sub>KL</sub>:</em> { <i>r</i>: left &rarr; <i>q</i> | <i>q</i> &sube; KL } (Luật thỏa mãn kết
+            luận).
+            <br>
+            • <em>Hàm lượng giá:</em> <code>h&#770;(r) = KC(r, R<sub>KL</sub>) &rarr; min</code> (khoảng cách ngắn nhất
+            từ <i>r</i> tới tập luật
+            kết luận R<sub>KL</sub>).
           </li>
         </ul>
 
         <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-          <a href="../do_thi_fpg/do_thi_fpg.html" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.1rem; font-size: 0.88rem; font-weight: 600;">
-            <i class="fa-solid fa-diagram-successor"></i> Mở Đồ thị FPG Trực quan
+          <a href="../do_thi_fpg/do_thi_fpg.html" class="btn-primary"
+            style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.1rem; font-size: 0.88rem; font-weight: 600;">
+            <i class="fa-solid fa-diagram-successor"></i> Mở Đồ thị FPG & Mô Phỏng Vết (Slide 19-21)
           </a>
-          <a href="../do_thi_fpg/do_thi_fpg.html?mode=slide" class="btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.1rem; font-size: 0.88rem; font-weight: 600;">
-            <i class="fa-solid fa-graduation-cap"></i> Xem Bài tập Slide Tuần 6
+          <a href="../do_thi_rpg/do_thi_rpg.html" class="btn-secondary"
+            style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.1rem; font-size: 0.88rem; font-weight: 600;">
+            <i class="fa-solid fa-project-diagram"></i> Mở Đồ thị RPG & Phân Tích Luật (Slide 22-23)
           </a>
         </div>
       </div>
@@ -143,7 +180,8 @@ CF_combine(CF1, CF2) = (CF1 + CF2) / (1 - min(|CF1|, |CF2|))  (khi CF1 và CF2 k
       </h2>
       <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
         <p><strong>Đề bài trong slide:</strong> Cho các luật và các độ đo tin cậy như sau:</p>
-        <div style="background: var(--bg-main); padding: 0.85rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; margin: 0.75rem 0;">
+        <div
+          style="background: var(--bg-main); padding: 0.85rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; margin: 0.75rem 0;">
           R1: A → B &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CF(R1) = 0.5, &nbsp;CF(A) = 0.25<br>
           R2: C → D &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CF(R2) = 0.25, CF(C) = 0.5<br>
           R3: (¬F) → G &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CF(R3) = 0.75, CF(F) = -0.5<br>
@@ -155,21 +193,21 @@ CF_combine(CF1, CF2) = (CF1 + CF2) / (1 - min(|CF1|, |CF2|))  (khi CF1 và CF2 k
         <p><strong>Lời giải từng bước chuẩn xác:</strong></p>
         <ol style="padding-left: 1.5rem; line-height: 2;">
           <li>
-            <strong>Tính CF(B):</strong> Áp dụng luật đơn giản $R_1$:<br>
+            <strong>Tính CF(B):</strong> Áp dụng luật đơn giản R<sub>1</sub>:<br>
             <code>CF(B) = CF(A) × CF(R1) = 0.25 × 0.5 = 0.125</code>
           </li>
           <li>
-            <strong>Tính CF(D) và CF(¬D):</strong> Áp dụng luật $R_2$ và luật phủ định NOT:<br>
+            <strong>Tính CF(D) và CF(¬D):</strong> Áp dụng luật R<sub>2</sub> và luật phủ định NOT:<br>
             <code>CF(D) = CF(C) × CF(R2) = 0.5 × 0.25 = 0.125</code><br>
             <code>CF(¬D) = -CF(D) = -0.125</code>
           </li>
           <li>
-            <strong>Tính CF(G):</strong> Áp dụng luật phủ định NOT trên sự kiện F và luật $R_3$:<br>
+            <strong>Tính CF(G):</strong> Áp dụng luật phủ định NOT trên sự kiện F và luật R<sub>3</sub>:<br>
             <code>CF(¬F) = -CF(F) = -(-0.5) = 0.5</code><br>
             <code>CF(G) = CF(¬F) × CF(R3) = 0.5 × 0.75 = 0.375</code>
           </li>
           <li>
-            <strong>Tính CF(J):</strong> Phân tích biểu thức phức hợp của tiền đề luật $R_4$:<br>
+            <strong>Tính CF(J):</strong> Phân tích biểu thức phức hợp của tiền đề luật R<sub>4</sub>:<br>
             • Vế hội (AND): <code>CF(B ∧ ¬D) = min(CF(B), CF(¬D)) = min(0.125, -0.125) = -0.125</code><br>
             • Vế tuyển (OR): <code>CF(Tiền đề R4) = max(CF(B ∧ ¬D), CF(I)) = max(-0.125, 0.4) = 0.400</code><br>
             • Kết luận: <code>CF(J) = CF(Tiền đề R4) × CF(R4) = 0.4 × 0.25 = <strong>0.100</strong></code>
@@ -187,4 +225,5 @@ CF_combine(CF1, CF2) = (CF1 + CF2) / (1 - min(|CF1|, |CF2|))  (khi CF1 và CF2 k
   <!-- ==================== SCRIPTS ==================== -->
   <script src="../../js/tien_ich_chung.js"></script>
 </body>
+
 </html>

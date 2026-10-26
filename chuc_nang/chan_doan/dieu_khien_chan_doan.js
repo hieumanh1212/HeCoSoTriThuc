@@ -25,7 +25,7 @@ class DiagnosisController {
 
   initElements() {
     this.container = document.getElementById("symptomGroupsContainer");
-    
+
     // Custom Dropdown Elements
     this.dropdownContainer = document.getElementById("categoryDropdownContainer");
     this.btnDropdownTrigger = document.getElementById("btnCategoryDropdownTrigger");
@@ -38,7 +38,7 @@ class DiagnosisController {
     this.selectedSymptomsCount = document.getElementById("selectedSymptomsCount");
     this.searchInput = document.getElementById("symptomSearchInput");
     this.btnClearSearch = document.getElementById("btnClearSymptomSearch");
-    
+
     this.btnExpandAll = document.getElementById("btnExpandAll");
     this.btnCollapseAll = document.getElementById("btnCollapseAll");
     this.btnClear = document.getElementById("btnClearSymptoms");
@@ -472,9 +472,9 @@ class DiagnosisController {
           </div>
           <div class="symptom-group-content" style="display: ${this.allExpanded ? 'flex' : 'none'};">
             ${groupSymptoms.map(sym => {
-              const currentCF = this.currentSelectedSymptoms[sym.id] || 0;
-              const isSelected = currentCF > 0;
-              return `
+        const currentCF = this.currentSelectedSymptoms[sym.id] || 0;
+        const isSelected = currentCF > 0;
+        return `
                 <div class="symptom-row ${isSelected ? 'selected' : ''}" data-symptom-id="${sym.id}" data-group-id="${group.id}">
                   <div class="symptom-info">
                     <span class="symptom-id-badge" style="${sym.isIntermediate ? 'background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4);' : ''}">${sym.id}</span>
@@ -493,7 +493,7 @@ class DiagnosisController {
                   </div>
                 </div>
               `;
-            }).join("")}
+      }).join("")}
           </div>
         </div>
       `;
@@ -1242,37 +1242,37 @@ class DiagnosisController {
       ${intermediateHtml}
       <div class="result-card-list">
         ${result.results.map((item, index) => {
-          const isTop = index === 0;
-          const dis = item.disease || {};
-          const diseaseFrame = this.getDiseaseFrame(dis);
-          const frameSlots = diseaseFrame ? diseaseFrame.slots : {};
-          const interp = item.interpretation;
-          const cfPercent = interp.percentage;
-          const diseaseColor = dis.color || '#3b82f6';
+      const isTop = index === 0;
+      const dis = item.disease || {};
+      const diseaseFrame = this.getDiseaseFrame(dis);
+      const frameSlots = diseaseFrame ? diseaseFrame.slots : {};
+      const interp = item.interpretation;
+      const cfPercent = interp.percentage;
+      const diseaseColor = dis.color || '#3b82f6';
 
-          // 1. Phân tích ma trận chứng cứ lâm sàng (Triệu chứng đã khớp vs còn thiếu)
-          const diseaseRules = (kb.rules || []).filter(r => r.conclusion === (dis.id || item.diseaseId));
-          const allRelatedPremiseIds = new Set();
-          diseaseRules.forEach(r => (r.premises || []).forEach(p => allRelatedPremiseIds.add(p)));
+      // 1. Phân tích ma trận chứng cứ lâm sàng (Triệu chứng đã khớp vs còn thiếu)
+      const diseaseRules = (kb.rules || []).filter(r => r.conclusion === (dis.id || item.diseaseId));
+      const allRelatedPremiseIds = new Set();
+      diseaseRules.forEach(r => (r.premises || []).forEach(p => allRelatedPremiseIds.add(p)));
 
-          const matchedPremises = [];
-          const missingPremises = [];
+      const matchedPremises = [];
+      const missingPremises = [];
 
-          allRelatedPremiseIds.forEach(pId => {
-            const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
-            const userCF = this.currentSelectedSymptoms[pId];
-            if (userCF !== undefined && userCF > 0) {
-              matchedPremises.push({ ...sym, userCF });
-            } else {
-              missingPremises.push(sym);
-            }
-          });
+      allRelatedPremiseIds.forEach(pId => {
+        const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
+        const userCF = this.currentSelectedSymptoms[pId];
+        if (userCF !== undefined && userCF > 0) {
+          matchedPremises.push({ ...sym, userCF });
+        } else {
+          missingPremises.push(sym);
+        }
+      });
 
-          // 2. Định dạng danh sách cảnh báo nguy hiểm thành tags
-          let warningTagsHtml = '';
-          if (dis.warningSigns) {
-            const signs = dis.warningSigns.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-            warningTagsHtml = `
+      // 2. Định dạng danh sách cảnh báo nguy hiểm thành tags
+      let warningTagsHtml = '';
+      if (dis.warningSigns) {
+        const signs = dis.warningSigns.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+        warningTagsHtml = `
               <div class="warning-tags-grid">
                 ${signs.map(sign => `
                   <div class="warning-tag-pill">
@@ -1282,32 +1282,32 @@ class DiagnosisController {
                 `).join('')}
               </div>
             `;
-          }
+      }
 
-          // 3. Định dạng khuyến nghị xử lý thành danh sách các bước có icon
-          let recommendationStepsHtml = '';
-          if (dis.recommendation) {
-            const steps = dis.recommendation.split(/(?<=\.)\s+|;\s*/).map(p => p.trim()).filter(Boolean);
-            recommendationStepsHtml = `
+      // 3. Định dạng khuyến nghị xử lý thành danh sách các bước có icon
+      let recommendationStepsHtml = '';
+      if (dis.recommendation) {
+        const steps = dis.recommendation.split(/(?<=\.)\s+|;\s*/).map(p => p.trim()).filter(Boolean);
+        recommendationStepsHtml = `
               <div class="recommendation-steps-list">
                 ${steps.map(step => {
-                  let icon = 'fa-solid fa-circle-check';
-                  let iconColor = '#10b981';
-                  const lower = step.toLowerCase();
-                  if (lower.includes('aspirin') || lower.includes('không dùng') || lower.includes('tránh') || lower.includes('tuyệt đối')) {
-                    icon = 'fa-solid fa-ban';
-                    iconColor = '#ef4444';
-                  } else if (lower.includes('nước') || lower.includes('oresol') || lower.includes('bù nước')) {
-                    icon = 'fa-solid fa-droplet';
-                    iconColor = '#06b6d4';
-                  } else if (lower.includes('xét nghiệm') || lower.includes('y tế') || lower.includes('bệnh viện') || lower.includes('khám') || lower.includes('chỉ định')) {
-                    icon = 'fa-solid fa-hospital-user';
-                    iconColor = '#8b5cf6';
-                  } else if (lower.includes('cách ly') || lower.includes('khẩu trang') || lower.includes('vitamin')) {
-                    icon = 'fa-solid fa-shield-virus';
-                    iconColor = '#f59e0b';
-                  }
-                  return `
+          let icon = 'fa-solid fa-circle-check';
+          let iconColor = '#10b981';
+          const lower = step.toLowerCase();
+          if (lower.includes('aspirin') || lower.includes('không dùng') || lower.includes('tránh') || lower.includes('tuyệt đối')) {
+            icon = 'fa-solid fa-ban';
+            iconColor = '#ef4444';
+          } else if (lower.includes('nước') || lower.includes('oresol') || lower.includes('bù nước')) {
+            icon = 'fa-solid fa-droplet';
+            iconColor = '#06b6d4';
+          } else if (lower.includes('xét nghiệm') || lower.includes('y tế') || lower.includes('bệnh viện') || lower.includes('khám') || lower.includes('chỉ định')) {
+            icon = 'fa-solid fa-hospital-user';
+            iconColor = '#8b5cf6';
+          } else if (lower.includes('cách ly') || lower.includes('khẩu trang') || lower.includes('vitamin')) {
+            icon = 'fa-solid fa-shield-virus';
+            iconColor = '#f59e0b';
+          }
+          return `
                     <div class="recommendation-step-item">
                       <div class="step-icon-box" style="color: ${iconColor};">
                         <i class="${icon}"></i>
@@ -1315,12 +1315,12 @@ class DiagnosisController {
                       <div class="step-text">${step}</div>
                     </div>
                   `;
-                }).join('')}
+        }).join('')}
               </div>
             `;
-          }
+      }
 
-          return `
+      return `
             <div class="disease-result-card ${isTop ? 'top-match' : ''}">
               
               <!-- 1. Header Card: Mã + Tên bệnh + Badge Nghi ngờ cao nhất -->
@@ -1494,7 +1494,7 @@ class DiagnosisController {
 
             </div>
           `;
-        }).join("")}
+    }).join("")}
       </div>
     `;
 
@@ -1653,6 +1653,7 @@ class DiagnosisController {
             `;
           } else if (log.type === "START") {
             return `
+
               <div class="trace-step-item">
                 <div class="trace-step-title">Bước ${log.step}: ${log.message}</div>
                 <div class="trace-step-body">
@@ -1668,6 +1669,7 @@ class DiagnosisController {
                 <div class="trace-step-title" style="color: ${dt.isDisease ? '#34d399' : '#a78bfa'};">
                   Bước ${log.step} [Chu kỳ ${dt.cycle}]: ${log.message}
                 </div>
+
                 <div class="trace-step-body">
                   <strong>• Luật:</strong> ${dt.ruleDescription}<br>
                   <strong>• Các tiền đề:</strong> ${dt.premiseDetails.map(p => `[${p.id}] ${p.name} (CF=${p.userCF})`).join(" AND ")}<br>
@@ -1676,8 +1678,8 @@ class DiagnosisController {
                 </div>
               </div>
             `;
-          } else if (log.type === "RULE_SKIPPED") {
-            return `
+      } else if (log.type === "RULE_SKIPPED") {
+        return `
               <div class="trace-step-item" style="border-left-color: var(--color-amber);">
                 <div class="trace-step-title" style="color: var(--color-amber);">Bước ${log.step} [Chu kỳ ${log.cycle}]: ${log.message}</div>
                 <div class="trace-step-body">
@@ -1686,8 +1688,8 @@ class DiagnosisController {
                 </div>
               </div>
             `;
-          } else if (log.type === "FINISH") {
-            return `
+      } else if (log.type === "FINISH") {
+        return `
               <div class="trace-step-item" style="border-left-color: var(--color-primary);">
                 <div class="trace-step-title" style="color: var(--color-primary);">Bước ${log.step}: ${log.message}</div>
                 <div class="trace-step-body">
@@ -1699,9 +1701,9 @@ class DiagnosisController {
                 </div>
               </div>
             `;
-          }
-          return "";
-        }).join("")}
+      }
+      return "";
+    }).join("")}
       </div>
     `;
 

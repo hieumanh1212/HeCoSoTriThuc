@@ -291,14 +291,34 @@
           if (diagnosisController.lastInferenceResult) {
             sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
           }
-          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${diseaseId}`;
+          const caseMap = {
+            "D01": "TC01",
+            "D02": "TC02",
+            "D03": "TC03",
+            "D04": "TC04",
+            "D05": "TC05",
+            "D06": "TC06",
+            "D07": "TC07"
+          };
+          const targetCaseId = caseMap[diseaseId] || diseaseId;
+          window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=${targetCaseId}&disease=${diseaseId}`;
         },
         onFocusFpg: (diseaseId) => {
           sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(diagnosisController.currentSelectedSymptoms || {}));
           if (diagnosisController.lastInferenceResult) {
             sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(diagnosisController.lastInferenceResult.firedRules || []));
           }
-          window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=${diseaseId}`;
+          const caseMap = {
+            "D01": "TC01",
+            "D02": "TC02",
+            "D03": "TC03",
+            "D04": "TC04",
+            "D05": "TC05",
+            "D06": "TC06",
+            "D07": "TC07"
+          };
+          const targetCaseId = caseMap[diseaseId] || diseaseId;
+          window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=${targetCaseId}&disease=${diseaseId}`;
         }
       });
 
