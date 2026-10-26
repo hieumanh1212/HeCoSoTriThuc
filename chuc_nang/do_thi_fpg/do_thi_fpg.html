@@ -87,23 +87,28 @@
           giữa</button>
       </div>
 
-      <!-- CHÚ THÍCH (LEGEND) CHUẨN LÝ THUYẾT TS. NGUYỄN QUỐC TUẤN CHO BÀI TOÁN Y TẾ -->
+      <!-- CHÚ THÍCH (LEGEND) CHUẨN LÝ THUYẾT TS. NGUYỄN QUỐC TUẤN (SLIDE 18 & 19) -->
       <div class="graph-legend">
-        <div class="legend-item" title="Triệu chứng ban đầu của ca bệnh f ∈ GT">
+        <div class="legend-item" title="Sự kiện thuộc giả thiết ban đầu: f ∈ GT (Slide 18, 19)">
           <span class="legend-shape shape-f-gt"></span>
-          <span>Sự kiện <i>f</i> &isin; GT</span>
+          <span>Giả thiết <i>f</i> &isin; GT (Ban đầu)</span>
         </div>
-        <div class="legend-item" title="Bệnh mục tiêu cần chẩn đoán f ∈ KL">
+        <div class="legend-item" title="Sự kiện kết luận mục tiêu: f ∈ KL (Slide 18, 19)">
           <span class="legend-shape shape-f-kl"></span>
-          <span>Bệnh mục tiêu <i>f</i> &isin; KL</span>
+          <span>Kết luận <i>f</i> &isin; KL (Mục tiêu)</span>
         </div>
-        <div class="legend-item" title="Sự kiện/Hội chứng đã được kích hoạt và nạp vào TG trong suy diễn">
+        <div class="legend-item" title="Sự kiện đã được suy ra và có trong bộ nhớ sự kiện: f ∈ TG (Slide 6, 8, 20)">
           <span class="legend-shape shape-f-tg"></span>
           <span>Đã có trong TG</span>
         </div>
-        <div class="legend-item" title="Cung có hướng gán nhãn mã luật y tế sinh ra kết luận">
-          <span class="legend-arrow">f <i class="fa-solid fa-arrow-right"></i> f' (R<sub>i</sub>)</span>
-          <span>Cung luật R<sub>i</sub></span>
+        <div class="legend-item"
+          title="Cung của luật đang thỏa mãn tiền đề trong chu kỳ hiện tại: r ∈ THOA (Slide 8, 16)">
+          <span class="legend-arrow" style="color: #f59e0b;">&rarr;</span>
+          <span>Luật thỏa tiền đề (THOA)</span>
+        </div>
+        <div class="legend-item" title="Cung của luật tối ưu được chọn: h^(r) = KC(q, KL) → min (Slide 18, 20)">
+          <span class="legend-arrow" style="color: #10b981; font-weight: bold;">&rarr;</span>
+          <span>Luật chọn tối ưu (h&#770; &rarr; min)</span>
         </div>
       </div>
     </div>
@@ -118,10 +123,12 @@
 
         <!-- BỘ ĐIỀU KHIỂN BƯỚC SUY DIỄN CHẨN ĐOÁN -->
         <div class="sim-controls">
-          <button id="btnToggleFilterRelated" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;"
-            title="Ẩn các thông tin không liên quan tới ca bệnh này">
-            <i class="fa-solid fa-filter"></i> Chỉ hiện tri thức ca bệnh
+          <button id="btnToggleFilterRelated" class="btn-secondary"
+            style="padding: 0.4rem 0.85rem; font-size: 0.82rem; border-color: #10b981; color: #10b981; background-color: rgba(16, 185, 129, 0.15);"
+            title="Đang chỉ hiển thị các tri thức liên quan tới ca bệnh này. Bấm để hiển thị toàn bộ mạng tri thức">
+            <i class="fa-solid fa-eye"></i> Hiện toàn bộ đồ thị
           </button>
+
           <button id="btnStepSim" class="btn-primary" style="padding: 0.4rem 0.85rem; font-size: 0.82rem;">
             <i class="fa-solid fa-play"></i> Bước tiếp theo
           </button>
@@ -268,7 +275,7 @@
       let currentCase = null;
       let simulationResult = null;
       let currentStepIndex = 0;
-      let isFilterRelated = false;
+      let isFilterRelated = true;
 
       function updateFilterButtonState() {
         if (!btnToggleFilterRelated) return;
@@ -277,7 +284,7 @@
           btnToggleFilterRelated.style.borderColor = "#10b981";
           btnToggleFilterRelated.style.color = "#10b981";
           btnToggleFilterRelated.style.background = "rgba(16, 185, 129, 0.15)";
-          btnToggleFilterRelated.title = "Bấm để hiển thị lại toàn bộ mạng tri thức";
+          btnToggleFilterRelated.title = "Đang chỉ hiển thị các tri thức liên quan tới ca bệnh này. Bấm để hiển thị toàn bộ mạng tri thức";
         } else {
           btnToggleFilterRelated.innerHTML = '<i class="fa-solid fa-filter"></i> Chỉ hiện tri thức ca bệnh';
           btnToggleFilterRelated.style.borderColor = "";
@@ -286,6 +293,7 @@
           btnToggleFilterRelated.title = "Ẩn các thông tin không liên quan tới ca bệnh này";
         }
       }
+      updateFilterButtonState();
 
       const fpgVisualizer = new FPGVisualizer("fpgCanvas", {
         onNodeSelect: (node) => renderInspector(node),
@@ -352,7 +360,9 @@
 
         fpgVisualizer.setSimulationState(
           new Set(currentStep.TG || []),
-          currentStep.selectedRule
+          currentStep.selectedRule,
+          new Set(currentStep.THOA || []),
+          new Set(currentStep.VET || [])
         );
 
         renderTraceTable();
@@ -361,7 +371,7 @@
 
       function renderAnalysisTable(clinicalCase, currentStep) {
         if (!clinicalCase) return;
-        let rules = window.MEDICAL_KB_GRAPH_DATA.rules || [];
+        let rules = window.MedicalGraphAlgorithms.getRulesForCase(clinicalCase);
         const facts = window.MEDICAL_KB_GRAPH_DATA.facts || {};
         const gtSet = new Set(clinicalCase.gt || []);
         const klSet = new Set(clinicalCase.kl || []);
@@ -374,11 +384,12 @@
 
         if (isFilterRelated) {
           rules = rules.filter(r => {
-            const isInitialTHOA = (r.premises || []).every(p => gtSet.has(p));
-            const isDirectKL = klSet.has(r.conclusion);
             const isFired = vetSet.has(r.id);
-            const kc = window.MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, klSet, edges);
-            return isInitialTHOA || isDirectKL || isFired || (kc !== Infinity);
+            const isActive = activeRule === r.id;
+            const isInThoa = thoaSet.has(r.id);
+            const isDirectKL = klSet.has(r.conclusion);
+            const isInitialTHOA = vetSet.size === 0 && (r.premises || []).every(p => gtSet.has(p));
+            return isFired || isActive || isInThoa || isDirectKL || isInitialTHOA;
           });
         }
 

@@ -29,7 +29,8 @@ class RPGVisualizer {
     this.firedRules = new Set();
     this.activeRuleId = null;
     this.currentTG = new Set();
-    this.filterRelatedOnly = false;
+    this.thoaRules = new Set();
+    this.filterRelatedOnly = true;
 
     this.nodes = [];
     this.edges = [];
@@ -201,14 +202,16 @@ class RPGVisualizer {
     this.autoFit();
   }
 
-  setSimulationState(firedRules, activeRuleId = null, tgSet = null) {
+  setSimulationState(firedRules, activeRuleId = null, tgSet = null, thoaSet = null) {
     this.firedRules = firedRules instanceof Set ? firedRules : new Set(firedRules || []);
     this.activeRuleId = activeRuleId;
     if (tgSet) {
       this.currentTG = tgSet instanceof Set ? tgSet : new Set(tgSet || []);
     }
+    this.thoaRules = thoaSet instanceof Set ? thoaSet : new Set(thoaSet || []);
     if (this.filterRelatedOnly) {
       this.buildGraph();
+      this.autoFit();
     } else {
       this.render();
     }
@@ -231,30 +234,38 @@ class RPGVisualizer {
 
     if (this.filterRelatedOnly) {
       rules = rules.filter(r => {
-        const isR_GT = this.rpgData.rGtIds.has(r.id);
-        const isR_KL = this.rpgData.rKlIds.has(r.id);
         const isFired = this.firedRules.has(r.id);
-        const kcToR_KL = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, this.rpgData.rKlIds, this.rpgData.edges);
-        return isR_GT || isR_KL || isFired || (kcToR_KL !== Infinity);
+        const isActive = this.activeRuleId === r.id;
+        const isInThoa = this.thoaRules.has(r.id);
+        const isR_KL = this.rpgData.rKlIds.has(r.id);
+        const isR_GT = this.firedRules.size === 0 && this.rpgData.rGtIds.has(r.id);
+        return isFired || isActive || isInThoa || isR_KL || isR_GT;
       });
     }
 
-    // Tách luật thành 2 tầng: Tầng 1 (ra Hội chứng I / HC) và Tầng 2 (ra Bệnh D)
-    const stage1Rules = rules.filter(r => r.conclusion.startsWith("I") || r.conclusion.startsWith("HC"));
-    const stage2Rules = rules.filter(r => !r.conclusion.startsWith("I") && !r.conclusion.startsWith("HC"));
+    // Phân chia luật chuẩn theo 3 cột của tiến trình Suy diễn TIẾN (Slide 22 & 23 TS. Nguyễn Quốc Tuấn):
+    // Cột 1: R_GT - Các luật thỏa mãn ngay từ giả thiết ban đầu (left ⊆ GT)
+    // Cột 3: R_KL - Các luật trực tiếp kết luận mục tiêu (q ⊆ KL)
+    // Cột 2: Các luật liên hệ trước trung gian (kết nối giữa R_GT và R_KL)
+    const rKlRules = rules.filter(r => this.rpgData.rKlIds.has(r.id));
+    const rGtRules = rules.filter(r => this.rpgData.rGtIds.has(r.id) && !this.rpgData.rKlIds.has(r.id));
+    const rMidRules = rules.filter(r => !this.rpgData.rGtIds.has(r.id) && !this.rpgData.rKlIds.has(r.id));
 
-    const col1X = 220; // Tầng 1: Luật hội chứng
-    const col2X = 680; // Tầng 2: Luật bệnh
+    const col1X = 190; // Cột 1: R_GT (Xuất phát)
+    const col2X = 520; // Cột 2: Trung gian
+    const col3X = 850; // Cột 3: R_KL (Đích)
 
-    const spacingY1 = this.filterRelatedOnly ? 100 : 90;
-    const spacingY2 = this.filterRelatedOnly ? 90 : 70;
+    const spacingY1 = this.filterRelatedOnly ? 95 : (rGtRules.length > 5 ? 75 : 95);
+    const spacingY2 = this.filterRelatedOnly ? 90 : (rMidRules.length > 5 ? 70 : 90);
+    const spacingY3 = this.filterRelatedOnly ? 95 : (rKlRules.length > 5 ? 75 : 95);
 
-    const startY1 = this.filterRelatedOnly ? 140 : 100;
-    const startY2 = this.filterRelatedOnly ? 130 : 70;
+    const startY1 = 110;
+    const startY2 = 110;
+    const startY3 = 110;
 
-    // 1. Tạo node luật Tầng 1
-    stage1Rules.forEach((r, idx) => {
-      const isR_GT = this.rpgData.rGtIds.has(r.id);
+    // 1. Tạo node R_GT
+    rGtRules.forEach((r, idx) => {
+      const isR_GT = true;
       const isR_KL = this.rpgData.rKlIds.has(r.id);
       const kcToR_KL = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, this.rpgData.rKlIds, this.rpgData.edges);
 
@@ -272,17 +283,17 @@ class RPGVisualizer {
         stage: 1,
         x: col1X,
         y: startY1 + idx * spacingY1,
-        radius: 30
+        radius: 28
       };
 
       this.nodes.push(node);
       nodeMap.set(r.id, node);
     });
 
-    // 2. Tạo node luật Tầng 2
-    stage2Rules.forEach((r, idx) => {
-      const isR_GT = this.rpgData.rGtIds.has(r.id);
-      const isR_KL = this.rpgData.rKlIds.has(r.id);
+    // 2. Tạo node luật trung gian
+    rMidRules.forEach((r, idx) => {
+      const isR_GT = false;
+      const isR_KL = false;
       const kcToR_KL = window.MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, this.rpgData.rKlIds, this.rpgData.edges);
 
       const node = {
@@ -299,7 +310,34 @@ class RPGVisualizer {
         stage: 2,
         x: col2X,
         y: startY2 + idx * spacingY2,
-        radius: 30
+        radius: 28
+      };
+
+      this.nodes.push(node);
+      nodeMap.set(r.id, node);
+    });
+
+    // 3. Tạo node R_KL
+    rKlRules.forEach((r, idx) => {
+      const isR_GT = this.rpgData.rGtIds.has(r.id);
+      const isR_KL = true;
+      const kcToR_KL = 0;
+
+      const node = {
+        id: r.id,
+        label: r.id,
+        name: r.name,
+        description: r.description,
+        ruleData: r,
+        premises: r.premises,
+        conclusion: r.conclusion,
+        isR_GT,
+        isR_KL,
+        kcToR_KL,
+        stage: 3,
+        x: col3X,
+        y: startY3 + idx * spacingY3,
+        radius: 28
       };
 
       this.nodes.push(node);
@@ -311,6 +349,18 @@ class RPGVisualizer {
       const fromNode = nodeMap.get(e.from);
       const toNode = nodeMap.get(e.to);
       if (fromNode && toNode) {
+        if (this.filterRelatedOnly) {
+          const isFromFired = this.firedRules.has(e.from);
+          const isFromActive = this.activeRuleId === e.from;
+          const isFromThoa = this.thoaRules.has(e.from);
+          const isToActive = this.activeRuleId === e.to;
+          const isToFired = this.firedRules.has(e.to);
+          const isToThoa = this.thoaRules.has(e.to);
+          const isFromInitial = this.firedRules.size === 0 && this.rpgData.rGtIds.has(e.from);
+          if (!isFromFired && !isFromActive && !isFromThoa && !isToActive && !isToFired && !isToThoa && !isFromInitial) {
+            return;
+          }
+        }
         this.edges.push({
           from: fromNode,
           to: toNode,
@@ -382,14 +432,16 @@ class RPGVisualizer {
 
   drawStageHeaders(ctx, isLight) {
     ctx.save();
-    ctx.font = "bold 13px sans-serif";
-    ctx.fillStyle = isLight ? "#64748b" : "#94a3b8";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = isLight ? "#475569" : "#94a3b8";
     ctx.textAlign = "center";
 
     // Cột 1
-    ctx.fillText("TẦNG 1: LUẬT XÁC ĐỊNH HỘI CHỨNG (I)", 220, 45);
+    ctx.fillText("TẬP XUẤT PHÁT: R_GT (left ⊆ GT)", 190, 45);
     // Cột 2
-    ctx.fillText("TẦNG 2: LUẬT CHẨN ĐOÁN BỆNH LÝ (D)", 680, 45);
+    ctx.fillText("CÁC LUẬT LIÊN HỆ TRƯỚC TRUNG GIAN", 520, 45);
+    // Cột 3
+    ctx.fillText("TẬP KẾT LUẬN: R_KL (q ⊆ KL)", 850, 45);
     ctx.restore();
   }
 
@@ -501,6 +553,7 @@ class RPGVisualizer {
     const isHovered = this.hoveredNode && this.hoveredNode.id === node.id;
     const isFired = this.firedRules.has(node.id);
     const isActive = this.activeRuleId === node.id;
+    const isInThoa = this.thoaRules && this.thoaRules.has(node.id);
 
     ctx.save();
 
@@ -546,6 +599,11 @@ class RPGVisualizer {
       ctx.lineWidth = 3;
       ctx.shadowColor = "rgba(16, 185, 129, 0.65)";
       ctx.shadowBlur = 10;
+    } else if (isInThoa) {
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = "rgba(245, 158, 11, 0.85)";
+      ctx.shadowBlur = 12;
     } else if (isSelected || isHovered) {
       ctx.strokeStyle = "#38bdf8";
       ctx.lineWidth = 3.5;
@@ -589,9 +647,13 @@ class RPGVisualizer {
     ctx.textAlign = "center";
     ctx.fillText(kcText, node.x, node.y + node.radius + 15);
 
-    // Badge r in R_GT hoặc r in R_KL hoặc VET
-    if (isFired) {
+    // Badge trạng thái suy diễn tiến (Slide 8, 20, 23)
+    if (isActive) {
+      this.drawBadgeText(ctx, "⚡ Đang chọn", node.x, node.y - node.radius - 8, "#10b981", isLight);
+    } else if (isFired) {
       this.drawBadgeText(ctx, "✓ VET", node.x, node.y - node.radius - 8, "#10b981", isLight);
+    } else if (isInThoa) {
+      this.drawBadgeText(ctx, "⚡ THOA", node.x, node.y - node.radius - 8, "#f59e0b", isLight);
     } else if (node.isR_GT) {
       this.drawBadgeText(ctx, "R ∈ R_GT", node.x, node.y - node.radius - 8, "#f59e0b", isLight);
     } else if (node.isR_KL) {

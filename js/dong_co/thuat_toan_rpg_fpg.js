@@ -383,12 +383,20 @@ const MEDICAL_KB_GRAPH_DATA = {
  */
 class MedicalGraphAlgorithms {
   /**
-   * Xây dựng Đồ thị liên hệ trước sự kiện FPG y tế
-   * - Đỉnh: Triệu chứng (S), Hội chứng (I), Bệnh lý (D)
-   * - Cung: p -> q mang nhãn luật R
+   * Lấy tập luật y tế lâm sàng tương ứng
+   */
+  static getRulesForCase(selectedCase) {
+    return MEDICAL_KB_GRAPH_DATA.rules || [];
+  }
+
+  /**
+   * Xây dựng Đồ thị liên hệ trước sự kiện FPG (Slide 18 & 19 TS. Nguyễn Quốc Tuấn)
+   * - Đỉnh: Các sự kiện gồm Giả thiết (GT), Trung gian, Kết luận (KL)
+   * - Cung: p -> q mang nhãn luật r
    */
   static buildMedicalFPG(selectedCase) {
     const kb = MEDICAL_KB_GRAPH_DATA;
+    const rules = this.getRulesForCase(selectedCase);
     const gtSet = new Set(selectedCase.gt || []);
     const klSet = new Set(selectedCase.kl || []);
 
@@ -397,7 +405,7 @@ class MedicalGraphAlgorithms {
     const nodeIds = new Set();
 
     // 1. Thu thập các sự kiện liên quan
-    (kb.rules || []).forEach(r => {
+    rules.forEach(r => {
       (r.premises || []).forEach(p => nodeIds.add(p));
       if (r.conclusion) nodeIds.add(r.conclusion);
     });
@@ -435,8 +443,8 @@ class MedicalGraphAlgorithms {
       });
     });
 
-    // 3. Tạo cung có hướng kèm nhãn mã luật y tế
-    (kb.rules || []).forEach(r => {
+    // 3. Tạo cung có hướng kèm nhãn mã luật: p -> q mang nhãn r
+    rules.forEach(r => {
       (r.premises || []).forEach(p => {
         edges.push({
           from: p,
@@ -447,7 +455,7 @@ class MedicalGraphAlgorithms {
       });
     });
 
-    return { nodes, edges, gtSet, klSet, rules: kb.rules };
+    return { nodes, edges, gtSet, klSet, rules };
   }
 
   /**
@@ -491,7 +499,7 @@ class MedicalGraphAlgorithms {
    */
   static buildMedicalRPG(selectedCase) {
     const kb = MEDICAL_KB_GRAPH_DATA;
-    const rules = kb.rules || [];
+    const rules = this.getRulesForCase(selectedCase);
     const gtSet = new Set(selectedCase.gt || []);
     const klSet = new Set(selectedCase.kl || []);
 
@@ -520,7 +528,8 @@ class MedicalGraphAlgorithms {
       });
     });
 
-    // Tạo các cung giữa các luật: R_i -> R_j
+    // Tạo các cung giữa các luật: R_i -> R_j (Slide 22 TS. Nguyễn Quốc Tuấn)
+    // ri -> rj khi kết luận của ri là tiền đề của rj
     for (let i = 0; i < rules.length; i++) {
       for (let j = 0; j < rules.length; j++) {
         if (i === j) continue;
@@ -582,7 +591,7 @@ class MedicalGraphAlgorithms {
     const fpg = this.buildMedicalFPG(selectedCase);
     let TG = new Set(selectedCase.gt || []);
     const KL = new Set(selectedCase.kl || []);
-    let R = [...MEDICAL_KB_GRAPH_DATA.rules];
+    let R = [...this.getRulesForCase(selectedCase)];
     let VET = [];
     const steps = [];
 
@@ -598,9 +607,10 @@ class MedicalGraphAlgorithms {
     let THOA = LOC(TG, R);
     let cycle = 0;
 
+    // Chu kỳ 0: Khởi tạo (Slide 20 TS. Nguyễn Quốc Tuấn)
     steps.push({
       cycle: 0,
-      stepName: "Khởi tạo",
+      stepName: "Khởi tạo (KT)",
       TG: Array.from(TG),
       R: R.map(r => r.id),
       THOA: THOA.map(r => r.id),
@@ -611,7 +621,7 @@ class MedicalGraphAlgorithms {
         kc: MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, KL, fpg.edges)
       })),
       selectedRule: null,
-      message: `Khởi tạo ca bệnh: Đã nạp ${TG.size} triệu chứng ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
+      message: `Khởi tạo: Đã nạp ${TG.size} giả thiết ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
     });
 
     while (THOA.length > 0 && !isKLSubOfTG(TG, KL)) {
@@ -628,15 +638,11 @@ class MedicalGraphAlgorithms {
         };
       });
 
-      // Chọn luật có kc ngắn nhất tới bệnh mục tiêu, ưu tiên luật đã nổ thực tế nếu có
+      // Lựa chọn luật tối ưu theo Heuristic FPG (Slide 18 & 20):
+      // 1. h^(r) = KC_FPG(q, KL) -> min
+      // 2. Tie-break: csmin (chỉ số luật nhỏ nhất) theo Slide 16 & 17
       evaluations.sort((a, b) => {
         if (a.kc !== b.kc) return a.kc - b.kc;
-        if (selectedCase && Array.isArray(selectedCase.firedRuleIds)) {
-          const aFired = selectedCase.firedRuleIds.includes(a.ruleId);
-          const bFired = selectedCase.firedRuleIds.includes(b.ruleId);
-          if (aFired && !bFired) return -1;
-          if (!aFired && bFired) return 1;
-        }
         return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
       });
 
@@ -647,6 +653,8 @@ class MedicalGraphAlgorithms {
       R = R.filter(r => r.id !== chosenRule.id);
       TG.add(chosenRule.conclusion);
       THOA = LOC(TG, R);
+
+      const isGoal = isKLSubOfTG(TG, KL);
 
       steps.push({
         cycle,
@@ -683,7 +691,7 @@ class MedicalGraphAlgorithms {
     const rpg = this.buildMedicalRPG(selectedCase);
     let TG = new Set(selectedCase.gt || []);
     const KL = new Set(selectedCase.kl || []);
-    let R = [...MEDICAL_KB_GRAPH_DATA.rules];
+    let R = [...this.getRulesForCase(selectedCase)];
     let VET = [];
     const steps = [];
 
@@ -699,9 +707,10 @@ class MedicalGraphAlgorithms {
     let THOA = LOC(TG, R);
     let cycle = 0;
 
+    // Chu kỳ 0: Khởi tạo (Slide 20, 22 TS. Nguyễn Quốc Tuấn)
     steps.push({
       cycle: 0,
-      stepName: "Khởi tạo",
+      stepName: "Khởi tạo (KT)",
       TG: Array.from(TG),
       R: R.map(r => r.id),
       THOA: THOA.map(r => r.id),
@@ -713,7 +722,7 @@ class MedicalGraphAlgorithms {
         kc: MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rpg.rKlIds, rpg.edges)
       })),
       selectedRule: null,
-      message: `Khởi tạo ca bệnh: Đã nạp ${TG.size} triệu chứng ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
+      message: `Khởi tạo: Đã nạp ${TG.size} giả thiết ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
     });
 
     while (THOA.length > 0 && !isKLSubOfTG(TG, KL)) {
@@ -731,15 +740,11 @@ class MedicalGraphAlgorithms {
         };
       });
 
-      // Chọn luật có khoảng cách heuristic ngắn nhất tới R_KL trên đồ thị RPG, ưu tiên luật đã nổ thực tế
+      // Lựa chọn luật tối ưu theo Heuristic RPG (Slide 22):
+      // 1. h^(r) = KC_RPG(r, R_KL) -> min
+      // 2. Tie-break: csmin (chỉ số nhỏ nhất) theo Slide 16 & 17
       evaluations.sort((a, b) => {
         if (a.kc !== b.kc) return a.kc - b.kc;
-        if (selectedCase && Array.isArray(selectedCase.firedRuleIds)) {
-          const aFired = selectedCase.firedRuleIds.includes(a.ruleId);
-          const bFired = selectedCase.firedRuleIds.includes(b.ruleId);
-          if (aFired && !bFired) return -1;
-          if (!aFired && bFired) return 1;
-        }
         return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
       });
 
