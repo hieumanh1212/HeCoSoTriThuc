@@ -66,6 +66,27 @@ class HistoryController {
     this.paneResults = document.getElementById("paneResults");
     this.paneRules = document.getElementById("paneRules");
     this.paneTrace = document.getElementById("paneTrace");
+    this.paneRPG = document.getElementById("paneRPG");
+    this.paneFPG = document.getElementById("paneFPG");
+
+    // Modal Action Buttons
+    this.modalBtnOpenRPG = document.getElementById("modalBtnOpenRPG");
+    this.modalBtnOpenFPG = document.getElementById("modalBtnOpenFPG");
+    this.btnOpenFullRPG = document.getElementById("btnOpenFullRPG");
+    this.btnOpenFullFPG = document.getElementById("btnOpenFullFPG");
+
+    // Modal Canvas Zoom / Fit Buttons
+    this.btnZoomInRPG = document.getElementById("btnZoomInRPG");
+    this.btnZoomOutRPG = document.getElementById("btnZoomOutRPG");
+    this.btnResetRPG = document.getElementById("btnResetRPG");
+
+    this.btnZoomInFPG = document.getElementById("btnZoomInFPG");
+    this.btnZoomOutFPG = document.getElementById("btnZoomOutFPG");
+    this.btnResetFPG = document.getElementById("btnResetFPG");
+
+    // Visualizers
+    this.rpgVisualizer = null;
+    this.fpgVisualizer = null;
 
     // Tab buttons
     this.tabButtons = document.querySelectorAll(".history-detail-tab-btn");
@@ -142,6 +163,42 @@ class HistoryController {
           this.reDiagnose(this.currentSelectedSession);
         }
       });
+    }
+
+    // RPG / FPG Actions
+    if (this.modalBtnOpenRPG) {
+      this.modalBtnOpenRPG.addEventListener("click", () => this.openDedicatedGraphPage("rpg", this.currentSelectedSession));
+    }
+    if (this.modalBtnOpenFPG) {
+      this.modalBtnOpenFPG.addEventListener("click", () => this.openDedicatedGraphPage("fpg", this.currentSelectedSession));
+    }
+    if (this.btnOpenFullRPG) {
+      this.btnOpenFullRPG.addEventListener("click", () => this.openDedicatedGraphPage("rpg", this.currentSelectedSession));
+    }
+    if (this.btnOpenFullFPG) {
+      this.btnOpenFullFPG.addEventListener("click", () => this.openDedicatedGraphPage("fpg", this.currentSelectedSession));
+    }
+
+    // RPG Zoom / Fit
+    if (this.btnZoomInRPG) {
+      this.btnZoomInRPG.addEventListener("click", () => this.rpgVisualizer && this.rpgVisualizer.zoomIn());
+    }
+    if (this.btnZoomOutRPG) {
+      this.btnZoomOutRPG.addEventListener("click", () => this.rpgVisualizer && this.rpgVisualizer.zoomOut());
+    }
+    if (this.btnResetRPG) {
+      this.btnResetRPG.addEventListener("click", () => this.rpgVisualizer && this.rpgVisualizer.resetView());
+    }
+
+    // FPG Zoom / Fit
+    if (this.btnZoomInFPG) {
+      this.btnZoomInFPG.addEventListener("click", () => this.fpgVisualizer && this.fpgVisualizer.zoomIn());
+    }
+    if (this.btnZoomOutFPG) {
+      this.btnZoomOutFPG.addEventListener("click", () => this.fpgVisualizer && this.fpgVisualizer.zoomOut());
+    }
+    if (this.btnResetFPG) {
+      this.btnResetFPG.addEventListener("click", () => this.fpgVisualizer && this.fpgVisualizer.resetView());
     }
   }
 
@@ -664,6 +721,100 @@ class HistoryController {
     if (this.paneResults) this.paneResults.classList.toggle("active", tabName === "results");
     if (this.paneRules) this.paneRules.classList.toggle("active", tabName === "rules");
     if (this.paneTrace) this.paneTrace.classList.toggle("active", tabName === "trace");
+    if (this.paneRPG) this.paneRPG.classList.toggle("active", tabName === "rpg");
+    if (this.paneFPG) this.paneFPG.classList.toggle("active", tabName === "fpg");
+
+    if (tabName === "rpg" && this.currentSelectedSession) {
+      this.renderModalRPG(this.currentSelectedSession);
+    } else if (tabName === "fpg" && this.currentSelectedSession) {
+      this.renderModalFPG(this.currentSelectedSession);
+    }
+  }
+
+  _buildCaseFromSession(session) {
+    if (!session) return null;
+    const timeStr = window.MauBaoCaoYTe ? window.MauBaoCaoYTe.dinhDangNgayGio(session.timestamp) : (session.timestamp || "");
+    const targetDisId = session.topDiseaseId || "D01";
+    const firedIds = (session.firedRules || []).map(r => (typeof r === "string" ? r : (r.id || r.ruleId || ""))).filter(Boolean);
+
+    return {
+      id: "LIVE_DIAGNOSIS",
+      sessionId: session.id,
+      name: `Phiên khám [${session.id}]: ${session.topDiseaseName || targetDisId}`,
+      description: `Phiên khám bệnh ghi nhận lúc ${timeStr}`,
+      gt: Object.keys(session.inputSymptoms || {}),
+      kl: [targetDisId],
+      targetDiseaseName: `${session.topDiseaseName || targetDisId} (${targetDisId})`,
+      targetDiseaseId: targetDisId,
+      firedRuleIds: firedIds,
+      firedRules: session.firedRules || []
+    };
+  }
+
+  renderModalRPG(session) {
+    if (!session || typeof window.RPGVisualizer === "undefined") return;
+    const clinicalCase = this._buildCaseFromSession(session);
+    if (!clinicalCase) return;
+
+    if (!this.rpgVisualizer) {
+      this.rpgVisualizer = new window.RPGVisualizer("modalCanvasRPG");
+    }
+
+    setTimeout(() => {
+      if (!this.rpgVisualizer) return;
+      this.rpgVisualizer.resizeCanvas();
+      this.rpgVisualizer.setCase(clinicalCase);
+      this.rpgVisualizer.setFilterRelatedOnly(true);
+      if (clinicalCase.firedRuleIds && clinicalCase.firedRuleIds.length > 0) {
+        this.rpgVisualizer.setSimulationState(new Set(clinicalCase.firedRuleIds));
+      }
+      this.rpgVisualizer.autoFit();
+    }, 60);
+  }
+
+  renderModalFPG(session) {
+    if (!session || typeof window.FPGVisualizer === "undefined") return;
+    const clinicalCase = this._buildCaseFromSession(session);
+    if (!clinicalCase) return;
+
+    if (!this.fpgVisualizer) {
+      this.fpgVisualizer = new window.FPGVisualizer("modalCanvasFPG");
+    }
+
+    setTimeout(() => {
+      if (!this.fpgVisualizer) return;
+      this.fpgVisualizer.resizeCanvas();
+      this.fpgVisualizer.setCase(clinicalCase);
+      this.fpgVisualizer.setFilterRelatedOnly(true);
+      if (clinicalCase.firedRuleIds && clinicalCase.firedRuleIds.length > 0) {
+        this.fpgVisualizer.setSimulationState(
+          new Set(clinicalCase.gt || []),
+          null,
+          new Set(),
+          new Set(clinicalCase.firedRuleIds)
+        );
+      }
+      this.fpgVisualizer.autoFit();
+    }, 60);
+  }
+
+  openDedicatedGraphPage(type, session) {
+    if (!session) return;
+    const clinicalCase = this._buildCaseFromSession(session);
+    if (!clinicalCase) return;
+
+    sessionStorage.setItem("LATEST_DIAGNOSIS_CASE", JSON.stringify(clinicalCase));
+    sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(session.inputSymptoms || {}));
+    if (session.firedRules) {
+      sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(session.firedRules));
+    }
+
+    const disId = session.topDiseaseId || "D01";
+    if (type === "rpg") {
+      window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${disId}`;
+    } else {
+      window.location.href = `../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS&disease=${disId}`;
+    }
   }
 
   reDiagnose(session) {

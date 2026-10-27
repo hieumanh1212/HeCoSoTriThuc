@@ -535,3 +535,114 @@
   font-weight: 700;
   user-select: none;
 }
+
+/* ============================================================================
+   EMBEDDED GRAPH IN MODAL (RPG & FPG)
+   ============================================================================ */
+.history-graph-pane-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-graph-pane-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.graph-legend-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.legend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.legend-badge.r-gt { color: #10b981; }
+.legend-badge.r-kl { color: #ef4444; }
+.legend-badge.r-fired { color: #f59e0b; }
+.legend-badge.f-gt { color: #3b82f6; }
+.legend-badge.f-int { color: #8b5cf6; }
+.legend-badge.f-kl { color: #ef4444; }
+
+.graph-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-main);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.btn-sm:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+.btn-sm.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-sm.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.history-graph-canvas-container {
+  width: 100%;
+  height: 380px;
+  background: #090d16;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.history-graph-canvas-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.history-graph-info-box {
+  padding: 0.65rem 0.95rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  line-height: 1.45;
+}
+
