@@ -1710,7 +1710,7 @@ class KBController {
               <td style="font-size: 0.8rem;">${d.description || "Chưa cập nhật"}</td>
               <td><span class="badge badge-high">${d.severity}</span></td>
               <td style="font-size: 0.8rem;">${d.treatment || d.recommendation || 'Chưa cập nhật'}</td>
-              <td style="color: #fca5a5; font-size: 0.8rem;">${d.warningSigns || 'Chưa cập nhật'}</td>
+              <td style="color: #b42318; font-size: 0.8rem;">${d.warningSigns || 'Chưa cập nhật'}</td>
               <td style="color: var(--text-muted); font-size: 0.8rem;">${d.reference || 'Bộ Y Tế'}</td>
             </tr>
           `;
