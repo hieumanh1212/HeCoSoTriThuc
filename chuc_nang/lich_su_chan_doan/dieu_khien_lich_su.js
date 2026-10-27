@@ -765,7 +765,17 @@ class HistoryController {
       this.rpgVisualizer.resizeCanvas();
       this.rpgVisualizer.setCase(clinicalCase);
       this.rpgVisualizer.setFilterRelatedOnly(true);
-      if (clinicalCase.firedRuleIds && clinicalCase.firedRuleIds.length > 0) {
+
+      const sim = window.MedicalGraphAlgorithms ? window.MedicalGraphAlgorithms.simulateForwardChainingWithRPG(clinicalCase) : null;
+      if (sim && sim.steps && sim.steps.length > 0) {
+        const finalStep = sim.steps[sim.steps.length - 1];
+        this.rpgVisualizer.setSimulationState(
+          new Set(finalStep.VET || clinicalCase.firedRuleIds || []),
+          null,
+          new Set(finalStep.TG || []),
+          new Set(finalStep.THOA || [])
+        );
+      } else if (clinicalCase.firedRuleIds && clinicalCase.firedRuleIds.length > 0) {
         this.rpgVisualizer.setSimulationState(new Set(clinicalCase.firedRuleIds));
       }
       this.rpgVisualizer.autoFit();
@@ -786,9 +796,19 @@ class HistoryController {
       this.fpgVisualizer.resizeCanvas();
       this.fpgVisualizer.setCase(clinicalCase);
       this.fpgVisualizer.setFilterRelatedOnly(true);
-      if (clinicalCase.firedRuleIds && clinicalCase.firedRuleIds.length > 0) {
+
+      const sim = window.MedicalGraphAlgorithms ? window.MedicalGraphAlgorithms.simulateForwardChainingWithFPG(clinicalCase) : null;
+      if (sim && sim.steps && sim.steps.length > 0) {
+        const finalStep = sim.steps[sim.steps.length - 1];
         this.fpgVisualizer.setSimulationState(
-          new Set(clinicalCase.gt || []),
+          new Set(finalStep.TG || []),
+          null,
+          new Set(finalStep.THOA || []),
+          new Set(finalStep.VET || clinicalCase.firedRuleIds || [])
+        );
+      } else if (clinicalCase.firedRuleIds && clinicalCase.firedRuleIds.length > 0) {
+        this.fpgVisualizer.setSimulationState(
+          new Set([...(clinicalCase.gt || []), ...(clinicalCase.kl || [])]),
           null,
           new Set(),
           new Set(clinicalCase.firedRuleIds)
