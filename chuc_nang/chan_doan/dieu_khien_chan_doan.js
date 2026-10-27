@@ -25,7 +25,7 @@ class DiagnosisController {
 
   initElements() {
     this.container = document.getElementById("symptomGroupsContainer");
-    
+
     // Custom Dropdown Elements
     this.dropdownContainer = document.getElementById("categoryDropdownContainer");
     this.btnDropdownTrigger = document.getElementById("btnCategoryDropdownTrigger");
@@ -38,10 +38,21 @@ class DiagnosisController {
     this.selectedSymptomsCount = document.getElementById("selectedSymptomsCount");
     this.searchInput = document.getElementById("symptomSearchInput");
     this.btnClearSearch = document.getElementById("btnClearSymptomSearch");
-    
+
     this.btnExpandAll = document.getElementById("btnExpandAll");
     this.btnCollapseAll = document.getElementById("btnCollapseAll");
     this.btnClear = document.getElementById("btnClearSymptoms");
+
+    // Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
+    this.diagnosisGrid = document.getElementById("diagnosisGrid");
+    this.symptomsCard = document.getElementById("diagnosisSymptomsCard");
+    this.btnToggleCollapseLeft = document.getElementById("btnToggleCollapseLeft");
+    this.leftSectionCollapsedBar = document.getElementById("leftSectionCollapsedBar");
+    this.btnExpandLeftSection = document.getElementById("btnExpandLeftSection");
+    this.collapsedSelectedCount = document.getElementById("collapsedSelectedCount");
+    this.btnRestoreLeftFromRight = document.getElementById("btnRestoreLeftFromRight");
+    this.rightBarSelectedCount = document.getElementById("rightBarSelectedCount");
+    this.isLeftCollapsed = false;
 
     // Right column & Results
     this.resultsContainer = document.getElementById("diagnosisResultsContainer");
@@ -53,8 +64,6 @@ class DiagnosisController {
     this.explanationContent = document.getElementById("explanationModalContent");
     this.modalBackward = document.getElementById("modalBackward");
     this.backwardContent = document.getElementById("backwardModalContent");
-    this.modalChainPipeline = document.getElementById("modalChainPipeline");
-    this.chainModalContent = document.getElementById("chainModalContent");
   }
 
   bindEvents() {
@@ -114,6 +123,23 @@ class DiagnosisController {
     // 5. Nút Xóa tất cả
     if (this.btnClear) {
       this.btnClear.addEventListener("click", () => this.clearAll());
+    }
+
+    // 5b. Nút Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
+    if (this.btnToggleCollapseLeft) {
+      this.btnToggleCollapseLeft.addEventListener("click", () => this.toggleLeftSection(true));
+    }
+    if (this.btnExpandLeftSection) {
+      this.btnExpandLeftSection.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleLeftSection(false);
+      });
+    }
+    if (this.leftSectionCollapsedBar) {
+      this.leftSectionCollapsedBar.addEventListener("click", () => this.toggleLeftSection(false));
+    }
+    if (this.btnRestoreLeftFromRight) {
+      this.btnRestoreLeftFromRight.addEventListener("click", () => this.toggleLeftSection(false));
     }
 
     // 6. Nút Thực hiện Suy diễn tiến
@@ -177,6 +203,7 @@ class DiagnosisController {
   _handleRuleMouseOver(e) {
     const target = e.target.closest("[data-rule-id]");
     if (!target) return;
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
 
     const ruleId = target.getAttribute("data-rule-id");
     if (!ruleId) return;
@@ -195,6 +222,8 @@ class DiagnosisController {
   _handleRuleMouseOut(e) {
     const target = e.target.closest("[data-rule-id]");
     if (!target) return;
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
     const tooltip = document.getElementById("globalRuleHoverTooltip");
     if (tooltip) {
       tooltip.classList.remove("visible");
@@ -313,8 +342,8 @@ class DiagnosisController {
 
   _positionRuleTooltip(tooltip, target) {
     const rect = target.getBoundingClientRect();
-    const tooltipWidth = 360;
-    const tooltipHeight = 220;
+    const tooltipWidth = tooltip.offsetWidth || 360;
+    const tooltipHeight = tooltip.offsetHeight || 220;
 
     let left = rect.left + rect.width / 2 - tooltipWidth / 2;
     if (left < 10) left = 10;
@@ -325,6 +354,9 @@ class DiagnosisController {
     let top = rect.top - tooltipHeight - 12;
     if (top < 10) {
       top = rect.bottom + 12;
+    }
+    if (top + tooltipHeight > window.innerHeight - 10) {
+      top = Math.max(10, window.innerHeight - tooltipHeight - 10);
     }
 
     tooltip.style.left = `${Math.round(left)}px`;
@@ -472,9 +504,9 @@ class DiagnosisController {
           </div>
           <div class="symptom-group-content" style="display: ${this.allExpanded ? 'flex' : 'none'};">
             ${groupSymptoms.map(sym => {
-              const currentCF = this.currentSelectedSymptoms[sym.id] || 0;
-              const isSelected = currentCF > 0;
-              return `
+        const currentCF = this.currentSelectedSymptoms[sym.id] || 0;
+        const isSelected = currentCF > 0;
+        return `
                 <div class="symptom-row ${isSelected ? 'selected' : ''}" data-symptom-id="${sym.id}" data-group-id="${group.id}">
                   <div class="symptom-info">
                     <span class="symptom-id-badge" style="${sym.isIntermediate ? 'background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4);' : ''}">${sym.id}</span>
@@ -493,7 +525,7 @@ class DiagnosisController {
                   </div>
                 </div>
               `;
-            }).join("")}
+      }).join("")}
           </div>
         </div>
       `;
@@ -601,6 +633,25 @@ class DiagnosisController {
     });
   }
 
+  /* --- 4b. THU NHỎ / MỞ RỘNG SECTION BÊN TRÁI --- */
+  toggleLeftSection(collapse) {
+    const shouldCollapse = collapse !== undefined ? collapse : !this.isLeftCollapsed;
+    this.isLeftCollapsed = shouldCollapse;
+
+    if (this.diagnosisGrid) {
+      this.diagnosisGrid.classList.toggle("left-collapsed", shouldCollapse);
+    }
+    if (this.symptomsCard) {
+      this.symptomsCard.classList.toggle("collapsed", shouldCollapse);
+    }
+    if (this.leftSectionCollapsedBar) {
+      this.leftSectionCollapsedBar.style.display = shouldCollapse ? "flex" : "none";
+    }
+    if (this.btnRestoreLeftFromRight) {
+      this.btnRestoreLeftFromRight.style.display = shouldCollapse ? "inline-flex" : "none";
+    }
+  }
+
   /* --- 5. CẬP NHẬT BADGES & STATS --- */
   updateBadges() {
     const kb = this.kbManager.getKB();
@@ -610,6 +661,8 @@ class DiagnosisController {
     if (this.totalSymptomsCount) this.totalSymptomsCount.textContent = symptoms.length;
     if (this.selectedSymptomsCount) this.selectedSymptomsCount.textContent = totalSelected;
     if (this.selectedCountNumber) this.selectedCountNumber.textContent = totalSelected;
+    if (this.collapsedSelectedCount) this.collapsedSelectedCount.textContent = totalSelected;
+    if (this.rightBarSelectedCount) this.rightBarSelectedCount.textContent = totalSelected;
 
     // Cập nhật thống kê trên từng nhóm
     if (this.container) {
@@ -859,10 +912,10 @@ class DiagnosisController {
                 ${target.diseaseName}
               </div>
               <div class="chain-stage-actions">
-                <a href="../do_thi_rpg/do_thi_rpg.html?focus=${target.diseaseId}&mode=RPG" class="btn-stage-mini" title="Xem vị trí bệnh trên Mạng Petri RPG">
+                <a href="../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${target.diseaseId}" class="btn-stage-mini" title="Xem vị trí bệnh trên Mạng Petri RPG">
                   <i class="fa-solid fa-project-diagram"></i> Mạng RPG
                 </a>
-                <a href="../do_thi_rpg/do_thi_rpg.html?focus=${target.diseaseId}&mode=FPG" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc sự kiện FPG">
+                <a href="../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS&disease=${target.diseaseId}" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc sự kiện FPG">
                   <i class="fa-solid fa-network-wired"></i> Mạng FPG
                 </a>
               </div>
@@ -1116,10 +1169,10 @@ class DiagnosisController {
               ${disMeta.name}
             </div>
             <div class="chain-stage-actions">
-              <a href="../do_thi_rpg/do_thi_rpg.html?focus=${disMeta.id}&mode=RPG" class="btn-stage-mini" title="Xem trên Mạng Petri RPG">
+              <a href="../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${disMeta.id}" class="btn-stage-mini" title="Xem trên Mạng Petri RPG">
                 <i class="fa-solid fa-project-diagram"></i> Mạng RPG
               </a>
-              <a href="../do_thi_rpg/do_thi_rpg.html?focus=${disMeta.id}&mode=FPG" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc FPG">
+              <a href="../do_thi_fpg/do_thi_fpg.html?focus=LIVE_DIAGNOSIS&disease=${disMeta.id}" class="btn-stage-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.35);" title="Xem cây phụ thuộc FPG">
                 <i class="fa-solid fa-network-wired"></i> Mạng FPG
               </a>
             </div>
@@ -1139,7 +1192,7 @@ class DiagnosisController {
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span class="badge" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;">
-              <i class="fa-solid fa-code-fork fa-rotate-180"></i> MÔ HÌNH SUY DIỄN HỘI TỤ (A,B→C & E,F→G ➔ C,G→M)
+              <i class="fa-solid fa-code-fork fa-rotate-180"></i> TIẾN TRÌNH SUY DIỄN HỘI TỤ ĐA HỘI CHỨNG
             </span>
             <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Quy tắc hội tụ [${convRule.ruleId}]</span>
           </div>
@@ -1158,13 +1211,24 @@ class DiagnosisController {
           <span style="display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
             <span>Nhánh 1 & Nhánh 2</span>
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <span class="clinical-rule-chip">[${branchesData.map(b => b.rule.ruleId || b.rule.id).join('], [')}]</span>
+            ${branchesData.map(b => {
+              const rId = b.rule.ruleId || b.rule.id;
+              return `<span class="clinical-rule-chip" data-rule-id="${rId}" style="cursor: pointer;" title="Rê chuột xem chi tiết quy tắc ${rId}">
+                <i class="fa-solid fa-bolt"></i> [${rId}]
+              </span>`;
+            }).join(' và ')}
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <strong style="color: #8b5cf6;">${imIds.join(' ∧ ')}</strong>
+            ${parentIms.map(im => `
+              <span class="badge" style="background: rgba(139, 92, 246, 0.18); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.35); font-weight: 700; font-size: 0.76rem; padding: 2px 7px; border-radius: 4px; cursor: help;" title="${im.name} (Độ tin cậy: ${Math.round(im.finalCF * 100)}%)">
+                ${im.id}: ${im.name}
+              </span>
+            `).join(' ∧ ')}
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <span class="clinical-rule-chip" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);">[${convRule.ruleId}] Hội tụ</span>
+            <span class="clinical-rule-chip" data-rule-id="${convRule.ruleId}" style="cursor: pointer; border-color: rgba(16, 185, 129, 0.4); color: #10b981; background: rgba(16, 185, 129, 0.12);" title="Rê chuột xem chi tiết quy tắc ${convRule.ruleId}">
+              <i class="fa-solid fa-bolt"></i> [${convRule.ruleId}] Hội tụ
+            </span>
             <i class="fa-solid fa-arrow-right" style="color: var(--text-muted); font-size: 0.75rem;"></i>
-            <strong style="color: var(--color-emerald);">${disMeta.name}</strong> (${finalCF}%)
+            <strong style="color: var(--color-emerald); cursor: help;" title="Chẩn đoán xác định bệnh đích [${disMeta.id}]">${disMeta.name}</strong> (${finalCF}%)
           </span>
         </div>
 
@@ -1172,7 +1236,7 @@ class DiagnosisController {
           <i class="fa-solid fa-comment-medical" style="color: var(--color-primary); margin-right: 0.4rem;"></i>
           <strong>Chu kỳ 1:</strong> Hệ thống kích hoạt song song 2 nhánh tiền đề ban đầu để tổng hợp thành 2 hội chứng trung gian ${branchNames}.<br>
           <i class="fa-solid fa-bolt" style="color: #10b981; margin-right: 0.4rem; margin-top: 0.35rem;"></i>
-          <strong>Chu kỳ 2 (Hội tụ):</strong> Cả 2 hội chứng trung gian đã nạp vào Bộ nhớ làm việc cùng thỏa mãn tiền đề của quy tắc hội tụ <strong>[${convRule.ruleId}] (${imIds.join(' ∧ ')} → ${disMeta.id})</strong> để chẩn đoán xác định bệnh <strong>"${disMeta.name}"</strong> với độ tin cậy <strong>${finalCF}%</strong>.
+          <strong>Chu kỳ 2 (Hội tụ):</strong> Cả 2 hội chứng trung gian đã nạp vào Bộ nhớ làm việc cùng thỏa mãn tiền đề của quy tắc hội tụ <strong>[${convRule.ruleId}]</strong> để chẩn đoán xác định bệnh <strong>"${disMeta.name}"</strong> với độ tin cậy <strong>${finalCF}%</strong>.
         </div>
       </div>
     `;
@@ -1206,11 +1270,14 @@ class DiagnosisController {
             </div>
           </div>
 
-          <div>
-            <button type="button" class="btn-toggle-chain-detail btn-open-chain-modal" style="cursor: pointer;" title="Xem chi tiết các bước từ triệu chứng đến hội chứng và bệnh đích">
-              <i class="fa-solid fa-diagram-project"></i>
-              <span>Xem chi tiết sơ đồ suy luận</span>
-              <i class="fa-solid fa-arrow-right" style="font-size: 0.78rem; margin-left: 2px;"></i>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn-toggle-chain-detail btn-quick-view-rpg" style="cursor: pointer;" title="Xem đường suy diễn trên Đồ thị mạng luật RPG">
+              <i class="fa-solid fa-project-diagram"></i>
+              <span>Xem Đồ thị RPG</span>
+            </button>
+            <button type="button" class="btn-toggle-chain-detail btn-quick-view-fpg" style="cursor: pointer; background: rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.4); color: #38bdf8;" title="Xem lan truyền sự kiện trên Đồ thị FPG">
+              <i class="fa-solid fa-diagram-successor"></i>
+              <span>Xem Đồ thị FPG</span>
             </button>
           </div>
         </div>
@@ -1242,37 +1309,37 @@ class DiagnosisController {
       ${intermediateHtml}
       <div class="result-card-list">
         ${result.results.map((item, index) => {
-          const isTop = index === 0;
-          const dis = item.disease || {};
-          const diseaseFrame = this.getDiseaseFrame(dis);
-          const frameSlots = diseaseFrame ? diseaseFrame.slots : {};
-          const interp = item.interpretation;
-          const cfPercent = interp.percentage;
-          const diseaseColor = dis.color || '#3b82f6';
+      const isTop = index === 0;
+      const dis = item.disease || {};
+      const diseaseFrame = this.getDiseaseFrame(dis);
+      const frameSlots = diseaseFrame ? diseaseFrame.slots : {};
+      const interp = item.interpretation;
+      const cfPercent = interp.percentage;
+      const diseaseColor = dis.color || '#3b82f6';
 
-          // 1. Phân tích ma trận chứng cứ lâm sàng (Triệu chứng đã khớp vs còn thiếu)
-          const diseaseRules = (kb.rules || []).filter(r => r.conclusion === (dis.id || item.diseaseId));
-          const allRelatedPremiseIds = new Set();
-          diseaseRules.forEach(r => (r.premises || []).forEach(p => allRelatedPremiseIds.add(p)));
+      // 1. Phân tích ma trận chứng cứ lâm sàng (Triệu chứng đã khớp vs còn thiếu)
+      const diseaseRules = (kb.rules || []).filter(r => r.conclusion === (dis.id || item.diseaseId));
+      const allRelatedPremiseIds = new Set();
+      diseaseRules.forEach(r => (r.premises || []).forEach(p => allRelatedPremiseIds.add(p)));
 
-          const matchedPremises = [];
-          const missingPremises = [];
+      const matchedPremises = [];
+      const missingPremises = [];
 
-          allRelatedPremiseIds.forEach(pId => {
-            const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
-            const userCF = this.currentSelectedSymptoms[pId];
-            if (userCF !== undefined && userCF > 0) {
-              matchedPremises.push({ ...sym, userCF });
-            } else {
-              missingPremises.push(sym);
-            }
-          });
+      allRelatedPremiseIds.forEach(pId => {
+        const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
+        const userCF = this.currentSelectedSymptoms[pId];
+        if (userCF !== undefined && userCF > 0) {
+          matchedPremises.push({ ...sym, userCF });
+        } else {
+          missingPremises.push(sym);
+        }
+      });
 
-          // 2. Định dạng danh sách cảnh báo nguy hiểm thành tags
-          let warningTagsHtml = '';
-          if (dis.warningSigns) {
-            const signs = dis.warningSigns.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-            warningTagsHtml = `
+      // 2. Định dạng danh sách cảnh báo nguy hiểm thành tags
+      let warningTagsHtml = '';
+      if (dis.warningSigns) {
+        const signs = dis.warningSigns.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+        warningTagsHtml = `
               <div class="warning-tags-grid">
                 ${signs.map(sign => `
                   <div class="warning-tag-pill">
@@ -1282,32 +1349,32 @@ class DiagnosisController {
                 `).join('')}
               </div>
             `;
-          }
+      }
 
-          // 3. Định dạng khuyến nghị xử lý thành danh sách các bước có icon
-          let recommendationStepsHtml = '';
-          if (dis.recommendation) {
-            const steps = dis.recommendation.split(/(?<=\.)\s+|;\s*/).map(p => p.trim()).filter(Boolean);
-            recommendationStepsHtml = `
+      // 3. Định dạng khuyến nghị xử lý thành danh sách các bước có icon
+      let recommendationStepsHtml = '';
+      if (dis.recommendation) {
+        const steps = dis.recommendation.split(/(?<=\.)\s+|;\s*/).map(p => p.trim()).filter(Boolean);
+        recommendationStepsHtml = `
               <div class="recommendation-steps-list">
                 ${steps.map(step => {
-                  let icon = 'fa-solid fa-circle-check';
-                  let iconColor = '#10b981';
-                  const lower = step.toLowerCase();
-                  if (lower.includes('aspirin') || lower.includes('không dùng') || lower.includes('tránh') || lower.includes('tuyệt đối')) {
-                    icon = 'fa-solid fa-ban';
-                    iconColor = '#ef4444';
-                  } else if (lower.includes('nước') || lower.includes('oresol') || lower.includes('bù nước')) {
-                    icon = 'fa-solid fa-droplet';
-                    iconColor = '#06b6d4';
-                  } else if (lower.includes('xét nghiệm') || lower.includes('y tế') || lower.includes('bệnh viện') || lower.includes('khám') || lower.includes('chỉ định')) {
-                    icon = 'fa-solid fa-hospital-user';
-                    iconColor = '#8b5cf6';
-                  } else if (lower.includes('cách ly') || lower.includes('khẩu trang') || lower.includes('vitamin')) {
-                    icon = 'fa-solid fa-shield-virus';
-                    iconColor = '#f59e0b';
-                  }
-                  return `
+          let icon = 'fa-solid fa-circle-check';
+          let iconColor = '#10b981';
+          const lower = step.toLowerCase();
+          if (lower.includes('aspirin') || lower.includes('không dùng') || lower.includes('tránh') || lower.includes('tuyệt đối')) {
+            icon = 'fa-solid fa-ban';
+            iconColor = '#ef4444';
+          } else if (lower.includes('nước') || lower.includes('oresol') || lower.includes('bù nước')) {
+            icon = 'fa-solid fa-droplet';
+            iconColor = '#06b6d4';
+          } else if (lower.includes('xét nghiệm') || lower.includes('y tế') || lower.includes('bệnh viện') || lower.includes('khám') || lower.includes('chỉ định')) {
+            icon = 'fa-solid fa-hospital-user';
+            iconColor = '#8b5cf6';
+          } else if (lower.includes('cách ly') || lower.includes('khẩu trang') || lower.includes('vitamin')) {
+            icon = 'fa-solid fa-shield-virus';
+            iconColor = '#f59e0b';
+          }
+          return `
                     <div class="recommendation-step-item">
                       <div class="step-icon-box" style="color: ${iconColor};">
                         <i class="${icon}"></i>
@@ -1315,12 +1382,12 @@ class DiagnosisController {
                       <div class="step-text">${step}</div>
                     </div>
                   `;
-                }).join('')}
+        }).join('')}
               </div>
             `;
-          }
+      }
 
-          return `
+      return `
             <div class="disease-result-card ${isTop ? 'top-match' : ''}">
               
               <!-- 1. Header Card: Mã + Tên bệnh + Badge Nghi ngờ cao nhất -->
@@ -1494,7 +1561,7 @@ class DiagnosisController {
 
             </div>
           `;
-        }).join("")}
+    }).join("")}
       </div>
     `;
 
@@ -1519,31 +1586,26 @@ class DiagnosisController {
       });
     });
 
-    const btnOpenChain = this.resultsContainer.querySelector(".btn-open-chain-modal");
-    if (btnOpenChain) {
-      btnOpenChain.addEventListener("click", () => {
-        this.openChainPipelineModal();
+    const btnQuickRpg = this.resultsContainer.querySelector(".btn-quick-view-rpg");
+    if (btnQuickRpg) {
+      btnQuickRpg.addEventListener("click", () => {
+        const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
+        if (this.onFocusGraph) this.onFocusGraph(topDisId);
+      });
+    }
+
+    const btnQuickFpg = this.resultsContainer.querySelector(".btn-quick-view-fpg");
+    if (btnQuickFpg) {
+      btnQuickFpg.addEventListener("click", () => {
+        const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
+        if (this.onFocusFpg) this.onFocusFpg(topDisId);
       });
     }
   }
 
   openChainPipelineModal() {
-    if (!this.lastInferenceResult || !this.modalChainPipeline || !this.chainModalContent) return;
-    const kb = this.kbManager.getKB();
-    const intermediateResults = this.lastInferenceResult.intermediateResults || [];
-    const convRules = this._findConvergentRules(this.lastInferenceResult.firedRules, intermediateResults);
-
-    let html = '';
-    if (convRules.length > 0) {
-      html += convRules.map(r => this._buildConvergentChainHtml(r, this.lastInferenceResult, kb)).join('');
-    } else {
-      html += intermediateResults
-        .map(im => this._buildSingleChainHtml(im, this.lastInferenceResult, kb))
-        .join('');
-    }
-
-    this.chainModalContent.innerHTML = html;
-    this.modalChainPipeline.classList.add("active");
+    const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
+    if (this.onFocusGraph) this.onFocusGraph(topDisId);
   }
 
   openBackwardInquiryModal(targetDiseaseId) {
@@ -1653,6 +1715,7 @@ class DiagnosisController {
             `;
           } else if (log.type === "START") {
             return `
+
               <div class="trace-step-item">
                 <div class="trace-step-title">Bước ${log.step}: ${log.message}</div>
                 <div class="trace-step-body">
@@ -1668,6 +1731,7 @@ class DiagnosisController {
                 <div class="trace-step-title" style="color: ${dt.isDisease ? '#34d399' : '#a78bfa'};">
                   Bước ${log.step} [Chu kỳ ${dt.cycle}]: ${log.message}
                 </div>
+
                 <div class="trace-step-body">
                   <strong>• Luật:</strong> ${dt.ruleDescription}<br>
                   <strong>• Các tiền đề:</strong> ${dt.premiseDetails.map(p => `[${p.id}] ${p.name} (CF=${p.userCF})`).join(" AND ")}<br>
@@ -1676,8 +1740,8 @@ class DiagnosisController {
                 </div>
               </div>
             `;
-          } else if (log.type === "RULE_SKIPPED") {
-            return `
+      } else if (log.type === "RULE_SKIPPED") {
+        return `
               <div class="trace-step-item" style="border-left-color: var(--color-amber);">
                 <div class="trace-step-title" style="color: var(--color-amber);">Bước ${log.step} [Chu kỳ ${log.cycle}]: ${log.message}</div>
                 <div class="trace-step-body">
@@ -1686,8 +1750,8 @@ class DiagnosisController {
                 </div>
               </div>
             `;
-          } else if (log.type === "FINISH") {
-            return `
+      } else if (log.type === "FINISH") {
+        return `
               <div class="trace-step-item" style="border-left-color: var(--color-primary);">
                 <div class="trace-step-title" style="color: var(--color-primary);">Bước ${log.step}: ${log.message}</div>
                 <div class="trace-step-body">
@@ -1699,9 +1763,9 @@ class DiagnosisController {
                 </div>
               </div>
             `;
-          }
-          return "";
-        }).join("")}
+      }
+      return "";
+    }).join("")}
       </div>
     `;
 

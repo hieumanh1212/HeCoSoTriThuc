@@ -15,6 +15,12 @@ class HistoryController {
     this.filteredSessions = [];
     this.currentSelectedSession = null;
 
+    // Phân trang danh sách phiên chẩn đoán
+    this.pagination = {
+      page: 1,
+      pageSize: 10
+    };
+
     this.initElements();
     this.bindEvents();
     this.initData();
@@ -38,9 +44,10 @@ class HistoryController {
     this.btnRefresh = document.getElementById("btnRefreshHistory");
     this.btnClearAll = document.getElementById("btnClearAllHistory");
 
-    // Table
+    // Table & Pagination
     this.tableBody = document.getElementById("historyTableBody");
     this.emptyState = document.getElementById("historyEmptyState");
+    this.paginationContainer = document.getElementById("paginationHistory");
 
     // Detail Modal
     this.modalDetail = document.getElementById("modalSessionDetail");
@@ -179,6 +186,7 @@ class HistoryController {
       return true;
     });
 
+    this.pagination.page = 1;
     this.renderStats();
     this.renderTable();
   }
@@ -222,18 +230,28 @@ class HistoryController {
   renderTable() {
     if (!this.tableBody) return;
 
-    if (this.filteredSessions.length === 0) {
+    const totalItems = this.filteredSessions.length;
+    if (totalItems === 0) {
       this.tableBody.innerHTML = "";
       if (this.emptyState) this.emptyState.style.display = "block";
+      if (this.paginationContainer) this.paginationContainer.innerHTML = "";
       return;
     }
 
     if (this.emptyState) this.emptyState.style.display = "none";
 
+    const { page, pageSize } = this.pagination;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    const validPage = Math.min(Math.max(1, page), totalPages);
+    this.pagination.page = validPage;
+
+    const startIdx = (validPage - 1) * pageSize;
+    const pageSessions = this.filteredSessions.slice(startIdx, startIdx + pageSize);
+
     const kb = this.kbManager.getKB();
     const symptomsKB = kb.symptoms || [];
 
-    const rowsHtml = this.filteredSessions.map((session, index) => {
+    const rowsHtml = pageSessions.map((session) => {
       const timeStr = window.MauBaoCaoYTe ? window.MauBaoCaoYTe.dinhDangNgayGio(session.timestamp) : (session.timestamp || "");
       const cf = Number(session.topCF || 0);
       const cfPercent = Math.round(cf * 100);
@@ -289,13 +307,13 @@ class HistoryController {
           <td>
             <div class="row-action-btns">
               <button class="btn-row-action view-btn" data-action="view" data-id="${session.id}" title="Xem chi tiết phiên & Vết suy luận">
-                <i class="fa-regular fa-eye"></i> Xem
+                <i class="fa-regular fa-eye"></i>
               </button>
               <button class="btn-row-action pdf-btn" data-action="pdf" data-id="${session.id}" title="Xuất phiếu kết quả PDF chuẩn y tế">
-                <i class="fa-solid fa-file-pdf"></i> PDF
+                <i class="fa-solid fa-file-pdf"></i>
               </button>
               <button class="btn-row-action rerun-btn" data-action="rerun" data-id="${session.id}" title="Nạp triệu chứng và chẩn đoán lại">
-                <i class="fa-solid fa-rotate-right"></i> Chẩn đoán lại
+                <i class="fa-solid fa-rotate-right"></i>
               </button>
               <button class="btn-row-action del-btn" data-action="delete" data-id="${session.id}" title="Xóa phiên này">
                 <i class="fa-regular fa-trash-can"></i>
@@ -310,7 +328,7 @@ class HistoryController {
 
     // Gắn sự kiện các nút trên từng dòng
     this.tableBody.querySelectorAll("button[data-action]").forEach(btn => {
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener("click", () => {
         const action = btn.getAttribute("data-action");
         const sessionId = btn.getAttribute("data-id");
         const session = this.allSessions.find(s => s.id === sessionId);
@@ -323,6 +341,112 @@ class HistoryController {
         else if (action === "delete") this.handleDeleteSession(sessionId);
       });
     });
+
+    this.renderPaginationFooter(totalItems);
+  }
+
+  _buildPageNumbersHtml(page, totalPages) {
+    if (totalPages <= 7) {
+      let html = "";
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+      return html;
+    }
+
+    if (page <= 4) {
+      let html = "";
+      for (let i = 1; i <= 5; i++) {
+        html += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+      return html + `<span class="pagination-ellipsis">...</span><button class="btn-page-step" data-page="${totalPages}">${totalPages}</button>`;
+    }
+
+    if (page >= totalPages - 3) {
+      let html = `<button class="btn-page-step" data-page="1">1</button><span class="pagination-ellipsis">...</span>`;
+      for (let i = totalPages - 4; i <= totalPages; i++) {
+        html += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+      return html;
+    }
+
+    let midHtml = "";
+    for (let i = page - 1; i <= page + 1; i++) {
+      midHtml += `<button class="btn-page-step ${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    return `<button class="btn-page-step" data-page="1">1</button><span class="pagination-ellipsis">...</span>${midHtml}<span class="pagination-ellipsis">...</span><button class="btn-page-step" data-page="${totalPages}">${totalPages}</button>`;
+  }
+
+  renderPaginationFooter(totalItems) {
+    if (!this.paginationContainer) return;
+
+    if (totalItems === 0) {
+      this.paginationContainer.innerHTML = "";
+      return;
+    }
+
+    const { page, pageSize } = this.pagination;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    const startItem = (page - 1) * pageSize + 1;
+    const endItem = Math.min(page * pageSize, totalItems);
+
+    const pageNumbersHtml = this._buildPageNumbersHtml(page, totalPages);
+
+    this.paginationContainer.innerHTML = `
+      <div class="pagination-left">
+        <div class="pagination-info-text">
+          Hiển thị <strong>${startItem} - ${endItem}</strong> trên tổng số <strong>${totalItems}</strong> phiên chẩn đoán
+        </div>
+        <div class="page-size-selector-wrap">
+          <label>Hiển thị:</label>
+          <select class="select-page-size" id="selectHistoryPageSize">
+            <option value="10" ${pageSize === 10 ? 'selected' : ''}>10 dòng / trang</option>
+            <option value="20" ${pageSize === 20 ? 'selected' : ''}>20 dòng / trang</option>
+            <option value="50" ${pageSize === 50 ? 'selected' : ''}>50 dòng / trang</option>
+            <option value="100" ${pageSize === 100 ? 'selected' : ''}>100 dòng / trang</option>
+          </select>
+        </div>
+      </div>
+      <div class="pagination-nav-group">
+        <button class="btn-page-step" data-page="1" title="Trang đầu" ${page === 1 ? 'disabled' : ''}>
+          <i class="fa-solid fa-angles-left"></i>
+        </button>
+        <button class="btn-page-step" data-page="${page - 1}" title="Trang trước" ${page === 1 ? 'disabled' : ''}>
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        ${pageNumbersHtml}
+        <button class="btn-page-step" data-page="${page + 1}" title="Trang sau" ${page === totalPages ? 'disabled' : ''}>
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <button class="btn-page-step" data-page="${totalPages}" title="Trang cuối" ${page === totalPages ? 'disabled' : ''}>
+          <i class="fa-solid fa-angles-right"></i>
+        </button>
+      </div>
+    `;
+
+    // Click chuyển trang
+    this.paginationContainer.querySelectorAll(".btn-page-step[data-page]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const targetPage = parseInt(btn.getAttribute("data-page"), 10);
+        if (targetPage && targetPage !== page && targetPage >= 1 && targetPage <= totalPages) {
+          this.pagination.page = targetPage;
+          this.renderTable();
+        }
+      });
+    });
+
+    // Thay đổi số dòng / trang
+    const selectEl = this.paginationContainer.querySelector("#selectHistoryPageSize");
+    if (selectEl) {
+      selectEl.addEventListener("change", (e) => {
+        const newPageSize = parseInt(e.target.value, 10);
+        if (newPageSize) {
+          this.pagination.pageSize = newPageSize;
+          this.pagination.page = 1;
+          this.renderTable();
+        }
+      });
+    }
   }
 
   openDetailModal(session) {
@@ -511,33 +635,72 @@ class HistoryController {
   }
 
   async handleDeleteSession(sessionId) {
-    if (!confirm(`Bạn có chắc chắn muốn xóa phiên chẩn đoán [${sessionId}] không?`)) return;
+    let isConfirmed = false;
+    if (window.XacNhan && typeof window.XacNhan.xoa === "function") {
+      isConfirmed = await window.XacNhan.xoa(
+        `Phiên chẩn đoán [${sessionId}]`,
+        "Dữ liệu của phiên khám bệnh và toàn bộ vết suy diễn này sẽ bị xóa khỏi lịch sử và không thể hoàn tác."
+      );
+    } else {
+      isConfirmed = confirm(`Bạn có chắc chắn muốn xóa phiên chẩn đoán [${sessionId}] không?`);
+    }
+
+    if (!isConfirmed) return;
+
     try {
       await this.dbEngine.deleteInferenceSession(sessionId);
-      if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
-        ThongBao.thanhCong(`Đã xóa thành công phiên ${sessionId}`);
+      if (window.ThongBao?.thanhCong) {
+        window.ThongBao.thanhCong(`Đã xóa thành công phiên [${sessionId}]`);
       }
       await this.loadSessions();
     } catch (e) {
-      alert("Lỗi khi xóa phiên: " + e.message);
+      if (window.ThongBao?.thatBai) {
+        window.ThongBao.thatBai("Lỗi khi xóa phiên: " + e.message);
+      } else {
+        alert("Lỗi khi xóa phiên: " + e.message);
+      }
     }
   }
 
   async handleClearAll() {
     if (this.allSessions.length === 0) {
-      alert("Lịch sử chẩn đoán hiện đang trống.");
+      if (window.ThongBao?.canhBao) {
+        window.ThongBao.canhBao("Lịch sử chẩn đoán hiện đang trống.");
+      } else {
+        alert("Lịch sử chẩn đoán hiện đang trống.");
+      }
       return;
     }
-    if (!confirm("CẢNH BÁO: Toàn bộ dữ liệu lịch sử chẩn đoán sẽ bị xóa vĩnh viễn!\nBạn có chắc chắn muốn thực hiện không?")) return;
+
+    let isConfirmed = false;
+    if (window.XacNhan && typeof window.XacNhan.hienThi === "function") {
+      isConfirmed = await window.XacNhan.hienThi({
+        title: "Xóa toàn bộ lịch sử",
+        message: "Bạn có chắc chắn muốn xóa toàn bộ lịch sử các phiên chẩn đoán?",
+        detail: "CẢNH BÁO: Toàn bộ dữ liệu phiên khám và vết suy luận đã ghi nhận sẽ bị xóa vĩnh viễn khỏi hệ thống!",
+        type: "danger",
+        confirmText: "Xóa toàn bộ",
+        cancelText: "Hủy bỏ",
+        icon: "fa-trash-can"
+      });
+    } else {
+      isConfirmed = confirm("CẢNH BÁO: Toàn bộ dữ liệu lịch sử chẩn đoán sẽ bị xóa vĩnh viễn!\nBạn có chắc chắn muốn thực hiện không?");
+    }
+
+    if (!isConfirmed) return;
 
     try {
       await this.dbEngine.clearAllInferenceSessions();
-      if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
-        ThongBao.thanhCong("Đã xóa toàn bộ lịch sử chẩn đoán.");
+      if (window.ThongBao?.thanhCong) {
+        window.ThongBao.thanhCong("Đã xóa toàn bộ lịch sử chẩn đoán.");
       }
       await this.loadSessions();
     } catch (e) {
-      alert("Lỗi khi xóa toàn bộ lịch sử: " + e.message);
+      if (window.ThongBao?.thatBai) {
+        window.ThongBao.thatBai("Lỗi khi xóa toàn bộ lịch sử: " + e.message);
+      } else {
+        alert("Lỗi khi xóa toàn bộ lịch sử: " + e.message);
+      }
     }
   }
 }

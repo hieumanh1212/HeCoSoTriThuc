@@ -389,30 +389,30 @@ const DEFAULT_KNOWLEDGE_BASE = {
       description: "IF Hội chứng sốt virus cấp tính (HC01) AND Phát ban dát sẩn từ mặt lan thân (S14) THEN Chẩn đoán xác định Bệnh Sởi (D03) [CF = 0.94]"
     },
 
-    // Mắt xích 5: Suy diễn đa tầng hội tụ (A, B -> C & E, F -> G & C, G -> M)
+    // Mắt xích 5: Suy diễn đa tầng hội tụ (Sốt virus & Viêm hô hấp trên -> Cúm mùa)
     {
       id: "R27",
-      name: "Luật xác định Hội chứng sốt virus từ Sốt cao & Đau mỏi cơ (A, B → C)",
+      name: "Luật xác định Hội chứng sốt virus từ Sốt cao & Đau mỏi cơ",
       premises: ["S01", "S06"],
       conclusion: "HC01",
       cf: 0.90,
-      description: "IF Sốt cao đột ngột (S01: A) AND Đau mỏi cơ bắp toàn thân (S06: B) THEN Hội chứng sốt nhiễm virus cấp tính (HC01: C) [CF = 0.90]"
+      description: "IF Sốt cao đột ngột (S01) AND Đau mỏi cơ bắp toàn thân (S06) THEN Hội chứng sốt nhiễm virus cấp tính (HC01) [CF = 0.90]"
     },
     {
       id: "R28",
-      name: "Luật xác định Hội chứng viêm hô hấp trên từ Ho & Đau họng (E, F → G)",
+      name: "Luật xác định Hội chứng viêm hô hấp trên từ Ho & Đau họng",
       premises: ["S08", "S10"],
       conclusion: "HC03",
       cf: 0.88,
-      description: "IF Ho khan/đờm (S08: E) AND Đau rát họng khi nuốt (S10: F) THEN Hội chứng viêm đường hô hấp trên (HC03: G) [CF = 0.88]"
+      description: "IF Ho khan/đờm (S08) AND Đau rát họng khi nuốt (S10) THEN Hội chứng viêm đường hô hấp trên (HC03) [CF = 0.88]"
     },
     {
       id: "R29",
-      name: "Luật hội tụ chẩn đoán Cúm mùa từ Sốt virus & Viêm hô hấp trên (C, G → M)",
+      name: "Luật chẩn đoán Cúm mùa từ Hội tụ Hội chứng sốt virus & Viêm hô hấp trên",
       premises: ["HC01", "HC03"],
       conclusion: "D02",
       cf: 0.95,
-      description: "IF Hội chứng sốt virus (HC01: C) AND Hội chứng viêm hô hấp trên (HC03: G) THEN Chẩn đoán xác định Cúm mùa / Cúm A (D02: M) [CF = 0.95]"
+      description: "IF Hội chứng sốt virus cấp tính (HC01) AND Hội chứng viêm đường hô hấp trên (HC03) THEN Chẩn đoán xác định Cúm mùa / Cúm A (D02) [CF = 0.95]"
     }
   ],
 
@@ -487,7 +487,7 @@ const DEFAULT_KNOWLEDGE_BASE = {
     },
     {
       id: "TC06",
-      name: "Ca bệnh 6: Suy diễn đa tầng mắt xích (A+B→C & C+D→E: Sốt xuất huyết)",
+      name: "Ca bệnh 6: Suy diễn đa tầng mắt xích (Hội chứng sốt virus → Sốt xuất huyết)",
       patientInfo: "Nam, 26 tuổi, sốt cao ngày 3, đau hốc mắt dữ dội, có chấm xuất huyết",
       selectedSymptoms: [
         { id: "S01", cf: 1.0 }, // Sốt cao đột ngột liên tục
@@ -535,18 +535,18 @@ const DEFAULT_KNOWLEDGE_BASE = {
     },
     {
       id: "TC09",
-      name: "Ca bệnh 9: Suy diễn đa tầng hội tụ (A, B → C & E, F → G & C, G → M)",
+      name: "Ca bệnh 9: Suy diễn hội tụ đa hội chứng (Sốt virus & Viêm hô hấp trên → Cúm mùa)",
       patientInfo: "Nam, 30 tuổi, sốt cao đột ngột kèm đau cơ toàn thân, ho khan và đau rát họng dữ dội",
       selectedSymptoms: [
-        { id: "S01", cf: 1.0 }, // (A) Sốt cao đột ngột (39 - 40°C)
-        { id: "S06", cf: 1.0 }, // (B) Đau mỏi cơ bắp toàn thân
-        { id: "S08", cf: 1.0 }, // (E) Ho khan hoặc ho có đờm
-        { id: "S10", cf: 1.0 }  // (F) Đau rát họng, nuốt đau
+        { id: "S01", cf: 1.0 }, // Sốt cao đột ngột (39 - 40°C)
+        { id: "S06", cf: 1.0 }, // Đau mỏi cơ bắp toàn thân
+        { id: "S08", cf: 1.0 }, // Ho khan hoặc ho có đờm
+        { id: "S10", cf: 1.0 }  // Đau rát họng, nuốt đau
       ],
       expectedDisease: "D02",
       isChainingBenchmark: true,
-      chainingPath: "Chu kỳ 1 (Song song): (S01 ∧ S06) → [R27] → HC01 (90%) & (S08 ∧ S10) → [R28] → HC03 (88%) | Chu kỳ 2 (Hội tụ): (HC01 ∧ HC03) → [R29] → D02 (95%)",
-      clinicalNote: "Ca kiểm thử mô hình suy diễn đa tầng hội tụ chuẩn: Chu kỳ 1 kích hoạt song song [R27] (S01 ∧ S06 → HC01: Hội chứng sốt virus) và [R28] (S08 ∧ S10 → HC03: Hội chứng viêm hô hấp trên); Chu kỳ 2 hội tụ cả hai hội chứng trung gian C và G để kích hoạt [R29] (HC01 ∧ HC03 → D02) chẩn đoán xác định bệnh M: Cúm mùa / Cúm A (95%)."
+      chainingPath: "Chu kỳ 1: (S01 ∧ S06) → [R27] → HC01 (90%) & (S08 ∧ S10) → [R28] → HC03 (88%) | Chu kỳ 2: (HC01 ∧ HC03) → [R29] → D02 (95%)",
+      clinicalNote: "Ca kiểm thử mô hình suy diễn hội tụ lâm sàng: Chu kỳ 1 kích hoạt song song [R27] (S01 ∧ S06 → HC01: Hội chứng sốt virus) và [R28] (S08 ∧ S10 → HC03: Hội chứng viêm hô hấp trên); Chu kỳ 2 hội tụ cả hai hội chứng trung gian đã xác lập để kích hoạt [R29] chẩn đoán xác định Cúm mùa / Cúm A (95%)."
     }
   ]
 };

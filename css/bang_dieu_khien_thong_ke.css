@@ -1,0 +1,440 @@
+/* ==========================================================================
+   BẢNG ĐIỀU KHIỂN GIÁM SÁT HỆ CHUYÊN GIA Y TẾ (MED-EXPERT DASHBOARD)
+   Thiết kế chuyên sâu chuẩn Y tế số & Trí tuệ nhân tạo (Clinical AI System)
+   ========================================================================== */
+
+.dashboard-executive-section {
+  margin: 0.5rem 0 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* 1. KHỐI TỔNG QUAN 4 THẺ KPI CHÍNH (EXECUTIVE METRICS) */
+.dash-executive-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.dash-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.15rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dash-main-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.dash-main-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.15rem;
+}
+
+@media (max-width: 960px) {
+  .dash-main-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .dash-main-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-main-kpi-card {
+  border-radius: 10px;
+  padding: 1.1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.dash-main-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+}
+
+.dash-main-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.dash-main-kpi-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.dash-main-kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.dash-main-kpi-val {
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.dash-main-kpi-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.dash-main-kpi-card.card-blue {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1.5px solid rgba(59, 130, 246, 0.22);
+}
+.dash-main-kpi-card.card-blue .dash-main-kpi-icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.dash-main-kpi-card.card-emerald {
+  background: rgba(16, 185, 129, 0.05);
+  border: 1.5px solid rgba(16, 185, 129, 0.25);
+}
+.dash-main-kpi-card.card-emerald .dash-main-kpi-icon {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.dash-main-kpi-card.card-purple {
+  background: rgba(139, 92, 246, 0.05);
+  border: 1.5px solid rgba(139, 92, 246, 0.22);
+}
+.dash-main-kpi-card.card-purple .dash-main-kpi-icon {
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+}
+
+.dash-main-kpi-card.card-amber {
+  background: rgba(245, 158, 11, 0.05);
+  border: 1.5px solid rgba(245, 158, 11, 0.25);
+}
+.dash-main-kpi-card.card-amber .dash-main-kpi-icon {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.badge-clinical {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.15));
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #059669;
+}
+
+[data-theme="dark"] .badge-clinical {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.badge-kb {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #2563eb;
+}
+
+[data-theme="dark"] .badge-kb {
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* Bộ lọc Dropdowns */
+.dash-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.dash-select-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.dash-select {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.dash-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* KPI Cards Grids */
+.dash-kpi-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+}
+
+.dash-kpi-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .dash-kpi-grid-4,
+  .dash-kpi-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.dash-kpi-card {
+  border-radius: 8px;
+  padding: 0.85rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Các theme màu dịu mắt, chuyên nghiệp cho y tế */
+.dash-kpi-card.card-blue {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1.5px solid rgba(59, 130, 246, 0.25);
+}
+
+.dash-kpi-card.card-emerald {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1.5px solid rgba(16, 185, 129, 0.28);
+}
+
+.dash-kpi-card.card-amber {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1.5px solid rgba(245, 158, 11, 0.3);
+}
+
+.dash-kpi-card.card-purple {
+  background: rgba(139, 92, 246, 0.06);
+  border: 1.5px solid rgba(139, 92, 246, 0.28);
+}
+
+.dash-kpi-card.card-cyan {
+  background: rgba(6, 182, 212, 0.06);
+  border: 1.5px solid rgba(6, 182, 212, 0.28);
+}
+
+.dash-kpi-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+  line-height: 1.25;
+}
+
+.card-blue .dash-kpi-title { color: #2563eb; }
+.card-emerald .dash-kpi-title { color: #059669; }
+.card-amber .dash-kpi-title { color: #d97706; }
+.card-purple .dash-kpi-title { color: #7c3aed; }
+.card-cyan .dash-kpi-title { color: #0891b2; }
+
+.dash-kpi-val {
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.dash-kpi-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+/* 2. KHỐI 2 BIỂU ĐỒ DƯỚI */
+.dash-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 960px) {
+  .dash-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-chart-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.85rem;
+  letter-spacing: 0.4px;
+}
+
+.chart-accent-bar {
+  display: inline-block;
+  width: 4px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+/* Legend biểu đồ cột */
+.dash-bar-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.dash-bar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-square {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* Khung Donut Chart & Bảng tiến độ */
+.dash-donut-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 1rem;
+  align-items: center;
+  height: 100%;
+}
+
+@media (max-width: 600px) {
+  .dash-donut-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+.progress-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.progress-breakdown-item {
+  background: rgba(59, 130, 246, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.progress-breakdown-item:hover {
+  background: rgba(59, 130, 246, 0.07);
+  transform: translateX(2px);
+}
+
+.pbi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pbi-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.pbi-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.pbi-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .pbi-bar-bg {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pbi-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}

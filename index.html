@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Mạng Luật RPG</title>
-  
+
   <!-- FontAwesome Icons & CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/tong_hop.css">
+  <link rel="stylesheet" href="css/bang_dieu_khien_thong_ke.css">
 </head>
+
 <body>
 
   <!-- ==================== APP HEADER ==================== -->
@@ -20,8 +23,7 @@
             <i class="fa-solid fa-brain"></i>
           </div>
           <div class="brand-text">
-            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ (MED-EXPERT)</h1>
-            <p>Học phần: Hệ cơ sở tri thức (Chương trình Thạc sĩ CNTT)</p>
+            <h1>HỆ CƠ SỞ TRI THỨC Y TẾ</h1>
           </div>
         </a>
       </div>
@@ -66,263 +68,151 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="main-wrapper">
-    
-    <!-- 1. HERO BANNER -->
-    <section class="hero-banner">
-      <div class="hero-title">
-        <i class="fa-solid fa-shield-virus" style="color: var(--color-emerald);"></i>
-        <span>Hệ Chuyên Gia Chẩn Đoán Bệnh Truyền Nhiễm & Sốt Cấp Tính</span>
+
+    <!-- 1. BẢNG ĐIỀU KHIỂN GIÁM SÁT HỆ CHUYÊN GIA Y TẾ (MED-EXPERT DASHBOARD) -->
+    <section class="dashboard-executive-section">
+
+      <!-- HÀNG 1: BẢNG TỔNG QUAN 4 CHỈ SỐ CỐT LÕI (EXECUTIVE KPI SECTION) -->
+      <div class="dash-executive-panel">
+        <div class="dash-main-header">
+          <div class="dash-main-title">
+            <span class="dash-panel-badge badge-clinical" style="padding: 0.35rem 0.75rem;">
+              <i class="fa-solid fa-brain"></i> TỔNG QUAN HỆ CƠ SỞ TRI THỨC & SUY DIỄN Y TẾ
+            </span>
+          </div>
+          <div
+            style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span><i class="fa-solid fa-shield-halved" style="color: var(--color-emerald);"></i> Chuẩn Bộ Y Tế &
+              WHO</span>
+            <span>•</span>
+            <span><i class="fa-solid fa-database" style="color: var(--color-primary);"></i> CSDL IndexedDB 3NF</span>
+          </div>
+        </div>
+
+        <!-- 4 THẺ THỐNG KÊ CHÍNH -->
+        <div class="dash-main-kpi-grid">
+
+          <!-- Thẻ 1: Số chẩn đoán hôm nay -->
+          <div class="dash-main-kpi-card card-blue">
+            <div class="dash-main-kpi-top">
+              <span class="dash-main-kpi-label">Số chẩn đoán hôm nay</span>
+              <div class="dash-main-kpi-icon"><i class="fa-solid fa-stethoscope"></i></div>
+            </div>
+            <div class="dash-main-kpi-val" id="dashKpiToday">18</div>
+            <div class="dash-main-kpi-sub" id="dashKpiTodaySub">Phiên chẩn đoán ghi nhận trong ngày</div>
+          </div>
+
+          <!-- Thẻ 2: Ca xác định bệnh đích -->
+          <div class="dash-main-kpi-card card-emerald">
+            <div class="dash-main-kpi-top">
+              <span class="dash-main-kpi-label">Đã xác định bệnh</span>
+              <div class="dash-main-kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+            <div class="dash-main-kpi-val" id="dashKpiIdentified">15</div>
+            <div class="dash-main-kpi-sub" id="dashKpiIdentifiedSub">Tỷ lệ xác định đạt 83.3%</div>
+          </div>
+
+          <!-- Thẻ 3: Ca theo dõi / Nghi ngờ -->
+          <div class="dash-main-kpi-card card-amber">
+            <div class="dash-main-kpi-top">
+              <span class="dash-main-kpi-label">Theo dõi / Nghi ngờ</span>
+              <div class="dash-main-kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+            <div class="dash-main-kpi-val" id="dashKpiSuspected">3</div>
+            <div class="dash-main-kpi-sub" id="dashKpiSuspectedSub">Cần bổ sung xét nghiệm cận lâm sàng</div>
+          </div>
+
+          <!-- Thẻ 4: Hệ số tin cậy trung bình (CF) -->
+          <div class="dash-main-kpi-card card-purple">
+            <div class="dash-main-kpi-top">
+              <span class="dash-main-kpi-label">Độ tin cậy TB (CF)</span>
+              <div class="dash-main-kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
+            </div>
+            <div class="dash-main-kpi-val" id="dashKpiAvgCF">91.8%</div>
+            <div class="dash-main-kpi-sub" id="dashKpiAvgCFSub">Mức độ tin cậy rất cao (MYCIN)</div>
+          </div>
+
+        </div>
       </div>
-      <p class="hero-subtitle">
-        Ứng dụng trí tuệ nhân tạo biểu diễn tri thức dạng <strong>Luật sinh (Production Rules)</strong> kết hợp <strong>Hệ số tin cậy (Certainty Factor - MYCIN)</strong>, động cơ <strong>Suy diễn Tiến & Suy diễn Lùi</strong>, trực quan hóa <strong>Đồ thị Mạng luật RPG</strong> và <strong>CSDL Quan hệ nhúng 3NF (IndexedDB)</strong>.
-      </p>
-      <div class="hero-tags">
-        <span class="hero-tag"><i class="fa-solid fa-check"></i> Chuẩn Bộ Y Tế & WHO</span>
-        <span class="hero-tag"><i class="fa-solid fa-square-root-variable"></i> MYCIN Certainty Factor</span>
-        <span class="hero-tag"><i class="fa-solid fa-diagram-project"></i> Rule Petri Graph (RPG)</span>
-        <span class="hero-tag"><i class="fa-solid fa-diagram-successor"></i> Fact Precedence Graph (FPG)</span>
-        <span class="hero-tag"><i class="fa-solid fa-database"></i> IndexedDB 3NF & SQL Console</span>
-        <span class="hero-tag"><i class="fa-solid fa-eye"></i> Phân hệ Giải thích HOW & WHY</span>
+
+      <!-- HÀNG 2: 2 BIỂU ĐỒ PHÂN TÍCH CHUYÊN SÂU -->
+      <div class="dash-charts-grid">
+
+        <!-- BIỂU ĐỒ 1: PHÂN BỐ MỨC ĐỘ TIN CẬY (CF) THEO BỆNH TRUYỀN NHIỄM -->
+        <div class="dash-chart-card">
+          <div class="dash-chart-title">
+            <span class="chart-accent-bar"></span>
+            <span>Phân Bố Mức Độ Tin Cậy (CF) Theo Bệnh Truyền Nhiễm</span>
+          </div>
+
+          <div class="dash-bar-legend">
+            <span class="dash-bar-legend-item">
+              <span class="legend-square" style="background: #3b82f6;"></span>
+              <span>Rất cao (CF ≥ 85%)</span>
+            </span>
+            <span class="dash-bar-legend-item">
+              <span class="legend-square" style="background: #10b981;"></span>
+              <span>Khá cao (70% ≤ CF &lt; 85%)</span>
+            </span>
+            <span class="dash-bar-legend-item">
+              <span class="legend-square" style="background: #f59e0b;"></span>
+              <span>Nghi ngờ (CF &lt; 70%)</span>
+            </span>
+          </div>
+
+          <div id="dashBarChartContainer" style="position: relative; width: 100%; min-height: 210px;">
+            <!-- Rendered by HomeDashboardController -->
+          </div>
+        </div>
+
+        <!-- BIỂU ĐỒ 2: CƠ CẤU LỘ TRÌNH & ĐỘNG CƠ SUY DIỄN -->
+        <div class="dash-chart-card">
+          <div class="dash-chart-title">
+            <span class="chart-accent-bar"></span>
+            <span>Cơ Cấu Lộ Trình & Động Cơ Suy Diễn</span>
+          </div>
+
+          <div class="dash-donut-wrapper">
+            <div id="dashPieChartContainer">
+              <!-- Rendered by HomeDashboardController -->
+            </div>
+            <div id="dashPieBreakdownContainer" class="progress-breakdown-list">
+              <!-- Rendered by HomeDashboardController -->
+            </div>
+          </div>
+        </div>
+
       </div>
+
     </section>
 
-    <!-- 2. THỐNG KÊ CSDL NHANH -->
-    <div class="db-stats-grid">
-      <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--color-primary);"><i class="fa-solid fa-scroll"></i></div>
-        <div>
-          <div class="stat-value" id="dbStatRules">25</div>
-          <div class="stat-label">Luật sinh có CF (tap_luat)</div>
-        </div>
-      </div>
-      <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--color-cyan);"><i class="fa-solid fa-virus"></i></div>
-        <div>
-          <div class="stat-value" id="dbStatSymptoms">25</div>
-          <div class="stat-label">Sự kiện & Hội chứng (trieu_chung)</div>
-        </div>
-      </div>
-      <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;"><i class="fa-solid fa-disease"></i></div>
-        <div>
-          <div class="stat-value" id="dbStatDiseases">7</div>
-          <div class="stat-label">Bệnh truyền nhiễm (danh_muc_benh)</div>
-        </div>
-      </div>
-      <div class="db-stat-card">
-        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--color-emerald);"><i class="fa-solid fa-clock-rotate-left"></i></div>
-        <div>
-          <div class="stat-value" id="dbStatSessions">0</div>
-          <div class="stat-label">Lịch sử phiên chẩn đoán</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. DANH MỤC CÁC MÀN HÌNH CHỨC NĂNG (FEATURE PORTAL CARDS) -->
-    <div style="margin-bottom: 1.25rem;">
-      <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary);">
-        <i class="fa-solid fa-cubes" style="color: var(--color-primary); margin-right: 0.5rem;"></i>
-        Các Phân Hệ Chức Năng Chính
-      </h2>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-        Mỗi phân hệ được tổ chức trong thư mục độc lập gồm đầy đủ bộ ba HTML - CSS - JS chuyên biệt:
-      </p>
-    </div>
-
-    <div class="portal-grid">
-      
-      <!-- Card 1: Chẩn đoán -->
-      <a href="chuc_nang/chan_doan/chan_doan.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--color-primary);">
-            <i class="fa-solid fa-stethoscope"></i>
-          </div>
-          <div class="portal-title">
-            <span>Chẩn Đoán & Suy Diễn</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Nhập triệu chứng lâm sàng, gán độ tin cậy $CF(E)$, kích hoạt động cơ suy diễn tiến MYCIN, xem phân hệ giải thích vết suy luận (HOW) và suy diễn lùi (WHY).
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/chan_doan/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 2: Đồ thị RPG -->
-      <a href="chuc_nang/do_thi_rpg/do_thi_rpg.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--color-emerald);">
-            <i class="fa-solid fa-project-diagram"></i>
-          </div>
-          <div class="portal-title">
-            <span>Đồ Thị Mạng Luật RPG</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Trực quan hóa cấu trúc mạng luật Rule Petri Graph trên Canvas 2D: Sự kiện (Place) &rarr; Luật (Transition) &rarr; Kết luận (Goal), hỗ trợ phóng to, thu nhỏ, phát sáng đường đi.
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/do_thi_rpg/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 3: Đồ thị FPG -->
-      <a href="chuc_nang/do_thi_fpg/do_thi_fpg.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--color-cyan);">
-            <i class="fa-solid fa-diagram-successor"></i>
-          </div>
-          <div class="portal-title">
-            <span>Đồ Thị Ưu Tiên Sự Kiện FPG</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Trực quan hóa mạng ngữ nghĩa luật, lan truyền sự kiện từ triệu chứng &rarr; Cổng hội AND/Tuyển OR &rarr; Bệnh, kèm chế độ mô phỏng bài tập chuẩn Slide Tuần 6 (Thầy Phạm Văn Hải).
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/do_thi_fpg/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 3: Quản lý tri thức -->
-      <a href="chuc_nang/quan_ly_tri_thuc/quan_ly_tri_thuc.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--color-purple);">
-            <i class="fa-solid fa-database"></i>
-          </div>
-          <div class="portal-title">
-            <span>Quản Lý Cơ Sở Tri Thức</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Quản trị CRUD tập luật sinh, danh mục triệu chứng, danh mục bệnh và phác đồ điều trị. Hỗ trợ Xuất (Export) và Nhập (Import) tập tin tri thức chuẩn JSON.
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/quan_ly_tri_thuc/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 4: Quản trị CSDL & SQL Console -->
-      <a href="chuc_nang/quan_tri_csdl/quan_tri_csdl.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--color-cyan);">
-            <i class="fa-solid fa-terminal"></i>
-          </div>
-          <div class="portal-title">
-            <span>Quản Trị CSDL & SQL Console</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Bảng điều khiển thực thi truy vấn SQL trực tiếp trên CSDL quan hệ 3NF IndexedDB (7 bảng), trình duyệt cấu trúc bảng và nhật ký kiểm toán (Audit Logs).
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/quan_tri_csdl/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 5: Ca kiểm thử mẫu -->
-      <a href="chuc_nang/ca_kiem_thu/ca_kiem_thu.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--color-amber);">
-            <i class="fa-solid fa-vial-circle-check"></i>
-          </div>
-          <div class="portal-title">
-            <span>Ca Bệnh Kiểm Thử Mẫu</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Bộ 5 ca bệnh lâm sàng thực tế đối sánh kết quả suy diễn của hệ chuyên gia với chẩn đoán chuẩn xác của bác sĩ chuyên khoa (Sốt xuất huyết, Cúm A, Sởi, COVID-19, Tay Chân Miệng).
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/ca_kiem_thu/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 6: Nguồn & Lý thuyết -->
-      <a href="chuc_nang/ly_thuyet/ly_thuyet.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">
-            <i class="fa-solid fa-book-medical"></i>
-          </div>
-          <div class="portal-title">
-            <span>Nguồn Gốc & Lý Thuyết</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Trích lục danh mục các Quyết định quy chuẩn quốc gia của Bộ Y Tế, tài liệu hướng dẫn WHO và công thức toán học đại số bất định Certainty Factor (MYCIN).
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/ly_thuyet/ &rarr;</span>
-        </div>
-      </a>
-
-      <!-- Card 7: Lịch sử & Báo cáo PDF -->
-      <a href="chuc_nang/lich_su_chan_doan/lich_su_chan_doan.html" class="portal-card">
-        <div>
-          <div class="portal-icon" style="background: rgba(14, 165, 233, 0.15); color: #0284c7;">
-            <i class="fa-solid fa-clock-rotate-left"></i>
-          </div>
-          <div class="portal-title">
-            <span>Lịch Sử & Báo Cáo PDF</span>
-            <i class="fa-solid fa-arrow-right" style="font-size: 0.9rem; opacity: 0.5;"></i>
-          </div>
-          <p class="portal-desc">
-            Xem lại các ca chẩn đoán đã thực hiện, bộ lọc theo ngày/bệnh, xem chi tiết chứng cứ lâm sàng, xuất phiếu kết quả PDF chuẩn y tế và chẩn đoán lại.
-          </p>
-        </div>
-        <div class="portal-footer">
-          <span>Truy cập màn hình</span>
-          <span>chuc_nang/lich_su_chan_doan/ &rarr;</span>
-        </div>
-      </a>
-
-    </div>
   </main>
 
   <!-- ==================== FOOTER ==================== -->
   <footer class="app-footer">
     <p>Hệ Cơ Sở Tri Thức Chẩn Đoán Y Tế & Trực Quan Hóa Mạng Luật RPG • Học phần: Hệ cơ sở tri thức (Thạc sĩ CNTT)</p>
-    <p style="margin-top: 0.25rem; opacity: 0.7;">Động cơ suy diễn: Mô hình Hệ số tin cậy MYCIN, Suy diễn Tiến & Suy diễn Lùi • CSDL IndexedDB 3NF</p>
+    <p style="margin-top: 0.25rem; opacity: 0.7;">Động cơ suy diễn: Mô hình Hệ số tin cậy MYCIN, Suy diễn Tiến & Suy
+      diễn Lùi • CSDL IndexedDB 3NF</p>
   </footer>
 
   <!-- ==================== SCRIPTS ==================== -->
   <script src="js/tien_ich_chung.js"></script>
   <script src="js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
   <script src="js/co_so_du_lieu/dong_co_csdl.js"></script>
+  <script src="js/dieu_khien_thong_ke_trang_chu.js"></script>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const dbEngine = new DatabaseEngine();
       try {
         await dbEngine.init();
-        const rulesCount = await dbEngine.count("tap_luat");
-        const symptomsCount = await dbEngine.count("trieu_chung");
-        const diseasesCount = await dbEngine.count("danh_muc_benh");
-        const sessionsCount = await dbEngine.count("lich_su_chan_doan");
-
-        document.getElementById("dbStatRules").textContent = rulesCount;
-        document.getElementById("dbStatSymptoms").textContent = symptomsCount;
-        document.getElementById("dbStatDiseases").textContent = diseasesCount;
-        document.getElementById("dbStatSessions").textContent = sessionsCount;
       } catch (e) {
         console.warn("Lỗi đọc CSDL:", e);
       }
+      const dashCtrl = new HomeDashboardController({ dbEngine });
+      dashCtrl.init();
     });
   </script>
 </body>
+
 </html>

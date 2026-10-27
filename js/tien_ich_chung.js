@@ -229,15 +229,19 @@ class XacNhanHeThong {
     this.modalEl = modal;
   }
 
-  hienThi({
-    title = "Xác nhận thao tác",
-    message = "Bạn có chắc chắn muốn thực hiện hành động này?",
-    detail = "",
-    type = "danger", // danger, warning, info, success
-    confirmText = "Đồng ý",
-    cancelText = "Hủy bỏ",
-    icon = null
-  } = {}) {
+  hienThi(options = {}) {
+    if (typeof options === "string") {
+      options = { message: options };
+    }
+    const {
+      title = "Xác nhận thao tác",
+      message = "Bạn có chắc chắn muốn thực hiện hành động này?",
+      detail = "",
+      type = "danger", // danger, warning, info, success
+      confirmText = "Đồng ý",
+      cancelText = "Hủy bỏ",
+      icon = null
+    } = options;
     this.initDOM();
     return new Promise((resolve) => {
       this.currentResolver = resolve;
@@ -356,6 +360,7 @@ class XacNhanHeThong {
 // Khởi tạo đối tượng toàn cục
 window.XacNhan = new XacNhanHeThong();
 window.ModalConfirm = window.XacNhan;
+window.ModalXacNhan = window.XacNhan;
 window.confirmAsync = (msg, options) => window.XacNhan.hienThi({ message: msg, ...options });
 
 // ============================================================================
@@ -489,5 +494,34 @@ class SmartTooltipHeThong {
 
 window.SmartTooltip = new SmartTooltipHeThong();
 
+// ============================================================================
+// BẢO VỆ HIỂN THỊ BIỂU TƯỢNG (FONT-AWESOME SAFEGUARD KHI MỞ FILE:/// HOẶC OFFLINE)
+// ============================================================================
+function kiemTraVaBaoVeFontAwesome() {
+  if (typeof document === "undefined") return;
+
+  function kiemTra() {
+    if (document.fonts && document.fonts.check) {
+      const isAvailable = document.fonts.check('900 16px "Font Awesome 6 Free"');
+      if (!isAvailable) {
+        setTimeout(() => {
+          if (!document.fonts.check('900 16px "Font Awesome 6 Free"')) {
+            document.documentElement.classList.add("fa-fallback");
+          }
+        }, 800);
+      }
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", kiemTra);
+  } else {
+    kiemTra();
+  }
+}
+
+kiemTraVaBaoVeFontAwesome();
+
 // Khởi chạy khi DOM sẵn sàng
 document.addEventListener("DOMContentLoaded", khoiTaoTheme);
+

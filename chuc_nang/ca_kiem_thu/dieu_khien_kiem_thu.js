@@ -503,14 +503,22 @@ class TestCasesController {
     }
   }
 
-  deleteTestCase(tcId) {
-    const confirmed = confirm(`Bạn có chắc chắn muốn xóa ca kiểm thử [${tcId}] khỏi hệ thống không? Hành động này không thể hoàn tác.`);
+  async deleteTestCase(tcId) {
+    let confirmed = false;
+    if (window.XacNhan && typeof window.XacNhan.xoa === "function") {
+      confirmed = await window.XacNhan.xoa(
+        `Ca kiểm thử [${tcId}]`,
+        "Ca bệnh lâm sàng này sẽ bị xóa khỏi danh sách ca kiểm thử và không thể hoàn tác."
+      );
+    } else {
+      confirmed = confirm(`Bạn có chắc chắn muốn xóa ca kiểm thử [${tcId}] khỏi hệ thống không? Hành động này không thể hoàn tác.`);
+    }
     if (!confirmed) return;
 
     try {
       this.kbManager.deleteTestCase(tcId);
-      if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
-        ThongBao.thanhCong(`Đã xóa ca kiểm thử [${tcId}] thành công!`);
+      if (window.ThongBao?.thanhCong) {
+        window.ThongBao.thanhCong(`Đã xóa ca kiểm thử [${tcId}] thành công!`);
       }
       this.renderTestCases();
     } catch (err) {
@@ -522,19 +530,27 @@ class TestCasesController {
     }
   }
 
-  confirmResetDefault() {
-    const confirmed = confirm("Bạn có chắc chắn muốn khôi phục danh sách ca kiểm thử về 5 ca lâm sàng chuẩn mặc định (TC01 - TC05) không?");
+  async confirmResetDefault() {
+    let confirmed = false;
+    if (window.XacNhan && typeof window.XacNhan.khoiPhuc === "function") {
+      confirmed = await window.XacNhan.khoiPhuc(
+        "Danh sách ca bệnh kiểm thử",
+        "Danh sách sẽ được thiết lập lại về 5 ca lâm sàng chuẩn mặc định (TC01 - TC05)."
+      );
+    } else {
+      confirmed = confirm("Bạn có chắc chắn muốn khôi phục danh sách ca kiểm thử về 5 ca lâm sàng chuẩn mặc định (TC01 - TC05) không?");
+    }
     if (!confirmed) return;
 
     try {
       this.kbManager.resetTestCasesToDefault();
-      if (typeof ThongBao !== "undefined" && ThongBao.thanhCong) {
-        ThongBao.thanhCong("Đã khôi phục toàn bộ ca bệnh kiểm thử về mặc định!");
+      if (window.ThongBao?.thanhCong) {
+        window.ThongBao.thanhCong("Đã khôi phục toàn bộ ca bệnh kiểm thử về mặc định!");
       }
       this.renderTestCases();
     } catch (err) {
       if (typeof ThongBao !== "undefined" && ThongBao.thatBai) {
-        ThongBao.thatBai(`${err.message}`);
+        ThongBao.thatBai(`Lỗi khôi phục: ${err.message}`);
       }
     }
   }
