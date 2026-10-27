@@ -2754,3 +2754,326 @@
   align-items: center;
   gap: 0.45rem;
 }
+
+/* =========================================================
+   CHECKLIST KIỂM CHỨNG GIẢ THUYẾT (HYPOTHESIS CHECKLIST)
+   ========================================================= */
+
+.backward-progress-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.backward-progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.backward-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
+  transition: width 0.35s ease;
+}
+
+.backward-checklist-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-checklist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  background: rgba(15, 23, 42, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.backward-checklist-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.checklist-group-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.checklist-group-title.satisfied {
+  color: #10b981;
+}
+
+.checklist-group-title.missing {
+  color: #f59e0b;
+}
+
+.checklist-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.checklist-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  transition: all 0.2s ease;
+}
+
+.checklist-item-row:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.checklist-item-row.satisfied {
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.checklist-item-row.missing {
+  background: rgba(245, 158, 11, 0.04);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.checklist-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.checklist-status-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.checklist-status-icon.satisfied {
+  color: #10b981;
+}
+
+.checklist-status-icon.missing {
+  color: #f59e0b;
+}
+
+.checklist-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.checklist-item-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.checklist-item-why {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.checklist-item-why strong {
+  color: #d97706;
+}
+
+[data-theme="dark"] .checklist-item-why strong {
+  color: #fbbf24;
+}
+
+.checklist-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.btn-inline-cf {
+  padding: 0.32rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-inline-cf:hover {
+  transform: translateY(-1px);
+}
+
+.btn-inline-cf.btn-cf-sure {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.btn-inline-cf.btn-cf-sure:hover {
+  background: #10b981;
+  color: #fff;
+}
+
+.btn-inline-cf.btn-cf-likely {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #3b82f6;
+}
+
+.btn-inline-cf.btn-cf-likely:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-inline-cf.btn-cf-slight {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.btn-inline-cf.btn-cf-slight:hover {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-inline-cf.btn-cf-none {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
+.btn-inline-cf.btn-cf-none:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* =========================================================
+   PHÂN TÍCH LOGIC CÁC LUẬT ỨNG VIÊN (AND-OR RULES BREAKDOWN)
+   ========================================================= */
+
+.backward-rules-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-rules-header {
+  padding: 0.85rem 1.25rem;
+  background: rgba(15, 23, 42, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.backward-rules-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.rule-logic-box {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: var(--bg-surface);
+  transition: all 0.2s ease;
+}
+
+.rule-logic-box.fully-satisfied {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.03);
+}
+
+.rule-logic-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.55rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rule-formula-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.formula-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.formula-chip.satisfied {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.formula-chip.missing {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+}
+
+.formula-op {
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
