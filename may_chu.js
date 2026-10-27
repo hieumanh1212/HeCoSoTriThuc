@@ -32,6 +32,13 @@ try {
       console.log("[SQLITE] Khởi tạo thành công 7 bảng và dữ liệu mẫu chuẩn y tế.");
     }
   }
+  const diseaseColumns = new Set(db.prepare("PRAGMA table_info(danh_muc_benh);").all().map(column => column.name));
+  if (!diseaseColumns.has('mo_ta')) {
+    db.exec("ALTER TABLE danh_muc_benh ADD COLUMN mo_ta NVARCHAR(1000);");
+  }
+  if (!diseaseColumns.has('nguon_tham_khao')) {
+    db.exec("ALTER TABLE danh_muc_benh ADD COLUMN nguon_tham_khao NVARCHAR(500);");
+  }
 } catch (err) {
   console.error("[SQLITE ERROR] Không thể khởi tạo database:", err);
 }
@@ -123,7 +130,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const symptomGroups = db.prepare("SELECT ma_nhom as id, ten_nhom as name, bieu_tuong as icon, mo_ta as description FROM nhom_trieu_chung ORDER BY ma_nhom;").all();
       const symptoms = db.prepare("SELECT ma_trieu_chung as id, ma_nhom as groupId, ten_trieu_chung as name, cau_hoi_suy_dien_lui as question, muc_do_canh_bao as severity FROM trieu_chung ORDER BY ma_trieu_chung;").all();
-      const diseases = db.prepare("SELECT ma_benh as id, ten_benh as name, ten_khoa_hoc as scientificName, nhom_benh as category, muc_do_nguy_hiem as severity, huong_xu_tri as treatment, trieu_chung_canh_bao as warningSigns FROM danh_muc_benh ORDER BY ma_benh;").all();
+      const diseases = db.prepare("SELECT ma_benh as id, ten_benh as name, ten_khoa_hoc as scientificName, nhom_benh as category, mo_ta as description, muc_do_nguy_hiem as severity, huong_xu_tri as treatment, trieu_chung_canh_bao as warningSigns, nguon_tham_khao as reference FROM danh_muc_benh ORDER BY ma_benh;").all();
       
       const rawRules = db.prepare("SELECT ma_luat as id, ten_luat as name, ma_benh_ket_luan as conclusion, he_so_tin_cay_luat as cf, mo_ta as description FROM tap_luat ORDER BY ma_luat;").all();
       const rawPremises = db.prepare("SELECT ma_luat as ruleId, ma_trieu_chung as symptomId FROM tien_de_luat;").all();
@@ -182,16 +189,16 @@ const server = http.createServer(async (req, res) => {
       }
 
       const saveDisease = db.prepare(`
-        INSERT INTO danh_muc_benh (ma_benh, ten_benh, ten_khoa_hoc, nhom_benh, muc_do_nguy_hiem, huong_xu_tri, trieu_chung_canh_bao)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO danh_muc_benh (ma_benh, ten_benh, ten_khoa_hoc, nhom_benh, mo_ta, muc_do_nguy_hiem, huong_xu_tri, trieu_chung_canh_bao, nguon_tham_khao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(ma_benh) DO UPDATE SET ten_benh=excluded.ten_benh, ten_khoa_hoc=excluded.ten_khoa_hoc,
-          nhom_benh=excluded.nhom_benh, muc_do_nguy_hiem=excluded.muc_do_nguy_hiem, huong_xu_tri=excluded.huong_xu_tri,
-          trieu_chung_canh_bao=excluded.trieu_chung_canh_bao;
+          nhom_benh=excluded.nhom_benh, mo_ta=excluded.mo_ta, muc_do_nguy_hiem=excluded.muc_do_nguy_hiem, huong_xu_tri=excluded.huong_xu_tri,
+          trieu_chung_canh_bao=excluded.trieu_chung_canh_bao, nguon_tham_khao=excluded.nguon_tham_khao;
       `);
       for (const disease of diseases) {
         if (!disease.id || !disease.name) throw new Error('Bệnh cần có mã và tên.');
-        saveDisease.run(disease.id, disease.name, disease.scientificName || '', disease.category || '', disease.severity || 'Trung bình',
-          disease.treatment || disease.recommendation || '', disease.warningSigns || '');
+        saveDisease.run(disease.id, disease.name, disease.scientificName || '', disease.category || '', disease.description || '',
+          disease.severity || 'Trung bình', disease.treatment || disease.recommendation || '', disease.warningSigns || '', disease.reference || '');
       }
 
       db.prepare("INSERT INTO nhat_ky_csdl (loai_thao_tac, ten_bang, chi_tiet) VALUES ('NHẬP_DANH_MỤC', 'danh_muc_tri_thuc', ?);")
@@ -201,6 +208,23 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       try { db.exec('ROLLBACK'); } catch (rollbackError) {}
       return sendJSON(res, 400, { ok: false, error: e.message });
+    }
+  }
+
+  if (pathname.startsWith('/api/kb/groups/') && req.method === 'DELETE') {
+    const groupId = decodeURIComponent(pathname.replace('/api/kb/groups/', '')).trim();
+    try {
+      const linked = db.prepare("SELECT count(*) AS count FROM trieu_chung WHERE ma_nhom = ?;").get(groupId);
+      if (linked.count > 0) {
+        return sendJSON(res, 409, { ok: false, error: `Không thể xóa nhóm đang được ${linked.count} triệu chứng sử dụng.` });
+      }
+      const result = db.prepare("DELETE FROM nhom_trieu_chung WHERE ma_nhom = ?;").run(groupId);
+      if (result.changes === 0) return sendJSON(res, 404, { ok: false, error: `Không tìm thấy nhóm [${groupId}].` });
+      db.prepare("INSERT INTO nhat_ky_csdl (loai_thao_tac, ten_bang, chi_tiet) VALUES ('XÓA', 'nhom_trieu_chung', ?);")
+        .run(`Xóa nhóm triệu chứng ${groupId}`);
+      return sendJSON(res, 200, { ok: true });
+    } catch (e) {
+      return sendJSON(res, 500, { ok: false, error: e.message });
     }
   }
 
