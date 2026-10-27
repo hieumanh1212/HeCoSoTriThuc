@@ -11,14 +11,81 @@ class KBController {
     this.bindEvents();
   }
 
+  openAddSymptomGroupModal(group = null) {
+    if (!this.symptomGroupForm || !this.modalSymptomGroupForm) return;
+    this.symptomGroupForm.reset();
+    const idInput = document.getElementById("formSymptomGroupId");
+    const originalId = document.getElementById("formSymptomGroupOriginalId");
+    if (this.symptomGroupFormTitle) this.symptomGroupFormTitle.textContent = group ? "Sửa nhóm triệu chứng" : "Thêm nhóm triệu chứng";
+    if (idInput) {
+      idInput.value = group ? group.id : this.nextCatalogId("group_custom_", this.kbManager.getKB().symptomGroups);
+      idInput.readOnly = Boolean(group);
+    }
+    if (originalId) originalId.value = group ? group.id : "";
+    document.getElementById("formSymptomGroupName").value = group?.name || "";
+    document.getElementById("formSymptomGroupIcon").value = group?.icon || "fa-notes-medical";
+    document.getElementById("formSymptomGroupDescription").value = group?.description || "";
+    this.modalSymptomGroupForm.classList.add("active");
+  }
+
+  async handleSymptomGroupFormSubmit(event) {
+    event.preventDefault();
+    const kb = this.kbManager.getKB();
+    const id = document.getElementById("formSymptomGroupId").value.trim();
+    const originalId = document.getElementById("formSymptomGroupOriginalId").value.trim();
+    const name = document.getElementById("formSymptomGroupName").value.trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) {
+      ThongBao.canhBao("Mã nhóm chỉ được gồm chữ, số, dấu gạch ngang hoặc gạch dưới.");
+      return;
+    }
+    if (!name) {
+      ThongBao.canhBao("Tên nhóm không được để trống.");
+      return;
+    }
+    if (!originalId && (kb.symptomGroups || []).some(group => group.id.toLowerCase() === id.toLowerCase())) {
+      ThongBao.canhBao(`Mã nhóm ${id} đã tồn tại.`);
+      return;
+    }
+
+    const group = {
+      id,
+      name,
+      icon: document.getElementById("formSymptomGroupIcon").value.trim() || "fa-notes-medical",
+      description: document.getElementById("formSymptomGroupDescription").value.trim()
+    };
+    const previousGroups = [...(kb.symptomGroups || [])];
+    if (originalId) {
+      const index = kb.symptomGroups.findIndex(item => item.id === originalId);
+      if (index < 0) {
+        ThongBao.thatBai(`Không tìm thấy nhóm [${originalId}].`);
+        return;
+      }
+      kb.symptomGroups[index] = group;
+    } else {
+      kb.symptomGroups.push(group);
+    }
+    try {
+      if (!await this.kbManager.saveToStorage()) throw new Error("Không thể lưu thay đổi vào CSDL.");
+      this.modalSymptomGroupForm.classList.remove("active");
+      this.pagination.groups.page = 1;
+      this.renderTables();
+      ThongBao.thanhCong(originalId ? `Đã cập nhật nhóm ${id}.` : `Đã thêm nhóm ${id}.`);
+    } catch (error) {
+      kb.symptomGroups = previousGroups;
+      ThongBao.thatBai(`Không thể lưu nhóm triệu chứng: ${error.message}`);
+    }
+  }
+
   initElements() {
     this.rulesTbody = document.getElementById("rulesTableBody");
     this.symsTbody = document.getElementById("symptomsTableBody");
     this.disTbody = document.getElementById("diseasesTableBody");
+    this.groupsTbody = document.getElementById("groupsTableBody");
 
     this.ruleCountBadge = document.getElementById("ruleCountBadge");
     this.symCountBadge = document.getElementById("symptomCountBadge");
     this.disCountBadge = document.getElementById("diseaseCountBadge");
+    this.groupCountBadge = document.getElementById("groupCountBadge");
 
     this.btnAddNewRule = document.getElementById("btnAddNewRule");
     this.btnExportExcel = document.getElementById("btnExportExcel");
@@ -45,6 +112,9 @@ class KBController {
     this.symptomForm = document.getElementById("symptomForm");
     this.modalDiseaseForm = document.getElementById("modalDiseaseForm");
     this.diseaseForm = document.getElementById("diseaseForm");
+    this.modalSymptomGroupForm = document.getElementById("modalSymptomGroupForm");
+    this.symptomGroupForm = document.getElementById("symptomGroupForm");
+    this.symptomGroupFormTitle = document.getElementById("symptomGroupFormTitle");
 
     // Điều hướng lỗi
     this.errorNavigatorGroup = document.getElementById("errorNavigatorGroup");
@@ -65,8 +135,10 @@ class KBController {
     this.pagination = {
       rules: { page: 1, pageSize: 20 },
       symptoms: { page: 1, pageSize: 20 },
-      diseases: { page: 1, pageSize: 20 }
+      diseases: { page: 1, pageSize: 20 },
+      groups: { page: 1, pageSize: 20 }
     };
+    this.filteredRows = {};
 
     // Tìm kiếm thông minh
     this.kbSearchInput = document.getElementById("kbSearchInput");
@@ -87,14 +159,20 @@ class KBController {
     const scopes = {
       "rules-table": { id: "rules", label: "tập luật" },
       "symptoms-table": { id: "symptoms", label: "danh mục triệu chứng" },
+      "groups-table": { id: "groups", label: "nhóm triệu chứng" },
       "diseases-table": { id: "diseases", label: "danh mục bệnh & phác đồ" }
     };
     const selected = scopes[subtab] || scopes["rules-table"];
+    const previousScope = this.excelScope;
     this.excelScope = selected.id;
+    if (previousScope && previousScope !== selected.id) {
+      this.resetSearchForTabChange();
+    }
 
     const addActions = {
       rules: { label: "Thêm luật mới", title: "Thêm luật sinh mới", icon: "fa-plus" },
       symptoms: { label: "Thêm triệu chứng", title: "Thêm triệu chứng lâm sàng", icon: "fa-virus" },
+      groups: { label: "Thêm nhóm triệu chứng", title: "Thêm nhóm triệu chứng", icon: "fa-layer-group" },
       diseases: { label: "Thêm bệnh & phác đồ", title: "Thêm bệnh và thông tin phác đồ", icon: "fa-disease" }
     };
     const addAction = addActions[selected.id];
@@ -121,6 +199,16 @@ class KBController {
     }
   }
 
+  resetSearchForTabChange() {
+    this.searchKeyword = "";
+    if (this.kbSearchInput) this.kbSearchInput.value = "";
+    if (this.btnKbClearSearch) this.btnKbClearSearch.style.display = "none";
+    Object.values(this.pagination).forEach(state => {
+      state.page = 1;
+    });
+    this.renderTables();
+  }
+
   nextCatalogId(prefix, items) {
     const maxNumber = (items || []).reduce((max, item) => {
       const number = Number(String(item.id || "").replace(/\D/g, ""));
@@ -132,7 +220,7 @@ class KBController {
   openAddSymptomModal() {
     if (!this.symptomForm || !this.modalSymptomForm) return;
     const kb = this.kbManager.getKB();
-    const groupSelect = document.getElementById("formSymptomGroupId");
+    const groupSelect = document.getElementById("formSymptomGroupSelect");
     if (groupSelect) {
       groupSelect.innerHTML = (kb.symptomGroups || []).map(group =>
         `<option value="${group.id}">${group.name}</option>`
@@ -155,7 +243,7 @@ class KBController {
     const kb = this.kbManager.getKB();
     const id = document.getElementById("formSymptomId").value.trim().toUpperCase();
     const name = document.getElementById("formSymptomName").value.trim();
-    const groupId = document.getElementById("formSymptomGroupId").value;
+    const groupId = document.getElementById("formSymptomGroupSelect").value;
     if (!/^[A-Z0-9_-]+$/.test(id)) {
       ThongBao.canhBao("Mã triệu chứng chỉ được gồm chữ, số, dấu gạch ngang hoặc gạch dưới.");
       return;
@@ -205,13 +293,15 @@ class KBController {
     kb.diseases.push({
       id,
       name,
+      description: document.getElementById("formDiseaseDescription").value.trim(),
       severity: document.getElementById("formDiseaseSeverity").value.trim() || "Trung bình",
       warningSigns: document.getElementById("formDiseaseWarningSigns").value.trim(),
       treatment,
-      recommendation: treatment
+      recommendation: treatment,
+      reference: document.getElementById("formDiseaseReference").value.trim()
     });
     try {
-      await this.kbManager.saveToStorage();
+      if (!await this.kbManager.saveToStorage()) throw new Error("Không thể lưu thay đổi vào CSDL.");
       this.modalDiseaseForm.classList.remove("active");
       this.renderTables();
       ThongBao.thanhCong(`Đã thêm bệnh ${id} cùng thông tin phác đồ.`);
@@ -233,6 +323,7 @@ class KBController {
         this.pagination.rules.page = 1;
         this.pagination.symptoms.page = 1;
         this.pagination.diseases.page = 1;
+        this.pagination.groups.page = 1;
         this.renderTables();
       });
     }
@@ -245,6 +336,7 @@ class KBController {
         this.pagination.rules.page = 1;
         this.pagination.symptoms.page = 1;
         this.pagination.diseases.page = 1;
+        this.pagination.groups.page = 1;
         this.renderTables();
         if (this.kbSearchInput) this.kbSearchInput.focus();
       });
@@ -298,6 +390,7 @@ class KBController {
     if (this.btnAddNewRule) {
       this.btnAddNewRule.addEventListener("click", () => {
         if (this.excelScope === "symptoms") this.openAddSymptomModal();
+        else if (this.excelScope === "groups") this.openAddSymptomGroupModal();
         else if (this.excelScope === "diseases") this.openAddDiseaseModal();
         else this.openAddRuleModal();
       });
@@ -306,10 +399,10 @@ class KBController {
     if (this.btnExportExcel) {
       this.btnExportExcel.addEventListener("click", () => {
         try {
-          const filename = this.kbManager.exportExcel(this.excelScope);
+          const filename = this.kbManager.exportExcel(this.excelScope, this.filteredRows[this.excelScope] || []);
           ThongBao.thanhCong(`Đã xuất dữ liệu ${this.excelScope} vào ${filename}.`);
         } catch (err) {
-          ThongBao.thatBai(`Lỗi xuất Excel: ${err.message}`);
+          ThongBao.thatBai(`${err.message}`);
         }
       });
     }
@@ -320,7 +413,7 @@ class KBController {
           this.kbManager.downloadExcelTemplate(this.excelScope);
           ThongBao.thanhCong("Đã tải tệp mẫu Excel thành công!");
         } catch (err) {
-          ThongBao.thatBai(`Lỗi tải mẫu Excel: ${err.message}`);
+          ThongBao.thatBai(`${err.message}`);
         }
       });
     }
@@ -331,7 +424,7 @@ class KBController {
           this.kbManager.downloadExcelTemplate(this.importScope || this.excelScope);
           ThongBao.thanhCong("Đã tải tệp mẫu chuẩn thành công!");
         } catch (err) {
-          ThongBao.thatBai(`Lỗi tải mẫu Excel: ${err.message}`);
+          ThongBao.thatBai(`${err.message}`);
         }
       });
     }
@@ -416,6 +509,9 @@ class KBController {
     }
     if (this.diseaseForm) {
       this.diseaseForm.addEventListener("submit", (e) => this.handleDiseaseFormSubmit(e));
+    }
+    if (this.symptomGroupForm) {
+      this.symptomGroupForm.addEventListener("submit", (e) => this.handleSymptomGroupFormSubmit(e));
     }
   }
 
@@ -642,7 +738,7 @@ class KBController {
 
       } catch (err) {
         if (window.ThongBao) {
-          window.ThongBao.thatBai(`Lỗi đọc tệp Excel: ${err.message}`);
+          window.ThongBao.thatBai(`${err.message}`);
         } else {
           alert(`❌ Lỗi đọc file Excel: ${err.message}`);
         }
@@ -655,6 +751,7 @@ class KBController {
     return {
       rules: "tập luật",
       symptoms: "danh mục triệu chứng",
+      groups: "nhóm triệu chứng",
       diseases: "danh mục bệnh & phác đồ"
     }[scope] || "cơ sở tri thức";
   }
@@ -668,7 +765,7 @@ class KBController {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");
     const catalogRows = [];
-    const targetType = { symptoms: "symptom", diseases: "disease" }[scope] || scope;
+    const targetType = { symptoms: "symptom", diseases: "disease", groups: "group" }[scope] || scope;
     const sheetTypes = workbook.SheetNames.map(sheetName => {
       const normalized = normalize(sheetName);
       if (normalized.includes("nhomtrieuchung") || normalized.includes("symptomgroup")) return "group";
@@ -707,14 +804,21 @@ class KBController {
           };
         } else if (type === "disease") {
           fields = {
+            description: find(key => key.includes("mota") || key === "description"),
             severity: find(key => key.includes("nguyhiem") || key === "severity"),
             treatment: find(key => key.includes("xutri") || key.includes("treatment") || key.includes("phacdo") || key.includes("recommendation")),
-            warningSigns: find(key => key.includes("canhbao") || key.includes("warning"))
+            warningSigns: find(key => key.includes("canhbao") || key.includes("warning")),
+            reference: find(key => key.includes("nguon") || key.includes("reference"))
+          };
+        } else if (type === "group") {
+          fields = {
+            icon: find(key => key.includes("bieutuong") || key === "icon"),
+            description: find(key => key.includes("mota") || key === "description")
           };
         }
         catalogRows.push({
           type,
-          typeLabel: type === "symptom" ? "Triệu chứng" : "Bệnh/phác đồ",
+          typeLabel: type === "symptom" ? "Triệu chứng" : type === "group" ? "Nhóm triệu chứng" : "Bệnh/phác đồ",
           id,
           name,
           fields,
@@ -734,8 +838,10 @@ class KBController {
     const common = ["STT", "Tình trạng", "Chi tiết kiểm tra / Lỗi"];
     const columns = this.importScope === "symptoms"
       ? [...common, "Mã triệu chứng", "Tên triệu chứng", "Mã nhóm", "Tên nhóm", "Câu hỏi WHY", "Mức cảnh báo"]
+      : this.importScope === "groups"
+        ? [...common, "Mã nhóm", "Tên nhóm", "Biểu tượng", "Mô tả phân loại"]
       : this.importScope === "diseases"
-        ? [...common, "Mã bệnh", "Tên bệnh", "Mức độ nguy hiểm", "Hướng xử trí & phác đồ", "Dấu hiệu cảnh báo"]
+        ? [...common, "Mã bệnh", "Tên bệnh", "Mô tả", "Mức độ nguy hiểm", "Hướng xử trí & phác đồ", "Dấu hiệu cảnh báo", "Nguồn tham khảo"]
         : [...common, "Mã luật", "Tên luật sinh", "Bệnh kết luận", "Hệ số (CF)", "Tiền đề (Mã triệu chứng)", "Mô tả luật"];
 
     headers.forEach((header, index) => {
@@ -753,7 +859,8 @@ class KBController {
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[char]));
     const isSymptom = this.importScope === "symptoms";
-    const visibleColumnCount = isSymptom ? 9 : 10;
+    const isGroup = this.importScope === "groups";
+    const visibleColumnCount = isSymptom ? 9 : isGroup ? 7 : 10;
 
     this.importPreviewTableBody.innerHTML = this.catalogImportRows.map((row, index) => {
       const status = row.status || "PENDING";
@@ -769,7 +876,9 @@ class KBController {
           : `<span style="color:var(--text-muted);font-size:.8rem;font-style:italic;">Chưa kiểm tra</span>`;
       const values = isSymptom
         ? [row.id, row.name, row.fields.groupId, row.fields.groupName, row.fields.question, row.fields.severity]
-        : [row.id, row.name, row.fields.severity, row.fields.treatment, row.fields.warningSigns];
+        : isGroup
+          ? [row.id, row.name, row.fields.icon, row.fields.description]
+          : [row.id, row.name, row.fields.description, row.fields.severity, row.fields.treatment, row.fields.warningSigns, row.fields.reference];
       const cells = values.map(value => `<td>${escapeHtml(value) || '<span style="color:var(--text-muted)">-</span>'}</td>`).join("");
 
       return `<tr class="${status === "INVALID" ? "import-row-error" : status === "VALID" ? "import-row-valid" : ""}" data-row-index="${index}">
@@ -1030,7 +1139,7 @@ class KBController {
       }
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = validCount === 0 || invalidCount > 0;
       if (invalidCount === 0 && validCount > 0) {
-        ThongBao.thanhCong(`Kiểm tra hoàn tất: ${validCount} dòng danh mục hợp lệ. Có thể nạp vào CSDL.`);
+        ThongBao.thanhCong(`${validCount} dòng danh mục hợp lệ. Có thể nạp vào CSDL.`);
       } else {
         ThongBao.canhBao(`Có ${invalidCount} dòng danh mục thiếu/sai dữ liệu. Hãy sửa file Excel rồi chọn lại.`);
       }
@@ -1186,7 +1295,7 @@ class KBController {
 
     // Thông báo nhanh góc màn hình
     if (totalInvalidCount === 0 && totalValidCount > 0) {
-      ThongBao.thanhCong(`Kiểm tra hoàn tất: Toàn bộ ${totalValidCount} dòng luật và danh mục đều hợp lệ! Bạn có thể nạp vào CSDL.`);
+      ThongBao.thanhCong(`Toàn bộ ${totalValidCount} dòng luật và danh mục đều hợp lệ! Bạn có thể nạp vào CSDL.`);
       if (this.btnSubmitImport) this.btnSubmitImport.disabled = false;
     } else {
       ThongBao.canhBao(`Phát hiện ${totalInvalidCount} dòng dữ liệu không hợp lệ. Vui lòng kiểm tra bảng xem trước.`);
@@ -1250,6 +1359,7 @@ class KBController {
   renderTables() {
     this.renderRulesTable();
     this.renderSymptomsTable();
+    this.renderSymptomGroupsTable();
     this.renderDiseasesTable();
   }
 
@@ -1353,6 +1463,7 @@ class KBController {
     }
 
     const isFiltered = Boolean(this.searchKeyword || isFilteringCF);
+    this.filteredRows.rules = rules;
     if (this.ruleCountBadge) {
       this.ruleCountBadge.textContent = isFiltered ? `${rules.length}/${allRules.length}` : allRules.length;
     }
@@ -1465,6 +1576,7 @@ class KBController {
         return matchId || matchName || matchQuestion || matchGroup;
       });
     }
+    this.filteredRows.symptoms = symptoms;
 
     if (this.symCountBadge) {
       this.symCountBadge.textContent = this.searchKeyword ? `${symptoms.length}/${allSymptoms.length}` : allSymptoms.length;
@@ -1534,9 +1646,11 @@ class KBController {
         const matchTreatment = removeVietnameseTones(d.treatment || d.recommendation).includes(q);
         const matchWarning = removeVietnameseTones(d.warningSigns).includes(q);
         const matchRef = removeVietnameseTones(d.reference).includes(q);
-        return matchId || matchName || matchSeverity || matchTreatment || matchWarning || matchRef;
+        const matchDescription = removeVietnameseTones(d.description).includes(q);
+        return matchId || matchName || matchDescription || matchSeverity || matchTreatment || matchWarning || matchRef;
       });
     }
+    this.filteredRows.diseases = diseases;
 
     if (this.disCountBadge) {
       this.disCountBadge.textContent = this.searchKeyword ? `${diseases.length}/${allDiseases.length}` : allDiseases.length;
@@ -1557,7 +1671,7 @@ class KBController {
       if (currentRows.length === 0) {
         this.disTbody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
               <i class="fa-solid fa-magnifying-glass" style="font-size: 1.8rem; opacity: 0.4; margin-bottom: 0.5rem; display: block;"></i>
               ${this.searchKeyword ? `Không tìm thấy bệnh học nào phù hợp với từ khóa "<strong>${this.searchKeyword}</strong>"` : "Chưa có dữ liệu danh mục bệnh nào"}
             </td>
@@ -1569,6 +1683,7 @@ class KBController {
             <tr>
               <td><strong style="color: #f87171; font-family: 'JetBrains Mono';">${d.id}</strong></td>
               <td><strong style="font-size: 0.95rem;">${d.name}</strong></td>
+              <td style="font-size: 0.8rem;">${d.description || "Chưa cập nhật"}</td>
               <td><span class="badge badge-high">${d.severity}</span></td>
               <td style="font-size: 0.8rem;">${d.treatment || d.recommendation || 'Chưa cập nhật'}</td>
               <td style="color: #fca5a5; font-size: 0.8rem;">${d.warningSigns || 'Chưa cập nhật'}</td>
@@ -1580,6 +1695,86 @@ class KBController {
     }
 
     this.renderPaginationFooter("paginationDiseases", "diseases", totalItems);
+  }
+
+  renderSymptomGroupsTable() {
+    const kb = this.kbManager.getKB();
+    const allGroups = kb.symptomGroups || [];
+    const normalize = value => String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/gi, "d")
+      .toLowerCase()
+      .trim();
+    const query = normalize(this.searchKeyword);
+    const groups = query
+      ? allGroups.filter(group => [group.id, group.name, group.icon, group.description].some(value => normalize(value).includes(query)))
+      : allGroups;
+    this.filteredRows.groups = groups;
+    if (this.groupCountBadge) {
+      this.groupCountBadge.textContent = query ? `${groups.length}/${allGroups.length}` : allGroups.length;
+    }
+
+    const { page, pageSize } = this.pagination.groups;
+    const totalPages = Math.ceil(groups.length / pageSize) || 1;
+    const validPage = Math.min(Math.max(1, page), totalPages);
+    this.pagination.groups.page = validPage;
+    const currentRows = groups.slice((validPage - 1) * pageSize, validPage * pageSize);
+
+    if (this.groupsTbody) {
+      this.groupsTbody.innerHTML = currentRows.length
+        ? currentRows.map(group => `
+          <tr>
+            <td><strong style="font-family:'JetBrains Mono';">${group.id}</strong></td>
+            <td><strong>${group.name}</strong></td>
+            <td><i class="fa-solid ${group.icon || "fa-notes-medical"}"></i> ${group.icon || "fa-notes-medical"}</td>
+            <td>${group.description || "-"}</td>
+            <td style="text-align:center;">
+              <button class="btn-secondary btn-edit-group" data-id="${group.id}" title="Sửa nhóm"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn-danger btn-delete-group" data-id="${group.id}" title="Xóa nhóm"><i class="fa-solid fa-trash"></i></button>
+            </td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2.5rem;">${query ? "Không tìm thấy nhóm triệu chứng phù hợp." : "Chưa có nhóm triệu chứng nào."}</td></tr>`;
+
+      this.groupsTbody.querySelectorAll(".btn-edit-group").forEach(button => {
+        button.addEventListener("click", () => {
+          const group = allGroups.find(item => item.id === button.dataset.id);
+          if (group) this.openAddSymptomGroupModal(group);
+        });
+      });
+      this.groupsTbody.querySelectorAll(".btn-delete-group").forEach(button => {
+        button.addEventListener("click", async () => this.deleteSymptomGroup(button.dataset.id));
+      });
+    }
+    this.renderPaginationFooter("paginationGroups", "groups", groups.length);
+  }
+
+  async deleteSymptomGroup(groupId) {
+    const kb = this.kbManager.getKB();
+    const group = (kb.symptomGroups || []).find(item => item.id === groupId);
+    if (!group) return;
+    const linkedSymptoms = (kb.symptoms || []).filter(symptom => symptom.groupId === groupId);
+    if (linkedSymptoms.length) {
+      ThongBao.canhBao(`Không thể xóa nhóm [${groupId}] vì đang được ${linkedSymptoms.length} triệu chứng sử dụng.`);
+      return;
+    }
+    const confirmed = await (window.XacNhan
+      ? window.XacNhan.xoa(`Nhóm triệu chứng [${groupId}]`, `Nhóm "${group.name}" sẽ bị xóa.`)
+      : confirm(`Bạn có chắc chắn muốn xóa nhóm "${group.name}"?`));
+    if (!confirmed) return;
+
+    const previousGroups = [...kb.symptomGroups];
+    kb.symptomGroups = kb.symptomGroups.filter(item => item.id !== groupId);
+    try {
+      if (this.kbManager.db) await this.kbManager.db.delete("nhom_trieu_chung", groupId, false);
+      if (!await this.kbManager.saveToStorage()) throw new Error("Không thể lưu thay đổi vào CSDL.");
+      this.renderTables();
+      ThongBao.thanhCong(`Đã xóa nhóm ${groupId}.`);
+    } catch (error) {
+      kb.symptomGroups = previousGroups;
+      ThongBao.thatBai(`Không thể xóa nhóm triệu chứng: ${error.message}`);
+    }
   }
 
   // 4. Hàm render component phân trang dùng chung cho cả 3 bảng
@@ -1663,6 +1858,7 @@ class KBController {
           if (tabKey === "rules") this.renderRulesTable();
           else if (tabKey === "symptoms") this.renderSymptomsTable();
           else if (tabKey === "diseases") this.renderDiseasesTable();
+          else if (tabKey === "groups") this.renderSymptomGroupsTable();
         }
       });
     });
@@ -1678,6 +1874,7 @@ class KBController {
           if (tabKey === "rules") this.renderRulesTable();
           else if (tabKey === "symptoms") this.renderSymptomsTable();
           else if (tabKey === "diseases") this.renderDiseasesTable();
+          else if (tabKey === "groups") this.renderSymptomGroupsTable();
         }
       });
     }

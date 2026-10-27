@@ -496,7 +496,7 @@ class TestCasesController {
       this.renderTestCases();
     } catch (err) {
       if (typeof ThongBao !== "undefined" && ThongBao.thatBai) {
-        ThongBao.thatBai(`Lỗi: ${err.message}`, "Không thể lưu");
+        ThongBao.thatBai(`${err.message}`, "Không thể lưu");
       } else {
         alert(err.message);
       }
@@ -522,8 +522,8 @@ class TestCasesController {
       }
       this.renderTestCases();
     } catch (err) {
-      if (window.ThongBao?.thatBai) {
-        window.ThongBao.thatBai(`Lỗi xóa ca kiểm thử: ${err.message}`);
+      if (typeof ThongBao !== "undefined" && ThongBao.thatBai) {
+        ThongBao.thatBai(`${err.message}`);
       } else {
         alert(err.message);
       }
@@ -549,8 +549,8 @@ class TestCasesController {
       }
       this.renderTestCases();
     } catch (err) {
-      if (window.ThongBao?.thatBai) {
-        window.ThongBao.thatBai(`Lỗi khôi phục: ${err.message}`);
+      if (typeof ThongBao !== "undefined" && ThongBao.thatBai) {
+        ThongBao.thatBai(`Lỗi khôi phục: ${err.message}`);
       }
     }
   }

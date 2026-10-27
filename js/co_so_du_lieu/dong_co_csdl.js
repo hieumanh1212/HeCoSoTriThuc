@@ -212,6 +212,15 @@ class DatabaseEngine {
   }
 
   async delete(storeName, key, log = true) {
+    if (this.isServerMode && storeName === 'nhom_trieu_chung') {
+      const response = await fetch(`${this.apiBase}/kb/groups/${encodeURIComponent(key)}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || `Không thể xóa nhóm [${key}] khỏi SQLite.`);
+      }
+      return true;
+    }
+
     if (this.isServerMode && storeName === 'tap_luat') {
       try {
         await fetch(`${this.apiBase}/luat/${encodeURIComponent(key)}`, { method: 'DELETE' });
