@@ -256,6 +256,7 @@
 
   <!-- ==================== SCRIPTS ==================== -->
   <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/dong_co/suy_dien_tien.js"></script>
   <script src="../../js/dong_co/thuat_toan_rpg_fpg.js"></script>
   <script src="ve_do_thi_rpg.js"></script>
 
@@ -327,8 +328,8 @@
 
       function renderCaseOptions() {
         rpgCaseSelect.innerHTML = cases.map(c => `
-          <option value="${c.id}" ${c.id === 'LIVE_DIAGNOSIS' ? 'style="font-weight: 700; color: #10b981;"' : (c.id === 'SLIDE_EXAMPLE' ? 'style="font-weight: 700; color: #38bdf8;"' : '')}>
-            ${c.id === 'LIVE_DIAGNOSIS' ? '🩺 ' : (c.id === 'SLIDE_EXAMPLE' ? '📘 ' : '')}${c.name}
+          <option value="${c.id}" ${c.id === 'LIVE_DIAGNOSIS' ? 'style="font-weight: 700; color: #10b981;"' : ''}>
+            ${c.id === 'LIVE_DIAGNOSIS' ? '🩺 ' : ''}${c.name}
           </option>
         `).join("");
       }

@@ -584,207 +584,200 @@ class MedicalGraphAlgorithms {
   }
 
   /**
-   * Mô phỏng thuật toán suy diễn tiến y tế theo hàm lượng giá Heuristic FPG
-   * Tìm vết suy diễn chẩn đoán tối ưu loại bỏ luật dư thừa
+   * KẾ THỪA SUY DIỄN TIẾN CHO ĐỒ THỊ FPG VÀ RPG
+   * Các phương thức simulateForwardChainingWithFPG và simulateForwardChainingWithRPG
+   * được kế thừa và hiện thực thông qua FPGForwardChainingEngine và RPGForwardChainingEngine.
    */
   static simulateForwardChainingWithFPG(selectedCase) {
-    const fpg = this.buildMedicalFPG(selectedCase);
-    let TG = new Set(selectedCase.gt || []);
-    const KL = new Set(selectedCase.kl || []);
-    let R = [...this.getRulesForCase(selectedCase)];
-    let VET = [];
-    const steps = [];
+    const engine = new FPGForwardChainingEngine(selectedCase);
+    return engine.simulate(selectedCase);
+  }
 
-    function LOC(currentTG, currentR) {
-      return currentR.filter(r => (r.premises || []).every(p => currentTG.has(p)));
+  static simulateForwardChainingWithRPG(selectedCase) {
+    const engine = new RPGForwardChainingEngine(selectedCase);
+    return engine.simulate(selectedCase);
+  }
+}
+
+/**
+ * LỚP ĐỘNG CƠ SUY DIỄN TIẾN TRÊN ĐỒ THỊ FPG (FACTS PRECEDENCE GRAPH)
+ * Kế thừa trực tiếp từ ForwardChainingEngine (Slide 18 - 21)
+ * Định nghĩa hàm lượng giá Heuristic: h^(r) = KC_FPG(q, KL) -> min
+ */
+const BaseForwardEngine = (typeof ForwardChainingEngine !== "undefined")
+  ? ForwardChainingEngine
+  : (typeof window !== "undefined" && window.ForwardChainingEngine)
+    ? window.ForwardChainingEngine
+    : class EmptyBaseEngine {};
+
+class FPGForwardChainingEngine extends BaseForwardEngine {
+  constructor(selectedCase = null, options = {}) {
+    super(options.kb || MEDICAL_KB_GRAPH_DATA, options);
+    this.selectedCase = selectedCase;
+    this.fpgGraph = null;
+    if (selectedCase) {
+      this.fpgGraph = MedicalGraphAlgorithms.buildMedicalFPG(selectedCase);
     }
-
-    function isKLSubOfTG(currentTG, currentKL) {
-      if (!currentKL || currentKL.size === 0) return false;
-      return Array.from(currentKL).every(k => currentTG.has(k));
-    }
-
-    let THOA = LOC(TG, R);
-    let cycle = 0;
-
-    // Chu kỳ 0: Khởi tạo (Slide 20 TS. Nguyễn Quốc Tuấn)
-    steps.push({
-      cycle: 0,
-      stepName: "Khởi tạo (KT)",
-      TG: Array.from(TG),
-      R: R.map(r => r.id),
-      THOA: THOA.map(r => r.id),
-      VET: [...VET],
-      evaluations: THOA.map(r => ({
-        ruleId: r.id,
-        conclusion: r.conclusion,
-        kc: MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, KL, fpg.edges)
-      })),
-      selectedRule: null,
-      message: `Khởi tạo: Đã nạp ${TG.size} giả thiết ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
-    });
-
-    while (THOA.length > 0 && !isKLSubOfTG(TG, KL)) {
-      cycle++;
-
-      const evaluations = THOA.map(r => {
-        const kc = MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, KL, fpg.edges);
-        return {
-          rule: r,
-          ruleId: r.id,
-          conclusion: r.conclusion,
-          kc,
-          formulaStr: `h^(${r.id}) = KC(${r.conclusion}, ${Array.from(KL).join(",")}) = ${kc === Infinity ? "∞" : kc}`
-        };
-      });
-
-      // Lựa chọn luật tối ưu theo Heuristic FPG (Slide 18 & 20):
-      // 1. h^(r) = KC_FPG(q, KL) -> min
-      // 2. Tie-break: csmin (chỉ số luật nhỏ nhất) theo Slide 16 & 17
-      evaluations.sort((a, b) => {
-        if (a.kc !== b.kc) return a.kc - b.kc;
-        return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
-      });
-
-      const best = evaluations[0];
-      const chosenRule = best.rule;
-
-      VET.push(chosenRule.id);
-      R = R.filter(r => r.id !== chosenRule.id);
-      TG.add(chosenRule.conclusion);
-      THOA = LOC(TG, R);
-
-      const isGoal = isKLSubOfTG(TG, KL);
-
-      steps.push({
-        cycle,
-        stepName: `Chu kỳ ${cycle}`,
-        selectedRule: chosenRule.id,
-        selectedRuleObj: chosenRule,
-        evaluations,
-        chosenBest: best,
-        TG: Array.from(TG),
-        R: R.map(r => r.id),
-        THOA: THOA.map(r => r.id),
-        VET: [...VET],
-        isGoalReached: isKLSubOfTG(TG, KL),
-        message: `Kích hoạt [${chosenRule.id}]: "${chosenRule.name}". Suy ra "${chosenRule.conclusion}". Cập nhật TG.`
-      });
-    }
-
-    const success = isKLSubOfTG(TG, KL);
-
-    return {
-      success,
-      steps,
-      finalVET: VET,
-      finalTG: Array.from(TG),
-      isGoalReached: success
-    };
   }
 
   /**
-   * Mô phỏng thuật toán suy diễn tiến y tế theo hàm lượng giá Heuristic RPG (Slide 22 - 23)
-   * h^(R) = KC(R, R_KL) -> min
+   * Ghi đè hàm lượng giá Heuristic FPG (Slide 18)
+   * h^(r) = KC_FPG(q, KL) -> min
    */
-  static simulateForwardChainingWithRPG(selectedCase) {
-    const rpg = this.buildMedicalRPG(selectedCase);
-    let TG = new Set(selectedCase.gt || []);
-    const KL = new Set(selectedCase.kl || []);
-    let R = [...this.getRulesForCase(selectedCase)];
-    let VET = [];
-    const steps = [];
+  calculateHeuristic(rule, context) {
+    const klSet = context.klSet || (this.selectedCase ? new Set(this.selectedCase.kl || []) : new Set());
+    const edges = this.fpgGraph ? this.fpgGraph.edges : (context.fpgEdges || []);
+    return MedicalGraphAlgorithms.calculateFPGDistanceToKL(rule.conclusion, klSet, edges);
+  }
 
-    function LOC(currentTG, currentR) {
-      return currentR.filter(r => (r.premises || []).every(p => currentTG.has(p)));
+  /**
+   * Ghi đè lượng giá tập xung đột THOA theo đồ thị FPG
+   */
+  evaluateConflictRules(thoa, context) {
+    const klSet = context.klSet || (this.selectedCase ? new Set(this.selectedCase.kl || []) : new Set());
+    const klArr = klSet ? Array.from(klSet) : [];
+    const edges = this.fpgGraph ? this.fpgGraph.edges : (context.fpgEdges || []);
+
+    return (thoa || []).map(r => {
+      const kc = MedicalGraphAlgorithms.calculateFPGDistanceToKL(r.conclusion, klSet, edges);
+      return {
+        rule: r,
+        ruleId: r.id,
+        conclusion: r.conclusion,
+        kc,
+        formulaStr: `h^(${r.id}) = KC(${r.conclusion}, ${klArr.join(",")}) = ${kc === Infinity ? "∞" : kc}`
+      };
+    });
+  }
+
+  /**
+   * Chọn luật tối ưu theo Heuristic FPG (Slide 18 & 20):
+   * 1. h^(r) = KC_FPG(q, KL) -> min
+   * 2. Tie-break: csmin (chỉ số luật nhỏ nhất) theo Slide 16 & 17
+   */
+  selectConflictRule(thoa, evaluations, context) {
+    if (!evaluations || evaluations.length === 0) return null;
+    const sorted = [...evaluations].sort((a, b) => {
+      const kcA = a.kc !== null && a.kc !== undefined ? a.kc : Infinity;
+      const kcB = b.kc !== null && b.kc !== undefined ? b.kc : Infinity;
+      if (kcA !== kcB) return kcA - kcB;
+      return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
+    });
+    return sorted[0];
+  }
+
+  /**
+   * Thực thi mô phỏng suy diễn tiến FPG bằng cách tái sử dụng inferStandard từ ForwardChainingEngine
+   */
+  simulate(selectedCase) {
+    this.selectedCase = selectedCase;
+    this.fpgGraph = MedicalGraphAlgorithms.buildMedicalFPG(selectedCase);
+    const rules = MedicalGraphAlgorithms.getRulesForCase(selectedCase);
+
+    return this.inferStandard(selectedCase.gt || [], selectedCase.kl || [], {
+      rules,
+      conflictStrategy: "heuristic",
+      contextExtras: {
+        fpgGraph: this.fpgGraph,
+        fpgEdges: this.fpgGraph.edges
+      }
+    });
+  }
+}
+
+/**
+ * LỚP ĐỘNG CƠ SUY DIỄN TIẾN TRÊN ĐỒ THỊ RPG (RULES PRECEDENCE GRAPH)
+ * Kế thừa trực tiếp từ ForwardChainingEngine (Slide 22 - 23)
+ * Định nghĩa hàm lượng giá Heuristic: h^(r) = KC_RPG(r, R_KL) -> min
+ */
+class RPGForwardChainingEngine extends BaseForwardEngine {
+  constructor(selectedCase = null, options = {}) {
+    super(options.kb || MEDICAL_KB_GRAPH_DATA, options);
+    this.selectedCase = selectedCase;
+    this.rpgGraph = null;
+    if (selectedCase) {
+      this.rpgGraph = MedicalGraphAlgorithms.buildMedicalRPG(selectedCase);
     }
+  }
 
-    function isKLSubOfTG(currentTG, currentKL) {
-      if (!currentKL || currentKL.size === 0) return false;
-      return Array.from(currentKL).every(k => currentTG.has(k));
-    }
+  /**
+   * Ghi đè hàm lượng giá Heuristic RPG (Slide 22)
+   * h^(r) = KC_RPG(r, R_KL) -> min
+   */
+  calculateHeuristic(rule, context) {
+    const rKlIds = this.rpgGraph ? this.rpgGraph.rKlIds : (context.rKlIds || new Set());
+    const edges = this.rpgGraph ? this.rpgGraph.edges : (context.rpgEdges || []);
+    return MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(rule.id, rKlIds, edges);
+  }
 
-    let THOA = LOC(TG, R);
-    let cycle = 0;
+  /**
+   * Ghi đè lượng giá tập xung đột THOA theo đồ thị RPG
+   */
+  evaluateConflictRules(thoa, context) {
+    const rKlIds = this.rpgGraph ? this.rpgGraph.rKlIds : (context.rKlIds || new Set());
+    const edges = this.rpgGraph ? this.rpgGraph.edges : (context.rpgEdges || []);
 
-    // Chu kỳ 0: Khởi tạo (Slide 20, 22 TS. Nguyễn Quốc Tuấn)
-    steps.push({
-      cycle: 0,
-      stepName: "Khởi tạo (KT)",
-      TG: Array.from(TG),
-      R: R.map(r => r.id),
-      THOA: THOA.map(r => r.id),
-      VET: [...VET],
-      evaluations: THOA.map(r => ({
+    return (thoa || []).map(r => {
+      const kc = MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rKlIds, edges);
+      return {
+        rule: r,
         ruleId: r.id,
         ruleName: r.name,
         conclusion: r.conclusion,
-        kc: MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rpg.rKlIds, rpg.edges)
-      })),
-      selectedRule: null,
-      message: `Khởi tạo: Đã nạp ${TG.size} giả thiết ban đầu vào TG, VET = ∅, THOA = {${THOA.map(r => r.id).join(", ")}}`
+        kc,
+        formulaStr: `h^(${r.id}) = KC(${r.id}, R_KL) = ${kc === Infinity ? "∞" : kc}`
+      };
     });
+  }
 
-    while (THOA.length > 0 && !isKLSubOfTG(TG, KL)) {
-      cycle++;
+  /**
+   * Chọn luật tối ưu theo Heuristic RPG (Slide 22):
+   * 1. h^(r) = KC_RPG(r, R_KL) -> min
+   * 2. Tie-break: csmin (chỉ số nhỏ nhất) theo Slide 16 & 17
+   */
+  selectConflictRule(thoa, evaluations, context) {
+    if (!evaluations || evaluations.length === 0) return null;
+    const sorted = [...evaluations].sort((a, b) => {
+      const kcA = a.kc !== null && a.kc !== undefined ? a.kc : Infinity;
+      const kcB = b.kc !== null && b.kc !== undefined ? b.kc : Infinity;
+      if (kcA !== kcB) return kcA - kcB;
+      return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
+    });
+    return sorted[0];
+  }
 
-      const evaluations = THOA.map(r => {
-        const kc = MedicalGraphAlgorithms.calculateRPGDistanceToR_KL(r.id, rpg.rKlIds, rpg.edges);
-        return {
-          rule: r,
-          ruleId: r.id,
-          ruleName: r.name,
-          conclusion: r.conclusion,
-          kc,
-          formulaStr: `h^(${r.id}) = KC(${r.id}, R_KL) = ${kc === Infinity ? "∞" : kc}`
-        };
-      });
+  /**
+   * Thực thi mô phỏng suy diễn tiến RPG bằng cách tái sử dụng inferStandard từ ForwardChainingEngine
+   */
+  simulate(selectedCase) {
+    this.selectedCase = selectedCase;
+    this.rpgGraph = MedicalGraphAlgorithms.buildMedicalRPG(selectedCase);
+    const rules = MedicalGraphAlgorithms.getRulesForCase(selectedCase);
 
-      // Lựa chọn luật tối ưu theo Heuristic RPG (Slide 22):
-      // 1. h^(r) = KC_RPG(r, R_KL) -> min
-      // 2. Tie-break: csmin (chỉ số nhỏ nhất) theo Slide 16 & 17
-      evaluations.sort((a, b) => {
-        if (a.kc !== b.kc) return a.kc - b.kc;
-        return a.ruleId.localeCompare(b.ruleId, undefined, { numeric: true });
-      });
-
-      const best = evaluations[0];
-      const chosenRule = best.rule;
-
-      VET.push(chosenRule.id);
-      R = R.filter(r => r.id !== chosenRule.id);
-      TG.add(chosenRule.conclusion);
-      THOA = LOC(TG, R);
-
-      steps.push({
-        cycle,
-        stepName: `Chu kỳ ${cycle}`,
-        selectedRule: chosenRule.id,
-        selectedRuleObj: chosenRule,
-        evaluations,
-        chosenBest: best,
-        TG: Array.from(TG),
-        R: R.map(r => r.id),
-        THOA: THOA.map(r => r.id),
-        VET: [...VET],
-        isGoalReached: isKLSubOfTG(TG, KL),
-        message: `Kích hoạt [${chosenRule.id}]: "${chosenRule.name}". Suy ra "${chosenRule.conclusion}". Cập nhật TG và VET.`
-      });
-    }
-
-    const success = isKLSubOfTG(TG, KL);
-
-    return {
-      success,
-      steps,
-      finalVET: VET,
-      finalTG: Array.from(TG),
-      isGoalReached: success
-    };
+    return this.inferStandard(selectedCase.gt || [], selectedCase.kl || [], {
+      rules,
+      conflictStrategy: "heuristic",
+      contextExtras: {
+        rpgGraph: this.rpgGraph,
+        rKlIds: this.rpgGraph.rKlIds,
+        rpgEdges: this.rpgGraph.edges
+      }
+    });
   }
 }
 
 if (typeof window !== "undefined") {
   window.MEDICAL_KB_GRAPH_DATA = MEDICAL_KB_GRAPH_DATA;
   window.MedicalGraphAlgorithms = MedicalGraphAlgorithms;
+  window.FPGForwardChainingEngine = FPGForwardChainingEngine;
+  window.RPGForwardChainingEngine = RPGForwardChainingEngine;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    MEDICAL_KB_GRAPH_DATA,
+    MedicalGraphAlgorithms,
+    FPGForwardChainingEngine,
+    RPGForwardChainingEngine
+  };
 }

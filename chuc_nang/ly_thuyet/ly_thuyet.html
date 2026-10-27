@@ -115,6 +115,48 @@ CF_combine(CF1, CF2) = (CF1 + CF2) / (1 - min(|CF1|, |CF2|))  (khi CF1 và CF2 k
       </div>
     </div>
 
+    <!-- 2b. CƠ SỞ LÝ THUYẾT SUY DIỄN TIẾN (FORWARD CHAINING) -->
+    <div class="card theory-section" style="margin-top: 1.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: #38bdf8;">
+        <i class="fa-solid fa-forward-step"></i> Cơ Sở Lý Thuyết Suy Diễn Tiến & Giải Quyết Xung Đột (TS. Nguyễn Quốc Tuấn)
+      </h2>
+      <div style="font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary);">
+        <p><strong>1. Mô hình bài toán suy diễn tiến (Slide 3 & 6):</strong></p>
+        <ul style="padding-left: 1.5rem; margin-bottom: 0.8rem;">
+          <li><strong>Input:</strong> Tập giả thiết <code>GT = {f1, f2, ..., fn}</code>, Tập luật Horn <code>R = {r1, r2, ..., rm}</code> (với <code>ri: left_i &rarr; qi</code>), và Tập kết luận cần chứng minh <code>KL = {q1, q2, ..., qk}</code>.</li>
+          <li><strong>Output:</strong> Trả về <code>"Đúng"</code> nếu <code>GT &rarr;* KL</code> (tồn tại chuỗi suy diễn dẫn từ GT đến KL), ngược lại là <code>"Sai"</code>.</li>
+        </ul>
+
+        <p><strong>2. Giải thuật suy diễn tiến chuẩn (Slide 8):</strong></p>
+        <pre class="math-formula-box">TG = GT; VET = ∅;
+THOA = LOC(TG, R); /* Tìm các luật ri mà left_i ⊆ TG */
+while (THOA ≠ ∅) and (KL ⊄ TG) do
+{
+    r ← get(THOA);  /* Chọn 1 luật từ THOA theo chiến lược giải quyết xung đột */
+    VET = VET ∪ {r};
+    R = R \ {r};
+    TG = TG ∪ {q};
+    THOA = LOC(TG, R);
+}
+if (KL ⊆ TG) exit("Đúng");
+else exit("Sai");</pre>
+
+        <p><strong>3. Các chiến lược giải quyết xung đột khi #THOA &ge; 2 (Slide 16 & 17):</strong></p>
+        <ul style="padding-left: 1.5rem; margin-bottom: 0.8rem;">
+          <li><strong>Hàng đợi (Queue - FIFO):</strong> Luật đưa vào THOA trước được chọn trước (Slide 10, 16).</li>
+          <li><strong>Ngăn xếp (Stack - LIFO):</strong> Luật đưa vào THOA sau được chọn trước (Slide 9, 16).</li>
+          <li><strong>Chỉ số nhỏ nhất (csmin):</strong> Chọn luật có chỉ số thứ tự nhỏ nhất (Slide 16, 17).</li>
+          <li><strong>Chỉ số lớn nhất (csmax):</strong> Chọn luật có chỉ số thứ tự lớn nhất (Slide 16, 17).</li>
+          <li><strong>Kỹ thuật Heuristics:</strong> Đánh giá hàm lượng giá <code>h&#770;(r) &rarr; min</code> qua đồ thị FPG hoặc RPG, kết hợp tie-break bằng <code>csmin</code>.</li>
+        </ul>
+
+        <p><strong>4. Kiến trúc Kế thừa Hướng Đối Tượng:</strong></p>
+        <p>
+          Lớp cơ sở <code>ForwardChainingEngine</code> (trong <code>suy_dien_tien.js</code>) đóng gói giải thuật tổng quát và các chiến lược giải quyết xung đột. Hai lớp động cơ <code>FPGForwardChainingEngine</code> và <code>RPGForwardChainingEngine</code> (trong <code>thuat_toan_rpg_fpg.js</code>) kế thừa trực tiếp từ <code>ForwardChainingEngine</code>, ghi đè hàm lượng giá Heuristic tương ứng cho từng loại đồ thị.
+        </p>
+      </div>
+    </div>
+
     <!-- 3. CƠ SỞ LÝ THUYẾT ĐỒ THỊ FPG & RPG -->
     <div class="card theory-section" style="margin-top: 1.5rem;">
       <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--color-cyan);">
