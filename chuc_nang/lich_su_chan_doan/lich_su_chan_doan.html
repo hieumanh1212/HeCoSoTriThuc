@@ -158,6 +158,27 @@
           </div>
 
           <div class="filter-group">
+            <label><i class="fa-solid fa-chart-line"></i> Khoảng tin cậy (CF)</label>
+            <select id="filterCFRange" class="filter-select">
+              <option value="all">-- Tất cả mức CF (0% - 100%) --</option>
+              <option value="very_high">Rất cao: CF ≥ 80% (0.8 - 1.0)</option>
+              <option value="high">Cao: 60% ≤ CF &lt; 80% (0.6 - 0.79)</option>
+              <option value="medium">Trung bình: 40% ≤ CF &lt; 60% (0.4 - 0.59)</option>
+              <option value="low">Thấp / Chưa rõ: CF &lt; 40% (&lt; 0.4)</option>
+              <option value="custom">Tùy chỉnh khoảng Min - Max %...</option>
+            </select>
+          </div>
+
+          <div class="filter-group" id="groupCFCustom" style="display: none;">
+            <label><i class="fa-solid fa-sliders"></i> CF Min - Max (%)</label>
+            <div class="filter-cf-inputs">
+              <input type="number" id="filterCFMin" class="filter-input" placeholder="Min %" min="0" max="100" step="5">
+              <span class="filter-cf-separator">-</span>
+              <input type="number" id="filterCFMax" class="filter-input" placeholder="Max %" min="0" max="100" step="5">
+            </div>
+          </div>
+
+          <div class="filter-group">
             <label><i class="fa-regular fa-calendar-days"></i> Từ ngày</label>
             <input type="date" id="filterDateFrom" class="filter-input">
           </div>
