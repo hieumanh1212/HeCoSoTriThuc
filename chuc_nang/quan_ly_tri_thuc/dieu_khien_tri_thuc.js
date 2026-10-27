@@ -1,3 +1,5 @@
+const DEFAULT_SYMPTOM_GROUP_ICON = "fa-solid fa-notes-medical";
+
 /**
  * FEATURE MODULE: KNOWLEDGE BASE CONTROLLER
  * Điều phối giao diện hiển thị danh sách luật, triệu chứng, bệnh và form CRUD
@@ -23,8 +25,19 @@ class KBController {
     }
     if (originalId) originalId.value = group ? group.id : "";
     document.getElementById("formSymptomGroupName").value = group?.name || "";
-    document.getElementById("formSymptomGroupIcon").value = group?.icon || "fa-notes-medical";
-    document.getElementById("formSymptomGroupDescription").value = group?.description || "";
+    const iconSelect = document.getElementById("formSymptomGroupIcon");
+    iconSelect.querySelectorAll(".legacy-symptom-group-icon").forEach(option => option.remove());
+    let savedIcon = String(group?.icon || DEFAULT_SYMPTOM_GROUP_ICON).replace(/^fas?\s+/, "fa-solid ");
+    if (!/^(fa-solid|fa-regular|fa-brands)\s/.test(savedIcon)) savedIcon = `fa-solid ${savedIcon}`;
+    if (![...iconSelect.options].some(option => option.value === savedIcon)) {
+      const legacyOption = new Option(`Biểu tượng hiện tại (${savedIcon})`, savedIcon);
+      legacyOption.className = "legacy-symptom-group-icon";
+      iconSelect.add(legacyOption);
+    }
+    iconSelect.value = savedIcon;
+    this.updateSymptomGroupIconPreview();
+    const descriptionInput = document.getElementById("formSymptomGroupDescription");
+    if (descriptionInput) descriptionInput.value = group?.description || "";
     this.modalSymptomGroupForm.classList.add("active");
   }
 
@@ -50,8 +63,8 @@ class KBController {
     const group = {
       id,
       name,
-      icon: document.getElementById("formSymptomGroupIcon").value.trim() || "fa-notes-medical",
-      description: document.getElementById("formSymptomGroupDescription").value.trim()
+      icon: document.getElementById("formSymptomGroupIcon").value || DEFAULT_SYMPTOM_GROUP_ICON,
+      description: document.getElementById("formSymptomGroupDescription")?.value.trim() || ""
     };
     const previousGroups = [...(kb.symptomGroups || [])];
     if (originalId) {
@@ -115,6 +128,8 @@ class KBController {
     this.modalSymptomGroupForm = document.getElementById("modalSymptomGroupForm");
     this.symptomGroupForm = document.getElementById("symptomGroupForm");
     this.symptomGroupFormTitle = document.getElementById("symptomGroupFormTitle");
+    this.symptomGroupIconSelect = document.getElementById("formSymptomGroupIcon");
+    this.symptomGroupIconPreview = document.querySelector(".symptom-group-icon-preview i");
 
     // Điều hướng lỗi
     this.errorNavigatorGroup = document.getElementById("errorNavigatorGroup");
@@ -312,6 +327,9 @@ class KBController {
   }
 
   bindEvents() {
+    if (this.symptomGroupIconSelect) {
+      this.symptomGroupIconSelect.addEventListener("change", () => this.updateSymptomGroupIconPreview());
+    }
     // Sự kiện tìm kiếm dữ liệu tri thức theo từ khóa hoặc cú pháp khoảng CF
     if (this.kbSearchInput) {
       this.kbSearchInput.addEventListener("input", (e) => {
@@ -512,6 +530,12 @@ class KBController {
     }
     if (this.symptomGroupForm) {
       this.symptomGroupForm.addEventListener("submit", (e) => this.handleSymptomGroupFormSubmit(e));
+    }
+  }
+
+  updateSymptomGroupIconPreview() {
+    if (this.symptomGroupIconPreview && this.symptomGroupIconSelect) {
+      this.symptomGroupIconPreview.className = this.symptomGroupIconSelect.value || DEFAULT_SYMPTOM_GROUP_ICON;
     }
   }
 

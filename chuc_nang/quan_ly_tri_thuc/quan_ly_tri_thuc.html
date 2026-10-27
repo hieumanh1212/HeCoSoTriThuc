@@ -72,7 +72,7 @@
       <div>
         <h2 style="font-size: 1.25rem; font-weight: 700;">Quản trị Cơ sở Tri thức Y tế</h2>
         <p style="font-size: 0.82rem; color: var(--text-secondary);">Thêm, sửa, xóa luật sinh, triệu chứng, danh mục
-          bệnh và Nhập / Xuất dữ liệu Excel (.xlsx)</p>
+          bệnh</p>
       </div>
       <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
         <button id="btnAddNewRule" class="btn-primary">
@@ -336,13 +336,43 @@
           <label class="form-label" for="formSymptomGroupId">Mã nhóm:</label>
           <input id="formSymptomGroupId" class="form-control" required>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="formSymptomGroupName">Tên nhóm:</label>
-          <input id="formSymptomGroupName" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="formSymptomGroupIcon">Biểu tượng FontAwesome:</label>
-          <input id="formSymptomGroupIcon" class="form-control" placeholder="fa-notes-medical">
+        <div class="symptom-group-form-row">
+          <div class="form-group">
+            <label class="form-label" for="formSymptomGroupName">Tên nhóm:</label>
+            <input id="formSymptomGroupName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="formSymptomGroupIcon">Biểu tượng FontAwesome:</label>
+            <div class="symptom-group-icon-field">
+              <span class="symptom-group-icon-preview" aria-hidden="true"><i class="fa-solid fa-notes-medical"></i></span>
+              <select id="formSymptomGroupIcon" class="form-control">
+              <option value="fa-solid fa-notes-medical">Ghi chú y tế</option>
+              <option value="fa-solid fa-stethoscope">Ống nghe</option>
+              <option value="fa-solid fa-heart-pulse">Nhịp tim</option>
+              <option value="fa-solid fa-heart">Tim</option>
+              <option value="fa-solid fa-lungs">Phổi</option>
+              <option value="fa-solid fa-lungs-virus">Phổi và virus</option>
+              <option value="fa-solid fa-virus">Virus</option>
+              <option value="fa-solid fa-virus-covid">Virus COVID</option>
+              <option value="fa-solid fa-temperature-half">Nhiệt độ</option>
+              <option value="fa-solid fa-droplet">Máu và dịch cơ thể</option>
+              <option value="fa-solid fa-brain">Não</option>
+              <option value="fa-solid fa-bone">Xương khớp</option>
+              <option value="fa-solid fa-eye">Mắt</option>
+              <option value="fa-solid fa-ear-listen">Tai</option>
+              <option value="fa-solid fa-tooth">Răng</option>
+              <option value="fa-solid fa-allergies">Dị ứng</option>
+              <option value="fa-solid fa-bandage">Vết thương</option>
+              <option value="fa-solid fa-pills">Thuốc</option>
+              <option value="fa-solid fa-syringe">Tiêm chủng</option>
+              <option value="fa-solid fa-prescription-bottle-medical">Thuốc kê đơn</option>
+              <option value="fa-solid fa-hospital">Bệnh viện</option>
+              <option value="fa-solid fa-user-doctor">Bác sĩ</option>
+              <option value="fa-solid fa-head-side-virus">Triệu chứng thần kinh</option>
+              <option value="fa-solid fa-person">Cơ thể</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="formSymptomGroupDescription">Mô tả phân loại:</label>
