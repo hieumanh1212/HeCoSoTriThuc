@@ -46,9 +46,9 @@ class DiagnosisController {
     // Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
     this.diagnosisGrid = document.getElementById("diagnosisGrid");
     this.symptomsCard = document.getElementById("diagnosisSymptomsCard");
-    this.btnToggleCollapseLeft = document.getElementById("btnToggleCollapseLeft");
+    this.btnDividerCollapse = document.getElementById("btnDividerCollapse");
+    this.iconDividerCollapse = document.getElementById("iconDividerCollapse");
     this.leftSectionCollapsedBar = document.getElementById("leftSectionCollapsedBar");
-    this.btnExpandLeftSection = document.getElementById("btnExpandLeftSection");
     this.collapsedSelectedCount = document.getElementById("collapsedSelectedCount");
     this.btnRestoreLeftFromRight = document.getElementById("btnRestoreLeftFromRight");
     this.rightBarSelectedCount = document.getElementById("rightBarSelectedCount");
@@ -64,6 +64,18 @@ class DiagnosisController {
     this.explanationContent = document.getElementById("explanationModalContent");
     this.modalBackward = document.getElementById("modalBackward");
     this.backwardContent = document.getElementById("backwardModalContent");
+
+    // 2 Tab Tiến & Lùi
+    this.inferModeTabsBar = document.getElementById("inferModeTabsBar");
+    this.tabBtnForward = document.getElementById("tabBtnForward");
+    this.tabBtnBackward = document.getElementById("tabBtnBackward");
+    this.badgeForwardCount = document.getElementById("badgeForwardCount");
+    this.badgeBackwardCount = document.getElementById("badgeBackwardCount");
+    this.paneForward = document.getElementById("paneForward");
+    this.paneBackward = document.getElementById("paneBackward");
+    this.emptyStatePlaceholder = document.getElementById("emptyStatePlaceholder");
+    this.currentInferTab = "forward";
+    this.currentBackwardTargetDiseaseId = null;
   }
 
   bindEvents() {
@@ -126,13 +138,10 @@ class DiagnosisController {
     }
 
     // 5b. Nút Thu nhỏ / Mở rộng Section Trái (Danh mục triệu chứng)
-    if (this.btnToggleCollapseLeft) {
-      this.btnToggleCollapseLeft.addEventListener("click", () => this.toggleLeftSection(true));
-    }
-    if (this.btnExpandLeftSection) {
-      this.btnExpandLeftSection.addEventListener("click", (e) => {
+    if (this.btnDividerCollapse) {
+      this.btnDividerCollapse.addEventListener("click", (e) => {
         e.stopPropagation();
-        this.toggleLeftSection(false);
+        this.toggleLeftSection();
       });
     }
     if (this.leftSectionCollapsedBar) {
@@ -140,6 +149,14 @@ class DiagnosisController {
     }
     if (this.btnRestoreLeftFromRight) {
       this.btnRestoreLeftFromRight.addEventListener("click", () => this.toggleLeftSection(false));
+    }
+
+    // 5c. Chuyển đổi 2 Tab Suy diễn Tiến & Suy diễn Lùi
+    if (this.tabBtnForward) {
+      this.tabBtnForward.addEventListener("click", () => this.switchInferTab("forward"));
+    }
+    if (this.tabBtnBackward) {
+      this.tabBtnBackward.addEventListener("click", () => this.switchInferTab("backward"));
     }
 
     // 6. Nút Thực hiện Suy diễn tiến
@@ -650,6 +667,13 @@ class DiagnosisController {
     if (this.btnRestoreLeftFromRight) {
       this.btnRestoreLeftFromRight.style.display = shouldCollapse ? "inline-flex" : "none";
     }
+
+    if (this.iconDividerCollapse) {
+      this.iconDividerCollapse.className = shouldCollapse ? "fa-solid fa-chevron-right" : "fa-solid fa-chevron-left";
+    }
+    if (this.btnDividerCollapse) {
+      this.btnDividerCollapse.title = shouldCollapse ? "Mở rộng danh mục triệu chứng" : "Thu nhỏ danh mục triệu chứng (phóng to kết quả)";
+    }
   }
 
   /* --- 5. CẬP NHẬT BADGES & STATS --- */
@@ -721,22 +745,27 @@ class DiagnosisController {
   }
 
   renderPreLoadedState() {
-    if (!this.resultsContainer) return;
-    const count = Object.keys(this.currentSelectedSymptoms || {}).length;
-    this.resultsContainer.innerHTML = `
-      <div class="empty-state" style="border: 2px dashed var(--color-primary); background: rgba(59, 130, 246, 0.05); padding: 2rem; border-radius: 12px; text-align: center;">
-        <i class="fa-solid fa-file-medical-alt" style="font-size: 2.8rem; color: var(--color-primary); margin-bottom: 0.8rem;"></i>
-        <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">
-          Đã nạp ${count} triệu chứng lâm sàng vào biểu mẫu!
-        </p>
-        <p style="font-size: 0.9rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 1.2rem auto; line-height: 1.6;">
-          Bạn có thể kiểm tra, tùy chỉnh thêm bớt triệu chứng hoặc thay đổi độ tin cậy (CF) ở danh sách bên trái. Sau đó nhấn nút <strong>"Thực hiện Suy diễn tiến"</strong> ở góc trên bên phải để bắt đầu chẩn đoán.
-        </p>
-        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
-          <i class="fa-solid fa-arrow-up"></i> Sẵn sàng suy luận: Hãy nhấn "Thực hiện Suy diễn tiến"
+    if (this.inferModeTabsBar) this.inferModeTabsBar.style.display = "none";
+    if (this.paneForward) this.paneForward.style.display = "none";
+    if (this.paneBackward) this.paneBackward.style.display = "none";
+    if (this.emptyStatePlaceholder) {
+      this.emptyStatePlaceholder.style.display = "block";
+      const count = Object.keys(this.currentSelectedSymptoms || {}).length;
+      this.emptyStatePlaceholder.innerHTML = `
+        <div style="border: 2px dashed var(--color-primary); background: rgba(59, 130, 246, 0.05); padding: 2rem; border-radius: 12px; text-align: center;">
+          <i class="fa-solid fa-file-medical-alt" style="font-size: 2.8rem; color: var(--color-primary); margin-bottom: 0.8rem;"></i>
+          <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Đã nạp ${count} triệu chứng lâm sàng vào biểu mẫu!
+          </p>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 1.2rem auto; line-height: 1.6;">
+            Bạn có thể kiểm tra danh sách bên trái và nhấn nút <strong>"Thực hiện suy diễn"</strong> ở góc trên bên phải để bắt đầu chẩn đoán Tiến & Lùi.
+          </p>
+          <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+            <i class="fa-solid fa-bolt-lightning"></i> Sẵn sàng suy luận: Hãy nhấn "Thực hiện suy diễn"
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "none";
     }
@@ -745,9 +774,44 @@ class DiagnosisController {
     }
   }
 
-  runInference() {
+  runInference(keepCurrentTab = false) {
     this.lastInferenceResult = this.forwardEngine.infer(this.currentSelectedSymptoms);
+
+    if (this.emptyStatePlaceholder) {
+      this.emptyStatePlaceholder.style.display = "none";
+    }
+    if (this.inferModeTabsBar) {
+      this.inferModeTabsBar.style.display = "flex";
+    }
+
+    // 1. Render Forward Tab
     this.renderResults(this.lastInferenceResult);
+
+    // 2. Xác định bệnh mục tiêu cho Suy diễn lùi
+    const topDisease = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0])
+      ? this.lastInferenceResult.results[0].diseaseId
+      : null;
+
+    if (!this.currentBackwardTargetDiseaseId || !this._isDiseaseValid(this.currentBackwardTargetDiseaseId)) {
+      this.currentBackwardTargetDiseaseId = topDisease || "D01";
+    }
+
+    // 3. Render Backward Tab
+    this.renderBackwardTab(this.currentBackwardTargetDiseaseId);
+
+    // 4. Cập nhật số lượng trên các badge của Tab
+    const forwardCount = (this.lastInferenceResult && this.lastInferenceResult.results)
+      ? this.lastInferenceResult.results.length
+      : 0;
+    if (this.badgeForwardCount) this.badgeForwardCount.textContent = forwardCount;
+
+    const backwardEval = this.backwardEngine.evaluateHypothesis(this.currentBackwardTargetDiseaseId, this.currentSelectedSymptoms);
+    const backwardCount = (backwardEval && backwardEval.missingSymptoms) ? backwardEval.missingSymptoms.length : 0;
+    if (this.badgeBackwardCount) this.badgeBackwardCount.textContent = backwardCount;
+
+    // 5. Chuyển sang Tab phù hợp
+    const targetTab = keepCurrentTab ? this.currentInferTab : "forward";
+    this.switchInferTab(targetTab);
 
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "inline-flex";
@@ -761,23 +825,445 @@ class DiagnosisController {
     }
   }
 
+  switchInferTab(tabName, targetDiseaseId = null) {
+    this.currentInferTab = tabName;
+    if (targetDiseaseId) {
+      this.currentBackwardTargetDiseaseId = targetDiseaseId;
+    }
+
+    if (this.tabBtnForward) {
+      this.tabBtnForward.classList.toggle("active", tabName === "forward");
+    }
+    if (this.tabBtnBackward) {
+      this.tabBtnBackward.classList.toggle("active", tabName === "backward");
+    }
+
+    if (this.paneForward) {
+      this.paneForward.style.display = tabName === "forward" ? "block" : "none";
+      this.paneForward.classList.toggle("active", tabName === "forward");
+    }
+    if (this.paneBackward) {
+      this.paneBackward.style.display = tabName === "backward" ? "block" : "none";
+      this.paneBackward.classList.toggle("active", tabName === "backward");
+    }
+
+    if (tabName === "backward") {
+      this.renderBackwardTab(this.currentBackwardTargetDiseaseId);
+      const backwardEval = this.backwardEngine.evaluateHypothesis(this.currentBackwardTargetDiseaseId, this.currentSelectedSymptoms);
+      const backwardCount = (backwardEval && backwardEval.missingSymptoms) ? backwardEval.missingSymptoms.length : 0;
+      if (this.badgeBackwardCount) this.badgeBackwardCount.textContent = backwardCount;
+    }
+  }
+
   renderEmptyResults() {
-    if (!this.resultsContainer) return;
-    this.resultsContainer.innerHTML = `
-      <div class="empty-state">
+    if (this.inferModeTabsBar) this.inferModeTabsBar.style.display = "none";
+    if (this.paneForward) {
+      this.paneForward.style.display = "none";
+      this.paneForward.innerHTML = "";
+    }
+    if (this.paneBackward) {
+      this.paneBackward.style.display = "none";
+      this.paneBackward.innerHTML = "";
+    }
+    if (this.emptyStatePlaceholder) {
+      this.emptyStatePlaceholder.style.display = "block";
+      this.emptyStatePlaceholder.innerHTML = `
         <i class="fa-solid fa-notes-medical"></i>
         <p style="font-weight: 600; font-size: 1rem; color: var(--text-primary);">Chưa có dữ liệu suy diễn lâm sàng.</p>
         <p style="font-size: 0.85rem; margin-top: 0.4rem; color: var(--text-muted); line-height: 1.5;">
-          Vui lòng chọn các triệu chứng ở cột bên trái và nhấn nút <strong>"Thực hiện Suy diễn tiến"</strong> ở trên.
+          Vui lòng chọn các triệu chứng ở cột bên trái và nhấn nút <strong>"Thực hiện suy diễn"</strong> ở trên.
         </p>
-      </div>
-    `;
+      `;
+    }
     if (this.btnViewExplanation) {
       this.btnViewExplanation.style.display = "none";
     }
     if (this.btnExportPDF) {
       this.btnExportPDF.style.display = "none";
     }
+  }
+
+  /* --- 5c. HELPER SUY DIỄN LÙI (BACKWARD CHAINING PANEL) --- */
+  _isDiseaseValid(diseaseId) {
+    const kb = this.kbManager.getKB();
+    return (kb.diseases || []).some(d => d.id === diseaseId);
+  }
+
+  _getCandidateDiseases() {
+    const kb = this.kbManager.getKB();
+    const forwardResults = (this.lastInferenceResult && this.lastInferenceResult.results)
+      ? this.lastInferenceResult.results
+      : [];
+
+    if (forwardResults.length > 0) {
+      return forwardResults.map(r => ({
+        id: r.diseaseId,
+        name: r.diseaseName || (r.disease ? r.disease.name : r.diseaseId),
+        cf: Math.round(r.finalCF * 100)
+      }));
+    }
+
+    return (kb.diseases || []).map(d => ({
+      id: d.id,
+      name: d.name,
+      cf: 0
+    }));
+  }
+
+  _renderBackwardDiseaseChips(activeDiseaseId, candidates) {
+    return candidates.map(c => `
+      <button type="button" class="backward-disease-chip ${c.id === activeDiseaseId ? 'active' : ''}" data-disease-id="${c.id}">
+        <span>[${c.id}] ${c.name}</span>
+        ${c.cf > 0 ? `<span class="chip-cf">${c.cf}%</span>` : ''}
+      </button>
+    `).join('');
+  }
+
+  _renderBackwardHypothesisHero(evaluation) {
+    const dis = evaluation.targetDisease;
+    const cf = Math.round(evaluation.currentCF * 100);
+    let statusBadge = '';
+
+    if (evaluation.status === 'CONFIRMED') {
+      statusBadge = '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> ĐÃ XÁC NHẬN</span>';
+    } else if (evaluation.status === 'REFUTED') {
+      statusBadge = '<span class="badge badge-danger"><i class="fa-solid fa-circle-xmark"></i> CHƯA ĐỦ CĂN CỨ</span>';
+    } else {
+      statusBadge = '<span class="badge badge-warning"><i class="fa-solid fa-hourglass-half"></i> CẦN THÊM DỮ KIỆN</span>';
+    }
+
+    return `
+      <div class="backward-hypothesis-hero">
+        <div class="backward-hypothesis-left">
+          <div class="backward-goal-tag">
+            <i class="fa-solid fa-bullseye"></i> Giả thuyết bệnh mục tiêu (Target Hypothesis)
+          </div>
+          <h3 class="backward-hypothesis-title">
+            <span class="disease-code-pill">${dis.id}</span>
+            <span>${dis.name}</span>
+          </h3>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="text-align: right;">
+            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">Độ tin cậy hiện tại</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: #f59e0b;">${cf}%</div>
+          </div>
+          ${statusBadge}
+        </div>
+      </div>
+    `;
+  }
+
+  _collectDiseasePremisesAnalysis(evaluation, kb) {
+    const rules = evaluation.candidateRules || [];
+    const allPremiseIds = new Set();
+    rules.forEach(r => (r.rule.premises || []).forEach(p => allPremiseIds.add(p)));
+
+    const satisfied = [];
+    const missing = [];
+
+    allPremiseIds.forEach(pId => {
+      const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
+      const userCF = this.currentSelectedSymptoms[pId];
+      const reqRules = rules.filter(r => (r.rule.premises || []).includes(pId)).map(r => r.rule.id);
+
+      if (userCF !== undefined && userCF > 0) {
+        satisfied.push({
+          symptom: sym,
+          userCF: Math.round(userCF * 100),
+          ruleIds: reqRules
+        });
+      } else {
+        missing.push({
+          symptom: sym,
+          ruleIds: reqRules,
+          whyReason: `Tiền đề cần có trong luật [${reqRules.join(', ')}] để chứng minh bệnh "${evaluation.targetDisease.name}"`
+        });
+      }
+    });
+
+    return { satisfied, missing, totalCount: allPremiseIds.size };
+  }
+
+  _renderBackwardProgressBox(satisfiedCount, totalCount, missingCount) {
+    const percent = totalCount > 0 ? Math.round((satisfiedCount / totalCount) * 100) : 0;
+    return `
+      <div class="backward-progress-box">
+        <div class="backward-progress-header">
+          <span><i class="fa-solid fa-list-check" style="color: #f59e0b;"></i> Tiến trình kiểm chứng điều kiện:</span>
+          <span style="color: ${percent >= 80 ? '#10b981' : '#f59e0b'}; font-size: 0.95rem;">
+            ${satisfiedCount}/${totalCount} tiền đề (${percent}%)
+          </span>
+        </div>
+        <div class="backward-progress-track">
+          <div class="backward-progress-fill" style="width: ${percent}%;"></div>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+          <span>Đã xác nhận: <strong style="color: #10b981;">${satisfiedCount}</strong> dấu hiệu</span>
+          <span>Còn thiếu cần kiểm tra: <strong style="color: #f59e0b;">${missingCount}</strong> dấu hiệu</span>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderMissingChecklistRows(missing, diseaseName) {
+    if (missing.length === 0) {
+      return `
+        <div class="backward-confirmed-banner">
+          <i class="fa-solid fa-circle-check"></i>
+          <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem;">
+            Đã thỏa mãn đầy đủ các điều kiện tiên quyết cho bệnh "${diseaseName}"!
+          </h3>
+          <p style="font-size: 0.82rem; color: var(--text-secondary); max-width: 500px; margin: 0 auto 1rem auto;">
+            Tất cả các triệu chứng cần thiết đã được xác nhận. Giả thuyết này đã được kiểm chứng thành công.
+          </p>
+          <button type="button" class="btn-primary btn-jump-to-forward" style="padding: 0.5rem 1.1rem; font-weight: 700; font-size: 0.85rem;">
+            <i class="fa-solid fa-arrow-trend-up"></i> Xem kết quả trên Tab Suy diễn tiến
+          </button>
+        </div>
+      `;
+    }
+
+    return `
+      <div>
+        <div class="checklist-group-title missing">
+          <i class="fa-solid fa-circle-question"></i>
+          <span>1. Các dấu hiệu còn thiếu cần kiểm chứng (${missing.length}):</span>
+        </div>
+        <div class="checklist-items-list">
+          ${missing.map(m => `
+            <div class="checklist-item-row missing">
+              <div class="checklist-item-left">
+                <i class="fa-solid fa-circle-question checklist-status-icon missing"></i>
+                <div class="checklist-item-meta">
+                  <div class="checklist-item-name">
+                    <strong style="color: var(--color-primary);">[${m.symptom.id}]</strong> ${m.symptom.name}
+                  </div>
+                  <div class="checklist-item-why">
+                    <i class="fa-solid fa-lightbulb" style="color: #f59e0b;"></i> WHY: <strong>${m.whyReason}</strong>
+                  </div>
+                </div>
+              </div>
+              <div class="checklist-inline-actions">
+                <button type="button" class="btn-inline-cf btn-cf-sure" data-sym-id="${m.symptom.id}" data-cf="1.0" title="Chắc chắn có triệu chứng này">
+                  <i class="fa-solid fa-check"></i> Có (100%)
+                </button>
+                <button type="button" class="btn-inline-cf btn-cf-likely" data-sym-id="${m.symptom.id}" data-cf="0.7" title="Có khả năng có triệu chứng này">
+                  <i class="fa-solid fa-circle-dot"></i> Khả năng (70%)
+                </button>
+                <button type="button" class="btn-inline-cf btn-cf-slight" data-sym-id="${m.symptom.id}" data-cf="0.4" title="Nghi ngờ nhẹ">
+                  <i class="fa-solid fa-question"></i> Nghi ngờ (40%)
+                </button>
+                <button type="button" class="btn-inline-cf btn-cf-none" data-sym-id="${m.symptom.id}" data-cf="0" title="Xác nhận không có">
+                  <i class="fa-solid fa-xmark"></i> Không (0%)
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderSatisfiedChecklistRows(satisfied) {
+    if (satisfied.length === 0) return '';
+
+    return `
+      <div>
+        <div class="checklist-group-title satisfied">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>2. Các dấu hiệu lâm sàng đã ghi nhận (${satisfied.length}):</span>
+        </div>
+        <div class="checklist-items-list">
+          ${satisfied.map(s => `
+            <div class="checklist-item-row satisfied">
+              <div class="checklist-item-left">
+                <i class="fa-solid fa-circle-check checklist-status-icon satisfied"></i>
+                <div class="checklist-item-meta">
+                  <div class="checklist-item-name">
+                    <strong style="color: #10b981;">[${s.symptom.id}]</strong> ${s.symptom.name}
+                  </div>
+                  <div class="checklist-item-why">
+                    Thỏa mãn tiền đề của quy tắc: <strong>[${s.ruleIds.join(', ')}]</strong>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="badge badge-success" style="font-size: 0.76rem; font-weight: 700;">
+                  CF: ${s.userCF}%
+                </span>
+                <button type="button" class="btn-inline-cf btn-cf-none" data-sym-id="${s.symptom.id}" data-cf="0" title="Hủy chọn triệu chứng này">
+                  <i class="fa-solid fa-trash-can"></i> Hủy
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderBackwardChecklist(satisfied, missing, diseaseName) {
+    const satisfiedHtml = this._renderSatisfiedChecklistRows(satisfied);
+    const missingHtml = this._renderMissingChecklistRows(missing, diseaseName);
+
+    return `
+      <div class="backward-checklist-card">
+        <div class="backward-checklist-header">
+          <span><i class="fa-solid fa-clipboard-check" style="color: var(--color-primary);"></i> Bảng Kiểm Chứng Lâm Sàng (Verification Checklist)</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">Nhấp nút chọn nhanh để bổ sung hoặc kiểm chứng triệu chứng</span>
+        </div>
+        <div class="backward-checklist-body">
+          ${missingHtml}
+          ${satisfiedHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderBackwardRulesBreakdown(candidateRules, kb, targetDiseaseId) {
+    if (!candidateRules || candidateRules.length === 0) return '';
+
+    return `
+      <div class="backward-rules-card">
+        <div class="backward-rules-header">
+          <span><i class="fa-solid fa-diagram-project" style="color: #8b5cf6;"></i> Phân Tích Logic AND-OR Từng Quy Tắc Ứng Viên</span>
+          <span style="font-size: 0.76rem; color: var(--text-muted); font-weight: normal;">${candidateRules.length} quy tắc liên quan</span>
+        </div>
+        <div class="backward-rules-body">
+          ${candidateRules.map(cr => {
+            const r = cr.rule;
+            const premises = r.premises || [];
+            const isFull = cr.isFullySatisfied;
+            const statusBadge = isFull
+              ? `<span class="badge badge-success"><i class="fa-solid fa-check"></i> Thỏa mãn (CF: ${Math.round(cr.calculatedCF * 100)}%)</span>`
+              : `<span class="badge badge-warning"><i class="fa-solid fa-hourglass-half"></i> Thiếu ${cr.missingPremises.length} tiền đề</span>`;
+
+            const chipsHtml = premises.map(pId => {
+              const sym = (kb.symptoms || []).find(s => s.id === pId) || { id: pId, name: pId };
+              const isSat = !cr.missingPremises.includes(pId);
+              return isSat
+                ? `<span class="formula-chip satisfied" title="${sym.name}">✔ [${pId}] ${sym.name}</span>`
+                : `<span class="formula-chip missing" title="Cần bổ sung: ${sym.name}">❓ [${pId}] ${sym.name}</span>`;
+            }).join('<span class="formula-op"> ∧ </span>');
+
+            return `
+              <div class="rule-logic-box ${isFull ? 'fully-satisfied' : ''}">
+                <div class="rule-logic-top">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">
+                    <i class="fa-solid fa-bolt" style="color: ${isFull ? '#10b981' : '#f59e0b'};"></i>
+                    [${r.id}] ${r.name || 'Quy tắc'}
+                    <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal; margin-left: 4px;">(CF gốc: ${Math.round((r.cf || 0.9) * 100)}%)</span>
+                  </div>
+                  ${statusBadge}
+                </div>
+                <div class="rule-formula-flow">
+                  <span style="font-weight: 800; color: #8b5cf6;">IF</span>
+                  ${chipsHtml}
+                  <span class="formula-op"> ➔ </span>
+                  <span style="font-weight: 800; color: #10b981;">THEN [${targetDiseaseId}]</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  renderBackwardTab(targetDiseaseId) {
+    if (!this.paneBackward) return;
+
+    const candidates = this._getCandidateDiseases();
+    const effectiveDiseaseId = (targetDiseaseId && this._isDiseaseValid(targetDiseaseId))
+      ? targetDiseaseId
+      : (candidates[0] ? candidates[0].id : 'D01');
+
+    this.currentBackwardTargetDiseaseId = effectiveDiseaseId;
+    const evaluation = this.backwardEngine.evaluateHypothesis(effectiveDiseaseId, this.currentSelectedSymptoms);
+    if (!evaluation) return;
+
+    const kb = this.kbManager.getKB();
+    const analysis = this._collectDiseasePremisesAnalysis(evaluation, kb);
+
+    const chipsHtml = this._renderBackwardDiseaseChips(effectiveDiseaseId, candidates);
+    const heroHtml = this._renderBackwardHypothesisHero(evaluation);
+    const progressHtml = this._renderBackwardProgressBox(analysis.satisfied.length, analysis.totalCount, analysis.missing.length);
+    const checklistHtml = this._renderBackwardChecklist(analysis.satisfied, analysis.missing, evaluation.targetDisease.name);
+    const rulesHtml = this._renderBackwardRulesBreakdown(evaluation.candidateRules, kb, effectiveDiseaseId);
+
+    this.paneBackward.innerHTML = `
+      <div class="backward-panel-container">
+        <div class="backward-target-selector-card">
+          <div class="backward-selector-header">
+            <span class="backward-selector-title">
+              <i class="fa-solid fa-bullseye" style="color: #f59e0b;"></i> Chọn bệnh mục tiêu để kiểm chứng giả thuyết:
+            </span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
+              Hệ thống truy vết lùi theo các tiền đề cần thiết
+            </span>
+          </div>
+          <div class="backward-disease-chips">
+            ${chipsHtml}
+          </div>
+        </div>
+
+        ${heroHtml}
+        ${progressHtml}
+        ${checklistHtml}
+        ${rulesHtml}
+      </div>
+    `;
+
+    this._bindBackwardTabEvents();
+  }
+
+  _bindBackwardTabEvents() {
+    if (!this.paneBackward) return;
+
+    this.paneBackward.querySelectorAll(".backward-disease-chip").forEach(chip => {
+      chip.addEventListener("click", (e) => {
+        const disId = e.currentTarget.getAttribute("data-disease-id");
+        this.switchInferTab("backward", disId);
+      });
+    });
+
+    this.paneBackward.querySelectorAll(".btn-inline-cf").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const symId = e.currentTarget.getAttribute("data-sym-id");
+        const cfVal = parseFloat(e.currentTarget.getAttribute("data-cf"));
+        this.handleAnswerBackwardQuestion(symId, cfVal, this.currentBackwardTargetDiseaseId);
+      });
+    });
+
+    const btnJump = this.paneBackward.querySelector(".btn-jump-to-forward");
+    if (btnJump) {
+      btnJump.addEventListener("click", () => this.switchInferTab("forward"));
+    }
+  }
+
+  handleAnswerBackwardQuestion(symptomId, cfValue, targetDiseaseId) {
+    if (cfValue > 0) {
+      this.currentSelectedSymptoms[symptomId] = cfValue;
+    } else {
+      delete this.currentSelectedSymptoms[symptomId];
+    }
+
+    // Đồng bộ lại select / row ở panel triệu chứng bên trái
+    if (this.container) {
+      const select = this.container.querySelector(`.cf-select[data-id="${symptomId}"]`);
+      if (select) {
+        select.value = cfValue.toString();
+        const row = select.closest(".symptom-row");
+        if (row) {
+          row.classList.toggle("selected", cfValue > 0);
+        }
+      }
+    }
+
+    this.updateBadges();
+    this.renderCategoryDropdown();
+    this.runInference(true); // Giữ nguyên tab "backward"
   }
 
   _getSymptomMeta(sId, kb) {
@@ -1287,10 +1773,11 @@ class DiagnosisController {
 
   /* --- 6. RENDER KẾT QUẢ CHẨN ĐOÁN CAO CẤP (CLINICAL SHOWCASE) --- */
   renderResults(result) {
-    if (!this.resultsContainer) return;
+    const targetContainer = this.paneForward || this.resultsContainer;
+    if (!targetContainer) return;
 
     if (!result || (result.results || []).length === 0) {
-      this.resultsContainer.innerHTML = `
+      targetContainer.innerHTML = `
         <div class="empty-state">
           <i class="fa-solid fa-triangle-exclamation" style="color: var(--color-amber);"></i>
           <p style="color: var(--text-primary); font-weight: 600; font-size: 1rem;">Không có bệnh nào thỏa mãn tập luật hiện tại.</p>
@@ -1305,7 +1792,7 @@ class DiagnosisController {
     const kb = this.kbManager.getKB();
     const intermediateHtml = this._renderIntermediateSyndromes(result, kb);
 
-    this.resultsContainer.innerHTML = `
+    targetContainer.innerHTML = `
       ${intermediateHtml}
       <div class="result-card-list">
         ${result.results.map((item, index) => {
@@ -1547,8 +2034,8 @@ class DiagnosisController {
                 </div>
 
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                  <button class="btn-card-action btn-action-backward btn-backward-query" data-disease-id="${dis.id || item.diseaseId}" title="Truy vấn triệu chứng phân biệt">
-                    <i class="fa-solid fa-magnifying-glass-plus"></i> Hỏi thêm (WHY)
+                  <button class="btn-card-action btn-action-backward btn-backward-query" data-disease-id="${dis.id || item.diseaseId}" title="Chuyển sang tab Suy diễn lùi (WHY) để kiểm chứng giả thuyết">
+                    <i class="fa-solid fa-bullseye"></i> Suy diễn lùi (WHY)
                   </button>
                   <button class="btn-card-action btn-action-graph btn-focus-graph" data-disease-id="${dis.id || item.diseaseId}" title="Xem đường suy diễn trên đồ thị RPG">
                     <i class="fa-solid fa-project-diagram"></i> Đồ thị RPG
@@ -1565,28 +2052,28 @@ class DiagnosisController {
       </div>
     `;
 
-    this.resultsContainer.querySelectorAll(".btn-backward-query").forEach(btn => {
+    targetContainer.querySelectorAll(".btn-backward-query").forEach(btn => {
       btn.addEventListener("click", (e) => {
         const disId = e.currentTarget.getAttribute("data-disease-id");
-        this.openBackwardInquiryModal(disId);
+        this.switchInferTab("backward", disId);
       });
     });
 
-    this.resultsContainer.querySelectorAll(".btn-focus-graph").forEach(btn => {
+    targetContainer.querySelectorAll(".btn-focus-graph").forEach(btn => {
       btn.addEventListener("click", (e) => {
         const disId = e.currentTarget.getAttribute("data-disease-id");
         if (this.onFocusGraph) this.onFocusGraph(disId);
       });
     });
 
-    this.resultsContainer.querySelectorAll(".btn-focus-fpg").forEach(btn => {
+    targetContainer.querySelectorAll(".btn-focus-fpg").forEach(btn => {
       btn.addEventListener("click", (e) => {
         const disId = e.currentTarget.getAttribute("data-disease-id");
         if (this.onFocusFpg) this.onFocusFpg(disId);
       });
     });
 
-    const btnQuickRpg = this.resultsContainer.querySelector(".btn-quick-view-rpg");
+    const btnQuickRpg = targetContainer.querySelector(".btn-quick-view-rpg");
     if (btnQuickRpg) {
       btnQuickRpg.addEventListener("click", () => {
         const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;
@@ -1594,7 +2081,7 @@ class DiagnosisController {
       });
     }
 
-    const btnQuickFpg = this.resultsContainer.querySelector(".btn-quick-view-fpg");
+    const btnQuickFpg = targetContainer.querySelector(".btn-quick-view-fpg");
     if (btnQuickFpg) {
       btnQuickFpg.addEventListener("click", () => {
         const topDisId = (this.lastInferenceResult && this.lastInferenceResult.results && this.lastInferenceResult.results[0]) ? this.lastInferenceResult.results[0].diseaseId : null;

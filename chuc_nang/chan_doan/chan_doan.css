@@ -57,8 +57,67 @@
   box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
 }
 
-.diagnosis-symptoms-card.collapsed > *:not(.left-section-collapsed-bar) {
+.diagnosis-symptoms-card.collapsed > *:not(.left-section-collapsed-bar):not(.pane-splitter-toggle) {
   display: none !important;
+}
+
+/* Nút Icon Thu nhỏ / Mở rộng trên đường phân cách giữa 2 Section */
+.pane-splitter-toggle {
+  position: absolute;
+  top: 20px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  font-size: 0.78rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+}
+
+.pane-splitter-toggle:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+  transform: scale(1.18);
+}
+
+.pane-splitter-toggle:active {
+  transform: scale(0.92);
+}
+
+/* Khi Section Trái bị thu nhỏ: nút icon căn chính giữa đầu thanh dock 56px */
+.diagnosis-symptoms-card.collapsed .pane-splitter-toggle {
+  right: auto;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+}
+
+.diagnosis-symptoms-card.collapsed .pane-splitter-toggle:hover {
+  background: var(--color-primary-dark, #2563eb);
+  transform: translateX(-50%) scale(1.15);
+}
+
+@media (max-width: 1100px) {
+  .pane-splitter-toggle {
+    display: none;
+  }
 }
 
 /* Thanh Mini Bar khi Thu Nhỏ */
@@ -67,36 +126,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 1rem 0.3rem;
+  padding: 3.6rem 0.3rem 1.5rem 0.3rem;
   gap: 1.25rem;
   height: 100%;
   width: 100%;
   box-sizing: border-box;
   user-select: none;
-}
-
-.btn-expand-left {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: var(--color-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.btn-expand-left:hover,
-.diagnosis-symptoms-card.collapsed:hover .btn-expand-left {
-  background: var(--color-primary);
-  color: #ffffff;
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .collapsed-badge-wrap {
@@ -693,6 +729,318 @@
   border-radius: 6px;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* =========================================================
+   2 TAB CHUYÊN NGHIỆP: SUY DIỄN TIẾN & SUY DIỄN LÙI
+   ========================================================= */
+
+.infer-mode-tabs-bar {
+  display: flex;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--border-color);
+  padding: 0 1rem;
+  gap: 0.5rem;
+}
+
+.infer-mode-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 0.8rem 1.15rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.infer-mode-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.infer-mode-tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.infer-mode-tab-btn .tab-count-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.18);
+  color: var(--text-muted);
+}
+
+.infer-mode-tab-btn.active .tab-count-pill {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.infer-tab-pane {
+  display: none;
+}
+
+.infer-tab-pane.active {
+  display: block;
+}
+
+/* =========================================================
+   GIAO DIỆN SUY DIỄN LÙI TƯƠNG TÁC (BACKWARD CHAINING & WHY)
+   ========================================================= */
+
+.backward-panel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.backward-target-selector-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.backward-target-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.backward-disease-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.backward-disease-chip {
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-input, rgba(255, 255, 255, 0.04));
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.2s ease;
+}
+
+.backward-disease-chip:hover {
+  border-color: var(--color-primary);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.backward-disease-chip.active {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+  font-weight: 700;
+}
+
+.backward-hypothesis-hero {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.hypothesis-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hypothesis-disease-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hypothesis-status-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hypothesis-status-badge.status-need-data {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-amber);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.hypothesis-status-badge.status-confirmed {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.hypothesis-status-badge.status-refuted {
+  background: rgba(100, 116, 139, 0.15);
+  color: var(--text-muted);
+  border: 1px solid rgba(100, 116, 139, 0.35);
+}
+
+/* Hộp WHY Inquiry */
+.backward-why-box {
+  background: rgba(15, 23, 42, 0.5);
+  border-left: 4px solid var(--color-amber);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+
+[data-theme="light"] .backward-why-box {
+  background: #fefce8;
+  border-left-color: #f59e0b;
+}
+
+.why-header {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--color-amber);
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.why-explanation {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Card Câu hỏi triệu chứng */
+.backward-question-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.4rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.question-symptom-tag {
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-primary);
+}
+
+.question-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  max-width: 650px;
+  line-height: 1.4;
+}
+
+.question-subtext {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.backward-answer-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.btn-answer-cf-direct {
+  padding: 0.65rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-answer-cf-direct:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-answer-cf-sure {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.btn-answer-cf-sure:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.btn-answer-cf-likely {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+.btn-answer-cf-likely:hover {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.btn-answer-cf-slight {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.btn-answer-cf-slight:hover {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.btn-answer-cf-none {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.btn-answer-cf-none:hover {
+  background: #ef4444;
+  color: #ffffff;
 }
 
 /* =========================================================
@@ -2009,6 +2357,723 @@
   box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
 }
 
+/* =========================================================
+   2 TAB SUY DIỄN TIẾN & SUY DIỄN LÙI (INFERENCE MODE TABS)
+   ========================================================= */
 
+.infer-mode-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem 0 1.25rem;
+  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+}
 
+.infer-mode-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  top: 2px;
+  border-radius: 8px 8px 0 0;
+}
+
+.infer-mode-tab-btn:hover {
+  color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.infer-mode-tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.infer-mode-tab-btn i {
+  font-size: 0.95rem;
+}
+
+.infer-mode-tab-btn.active[data-tab="backward"] {
+  color: #f59e0b;
+  border-bottom-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.tab-count-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.infer-mode-tab-btn.active .tab-count-pill {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.infer-mode-tab-btn.active[data-tab="backward"] .tab-count-pill {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.infer-tab-pane {
+  display: none;
+  width: 100%;
+}
+
+.infer-tab-pane.active {
+  display: block;
+  animation: fadeInPane 0.25s ease-out;
+}
+
+@keyframes fadeInPane {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   PANEL SUY DIỄN LÙI TƯƠNG TÁC (INTERACTIVE BACKWARD CHAINING)
+   ========================================================= */
+
+.backward-panel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.backward-target-selector-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.backward-selector-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.backward-disease-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.backward-disease-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backward-disease-chip:hover {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+  transform: translateY(-1px);
+}
+
+.backward-disease-chip.active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px #f59e0b;
+}
+
+[data-theme="dark"] .backward-disease-chip.active {
+  color: #fbbf24;
+}
+
+.backward-disease-chip .chip-cf {
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text-muted);
+}
+
+.backward-disease-chip.active .chip-cf {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.backward-hypothesis-hero {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  padding: 1.15rem 1.35rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.backward-hypothesis-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.backward-goal-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #d97706;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+[data-theme="dark"] .backward-goal-tag {
+  color: #fbbf24;
+}
+
+.backward-hypothesis-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.backward-why-box {
+  background: rgba(245, 158, 11, 0.08);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+}
+
+.backward-why-header {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #d97706;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+[data-theme="dark"] .backward-why-header {
+  color: #fbbf24;
+}
+
+.backward-question-card {
+  background: var(--bg-card);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.backward-question-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+  margin-bottom: 0.75rem;
+}
+
+.backward-question-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+  line-height: 1.45;
+}
+
+.backward-question-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1.35rem;
+}
+
+.backward-answer-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.btn-answer-cf-direct {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-answer-cf-direct:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.btn-answer-cf-direct.answer-sure {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.btn-answer-cf-direct.answer-sure:hover {
+  background: #10b981;
+  color: #fff;
+}
+
+.btn-answer-cf-direct.answer-likely {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
+}
+
+.btn-answer-cf-direct.answer-likely:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-answer-cf-direct.answer-slight {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+.btn-answer-cf-direct.answer-slight:hover {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-answer-cf-direct.answer-none {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.btn-answer-cf-direct.answer-none:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-answer-cf-direct .cf-subtext {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.backward-confirmed-banner {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.backward-confirmed-banner i {
+  font-size: 2.2rem;
+  color: #10b981;
+  margin-bottom: 0.65rem;
+}
+
+.backward-missing-premises-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.backward-missing-premises-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* =========================================================
+   CHECKLIST KIỂM CHỨNG GIẢ THUYẾT (HYPOTHESIS CHECKLIST)
+   ========================================================= */
+
+.backward-progress-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.backward-progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.backward-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
+  transition: width 0.35s ease;
+}
+
+.backward-checklist-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-checklist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  background: rgba(15, 23, 42, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.backward-checklist-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.checklist-group-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.checklist-group-title.satisfied {
+  color: #10b981;
+}
+
+.checklist-group-title.missing {
+  color: #f59e0b;
+}
+
+.checklist-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.checklist-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  transition: all 0.2s ease;
+}
+
+.checklist-item-row:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.checklist-item-row.satisfied {
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.checklist-item-row.missing {
+  background: rgba(245, 158, 11, 0.04);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.checklist-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.checklist-status-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.checklist-status-icon.satisfied {
+  color: #10b981;
+}
+
+.checklist-status-icon.missing {
+  color: #f59e0b;
+}
+
+.checklist-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.checklist-item-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.checklist-item-why {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.checklist-item-why strong {
+  color: #d97706;
+}
+
+[data-theme="dark"] .checklist-item-why strong {
+  color: #fbbf24;
+}
+
+.checklist-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.btn-inline-cf {
+  padding: 0.32rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-inline-cf:hover {
+  transform: translateY(-1px);
+}
+
+.btn-inline-cf.btn-cf-sure {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.btn-inline-cf.btn-cf-sure:hover {
+  background: #10b981;
+  color: #fff;
+}
+
+.btn-inline-cf.btn-cf-likely {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #3b82f6;
+}
+
+.btn-inline-cf.btn-cf-likely:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-inline-cf.btn-cf-slight {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.btn-inline-cf.btn-cf-slight:hover {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-inline-cf.btn-cf-none {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
+.btn-inline-cf.btn-cf-none:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* =========================================================
+   PHÂN TÍCH LOGIC CÁC LUẬT ỨNG VIÊN (AND-OR RULES BREAKDOWN)
+   ========================================================= */
+
+.backward-rules-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.backward-rules-header {
+  padding: 0.85rem 1.25rem;
+  background: rgba(15, 23, 42, 0.03);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.backward-rules-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.rule-logic-box {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: var(--bg-surface);
+  transition: all 0.2s ease;
+}
+
+.rule-logic-box.fully-satisfied {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.03);
+}
+
+.rule-logic-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.55rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rule-formula-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.formula-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.formula-chip.satisfied {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.formula-chip.missing {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+}
+
+.formula-op {
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
 

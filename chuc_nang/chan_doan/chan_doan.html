@@ -72,11 +72,13 @@
       <!-- Cột trái: Toàn bộ danh mục triệu chứng với Custom Dropdown Menu -->
       <div class="card diagnosis-symptoms-card" id="diagnosisSymptomsCard">
         
+        <!-- Nút Icon Thu nhỏ / Mở rộng nằm ngay trên đường phân cách giữa 2 Section -->
+        <button type="button" id="btnDividerCollapse" class="pane-splitter-toggle" title="Thu nhỏ danh mục triệu chứng (phóng to kết quả)">
+          <i class="fa-solid fa-chevron-left" id="iconDividerCollapse"></i>
+        </button>
+
         <!-- Thanh Mini Bar khi Thu Nhỏ Section Trái -->
         <div id="leftSectionCollapsedBar" class="left-section-collapsed-bar" style="display: none;" title="Bấm để mở rộng danh mục triệu chứng">
-          <button type="button" id="btnExpandLeftSection" class="btn-expand-left" title="Mở rộng danh mục triệu chứng">
-            <i class="fa-solid fa-angles-right"></i>
-          </button>
           <div class="collapsed-badge-wrap" title="Số triệu chứng đã chọn">
             <i class="fa-solid fa-list-check"></i>
             <span class="collapsed-count" id="collapsedSelectedCount">0</span>
@@ -91,12 +93,9 @@
             <i class="fa-solid fa-list-check"></i>
             <span>Danh Mục Triệu Chứng Lâm Sàng</span>
           </div>
-          <div class="card-actions" style="display: flex; align-items: center; gap: 0.45rem;">
+          <div class="card-actions">
             <button id="btnClearSymptoms" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Bỏ chọn tất cả triệu chứng">
               <i class="fa-solid fa-rotate-left"></i> Xóa chọn
-            </button>
-            <button id="btnToggleCollapseLeft" class="btn-secondary btn-collapse-left-action" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Thu nhỏ danh mục triệu chứng (mở rộng bảng kết quả)">
-              <i class="fa-solid fa-angles-left"></i> <span>Thu nhỏ</span>
             </button>
           </div>
         </div>
@@ -190,20 +189,40 @@
           <div class="selected-summary-badge">
             <i class="fa-solid fa-clipboard-check"></i> Đã chọn: <strong id="selectedCountNumber">0</strong> triệu chứng
           </div>
-          <button id="btnRunForwardChaining" class="btn-primary btn-run-infer-sticky">
-            <i class="fa-solid fa-bolt-lightning"></i> Thực hiện Suy diễn tiến
+          <button id="btnRunForwardChaining" class="btn-primary btn-run-infer-sticky" title="Khởi chạy hệ thống suy luận chẩn đoán">
+            <i class="fa-solid fa-bolt-lightning"></i> Thực hiện suy diễn
+          </button>
+        </div>
+
+        <!-- 2 Tab Tiến & Lùi chuyên nghiệp -->
+        <div class="infer-mode-tabs-bar" id="inferModeTabsBar" style="display: none;">
+          <button type="button" class="infer-mode-tab-btn active" data-tab="forward" id="tabBtnForward">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+            <span>Suy diễn Tiến</span>
+            <span class="tab-count-pill" id="badgeForwardCount">0</span>
+          </button>
+          <button type="button" class="infer-mode-tab-btn" data-tab="backward" id="tabBtnBackward">
+            <i class="fa-solid fa-bullseye"></i>
+            <span>Suy diễn Lùi (WHY)</span>
+            <span class="tab-count-pill" id="badgeBackwardCount">0</span>
           </button>
         </div>
 
         <div id="diagnosisResultsContainer" class="diagnosis-results-body">
           <!-- Trạng thái chờ -->
-          <div class="empty-state">
+          <div class="empty-state" id="emptyStatePlaceholder">
             <i class="fa-solid fa-notes-medical"></i>
             <p style="font-weight: 600; font-size: 1rem; color: var(--text-primary);">Chưa có dữ liệu suy diễn lâm sàng.</p>
             <p style="font-size: 0.85rem; margin-top: 0.4rem; color: var(--text-muted); line-height: 1.5;">
-              Vui lòng chọn các dấu hiệu lâm sàng ở cột bên trái và nhấn nút <strong>"Thực hiện Suy diễn tiến"</strong> ở trên.
+              Vui lòng chọn các dấu hiệu lâm sàng ở cột bên trái và nhấn nút <strong>"Thực hiện suy diễn"</strong> ở trên.
             </p>
           </div>
+
+          <!-- Pane 1: Kết quả Suy diễn Tiến -->
+          <div id="paneForward" class="infer-tab-pane active" style="display: none;"></div>
+
+          <!-- Pane 2: Kết quả & Tương tác Suy diễn Lùi -->
+          <div id="paneBackward" class="infer-tab-pane" style="display: none;"></div>
         </div>
       </div>
 

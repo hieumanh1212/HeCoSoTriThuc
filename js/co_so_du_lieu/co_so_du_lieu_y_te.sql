@@ -38,9 +38,11 @@ CREATE TABLE danh_muc_benh (
     ten_benh NVARCHAR(150) NOT NULL,
     ten_khoa_hoc NVARCHAR(150),
     nhom_benh NVARCHAR(50),
+    mo_ta NVARCHAR(1000),
     muc_do_nguy_hiem NVARCHAR(50),
     huong_xu_tri NVARCHAR(500),
-    trieu_chung_canh_bao NVARCHAR(500)
+    trieu_chung_canh_bao NVARCHAR(500),
+    nguon_tham_khao NVARCHAR(500)
 );
 
 -- 4. BẢNG: tap_luat (16 luật sinh chẩn đoán)

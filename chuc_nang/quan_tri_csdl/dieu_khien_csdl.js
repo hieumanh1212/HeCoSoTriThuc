@@ -136,7 +136,7 @@ class DatabaseController {
       }
       ThongBao.thanhCong(`Truy vấn SQL thành công (${res.rowCount} dòng, ${res.executionTime}ms)!`);
     } catch (err) {
-      ThongBao.thatBai(`Lỗi thực thi SQL: ${err.message}`);
+      ThongBao.thatBai(`${err.message}`);
     }
   }
 

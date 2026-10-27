@@ -95,6 +95,14 @@ class KnowledgeBaseManager {
       if (!existingGrpIds.has(g.id)) (parsed.symptomGroups = parsed.symptomGroups || []).push(g);
     });
 
+    const defaultDiseases = new Map((def.diseases || []).map(disease => [disease.id, disease]));
+    (parsed.diseases || []).forEach(disease => {
+      const defaults = defaultDiseases.get(disease.id);
+      if (!defaults) return;
+      if (!disease.description) disease.description = defaults.description || "";
+      if (!disease.reference) disease.reference = defaults.reference || "";
+    });
+
     return parsed;
   }
 
@@ -147,8 +155,10 @@ class KnowledgeBaseManager {
         await this.db.importFromKBObject(this.kb, "Cập nhật qua KnowledgeBaseManager");
       }
       this.notifyListeners();
+      return true;
     } catch (e) {
       console.error("Lỗi lưu trữ CSDL:", e);
+      return false;
     }
   }
 
@@ -504,7 +514,7 @@ class KnowledgeBaseManager {
   // XUẤT / NHẬP EXCEL (.XLSX) BẰNG THƯ VIỆN SHEETJS
   // ============================================================================
 
-  exportExcel(scope = "all") {
+  exportExcel(scope = "all", filteredRows = null) {
     if (typeof XLSX === "undefined") {
       throw new Error("Thư viện SheetJS chưa được tải. Vui lòng kiểm tra kết nối mạng!");
     }
@@ -513,7 +523,7 @@ class KnowledgeBaseManager {
     const wb = XLSX.utils.book_new();
 
     // 1. Sheet TẬP LUẬT SINH
-    const rulesRows = (kb.rules || []).map(r => {
+    const rulesRows = (filteredRows || kb.rules || []).map(r => {
       const dis = (kb.diseases || []).find(d => d.id === r.conclusion);
       const premsNames = (r.premises || []).map(pId => {
         const s = (kb.symptoms || []).find(sym => sym.id === pId);
@@ -541,44 +551,44 @@ class KnowledgeBaseManager {
     }
 
     // 2. Sheet DANH MỤC TRIỆU CHỨNG
-    const symsRows = (kb.symptoms || []).map(s => {
+    const symsRows = (filteredRows || kb.symptoms || []).map(s => {
       const grp = (kb.symptomGroups || []).find(g => g.id === s.groupId);
       return {
         "Mã Triệu Chứng": s.id,
-        "Mã Nhóm": s.groupId || "G01",
-        "Tên Nhóm": grp ? grp.name : s.groupId,
         "Tên Triệu Chứng": s.name,
-        "Câu Hỏi Truy Vấn (WHY)": s.question || "",
-        "Mức Độ Cảnh Báo": s.severity || "Bình thường"
+        "Tên Nhóm": grp ? grp.name : "",
+        "Câu Hỏi truy vấn khi suy diễn lùi (WHY)": s.question || ""
       };
     });
     const wsSyms = XLSX.utils.json_to_sheet(symsRows);
     wsSyms["!cols"] = [
-      { wch: 15 }, { wch: 12 }, { wch: 30 }, { wch: 45 }, { wch: 65 }, { wch: 18 }
+      { wch: 15 }, { wch: 45 }, { wch: 30 }, { wch: 65 }
     ];
     if (scope === "all" || scope === "symptoms") {
       XLSX.utils.book_append_sheet(wb, wsSyms, "TRIEU_CHUNG");
     }
 
     // 3. Sheet DANH MỤC BỆNH HỌC
-    const disRows = (kb.diseases || []).map(d => ({
+    const disRows = (filteredRows || kb.diseases || []).map(d => ({
       "Mã Bệnh": d.id,
       "Tên Bệnh Học": d.name,
+      "Mô Tả": d.description || "",
       "Mức Độ Nguy Hiểm": d.severity || "",
       "Hướng Xử Trí & Phác Đồ": d.treatment || d.recommendation || "",
-      "Dấu Hiệu Cảnh Báo Nguy Hiểm": d.warningSigns || ""
+      "Dấu Hiệu Cảnh Báo Nguy Hiểm": d.warningSigns || "",
+      "Nguồn Tham Khảo Y Tế": d.reference || ""
     }));
     const wsDis = XLSX.utils.json_to_sheet(disRows);
     wsDis["!cols"] = [
-      { wch: 12 }, { wch: 35 }, { wch: 30 }, { wch: 35 },
-      { wch: 30 }, { wch: 70 }, { wch: 70 }
+      { wch: 12 }, { wch: 35 }, { wch: 70 }, { wch: 30 },
+      { wch: 70 }, { wch: 70 }, { wch: 45 }
     ];
     if (scope === "all" || scope === "diseases") {
       XLSX.utils.book_append_sheet(wb, wsDis, "DANH_MUC_BENH");
     }
 
     // 4. Sheet NHÓM TRIỆU CHỨNG
-    const grpRows = (kb.symptomGroups || []).map(g => ({
+    const grpRows = (filteredRows || kb.symptomGroups || []).map(g => ({
       "Mã Nhóm": g.id,
       "Tên Nhóm Triệu Chứng": g.name,
       "Biểu Tượng FontAwesome": g.icon || "fa-notes-medical",
@@ -586,12 +596,12 @@ class KnowledgeBaseManager {
     }));
     const wsGrp = XLSX.utils.json_to_sheet(grpRows);
     wsGrp["!cols"] = [{ wch: 12 }, { wch: 35 }, { wch: 25 }, { wch: 50 }];
-    if (scope === "all") {
+    if (scope === "all" || scope === "groups") {
       XLSX.utils.book_append_sheet(wb, wsGrp, "NHOM_TRIEU_CHUNG");
     }
 
     // Tự động tải file Excel
-    const scopeNames = { rules: "Tap_Luat", symptoms: "Danh_Muc_Trieu_Chung", diseases: "Danh_Muc_Benh", all: "Toan_Bo_Tri_Thuc" };
+    const scopeNames = { rules: "Tap_Luat", symptoms: "Danh_Muc_Trieu_Chung", diseases: "Danh_Muc_Benh", groups: "Nhom_Trieu_Chung", all: "Toan_Bo_Tri_Thuc" };
     const scopeName = scopeNames[scope] || scopeNames.all;
     const filename = `Co_So_Tri_Thuc_${scopeName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(wb, filename);
@@ -603,7 +613,7 @@ class KnowledgeBaseManager {
       throw new Error("Thư viện SheetJS chưa được tải!");
     }
 
-    const supportedScopes = ["all", "rules", "symptoms", "diseases"];
+    const supportedScopes = ["all", "rules", "symptoms", "diseases", "groups"];
     if (!supportedScopes.includes(scope)) {
       throw new Error(`Không hỗ trợ tải mẫu Excel cho phạm vi [${scope}].`);
     }
@@ -636,7 +646,7 @@ class KnowledgeBaseManager {
     const sampleSyms = [
       {
         "Mã Triệu Chứng": "S99",
-        "Mã Nhóm": sampleGroupId,
+        "Tên Nhóm": (this.getKB().symptomGroups || []).find(group => group.id === sampleGroupId)?.name || sampleGroupId,
         "Tên Triệu Chứng": "Triệu chứng mẫu mới",
         "Câu Hỏi Truy Vấn (WHY)": "Bệnh nhân có biểu hiện triệu chứng mẫu này không?",
         "Mức Độ Cảnh Báo": "Bình thường"
@@ -651,15 +661,17 @@ class KnowledgeBaseManager {
       {
         "Mã Bệnh": "D99",
         "Tên Bệnh Học": "Tên bệnh mẫu",
+        "Mô Tả": "Mô tả ngắn về bệnh",
         "Mức Độ Nguy Hiểm": "Trung bình",
         "Hướng Xử Trí & Phác Đồ": "Hướng xử trí theo hướng dẫn chuyên môn",
-        "Dấu Hiệu Cảnh Báo Nguy Hiểm": "Dấu hiệu cần chuyển khám"
+        "Dấu Hiệu Cảnh Báo Nguy Hiểm": "Dấu hiệu cần chuyển khám",
+        "Nguồn Tham Khảo Y Tế": "Tên tài liệu hoặc hướng dẫn y tế"
       }
     ];
     const wsDiseases = XLSX.utils.json_to_sheet(sampleDiseases);
     wsDiseases["!cols"] = [
-      { wch: 12 }, { wch: 35 }, { wch: 28 }, { wch: 30 }, { wch: 25 },
-      { wch: 70 }, { wch: 70 }
+      { wch: 12 }, { wch: 35 }, { wch: 70 }, { wch: 28 }, { wch: 30 },
+      { wch: 25 }, { wch: 70 }, { wch: 45 }
     ];
     if (scope === "all" || scope === "diseases") {
       XLSX.utils.book_append_sheet(wb, wsDiseases, "DANH_MUC_BENH");
@@ -673,7 +685,7 @@ class KnowledgeBaseManager {
         "Mô Tả Phân Loại": "Mô tả nhóm triệu chứng"
       }
     ];
-    if (scope === "all") {
+    if (scope === "all" || scope === "groups") {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sampleGroups), "NHOM_TRIEU_CHUNG");
     }
 
@@ -681,7 +693,7 @@ class KnowledgeBaseManager {
     const guideRows = [
       { "Mục": "Quy tắc 1", "Nội dung": "Các sheet được nhận diện: TAP_LUAT, TRIEU_CHUNG, DANH_MUC_BENH, NHOM_TRIEU_CHUNG; giữ lại các cột mẫu để ánh xạ chính xác." },
       { "Mục": "Quy tắc 2", "Nội dung": "Mã và tên là bắt buộc cho mỗi triệu chứng, bệnh và nhóm; mã phải duy nhất trong cùng sheet." },
-      { "Mục": "Quy tắc 3", "Nội dung": "Sheet DANH_MUC_BENH hỗ trợ tên khoa học, nhóm bệnh, mức độ nguy hiểm, hướng xử trí/phác đồ và dấu hiệu cảnh báo." },
+      { "Mục": "Quy tắc 3", "Nội dung": "Sheet DANH_MUC_BENH hỗ trợ mô tả, mức độ nguy hiểm, hướng xử trí/phác đồ, dấu hiệu cảnh báo và nguồn tham khảo." },
       { "Mục": "Quy tắc 4", "Nội dung": "Với TAP_LUAT, tiền đề là danh sách mã triệu chứng cách nhau bằng dấu phẩy và CF nằm trong khoảng 0.01 đến 1.0." },
       { "Mục": "Quy tắc 5", "Nội dung": "Có thể sửa các dòng hiện có bằng cùng mã; dòng trùng mã trong chính file sẽ bị báo lỗi." }
     ];
@@ -695,6 +707,7 @@ class KnowledgeBaseManager {
       rules: "Mau_Nhap_Tap_Luat.xlsx",
       symptoms: "Mau_Nhap_Danh_Muc_Trieu_Chung.xlsx",
       diseases: "Mau_Nhap_Danh_Muc_Benh_Phac_Do.xlsx",
+      groups: "Mau_Nhap_Nhom_Trieu_Chung.xlsx",
       all: "Mau_Nhap_Toan_Bo_Tri_Thuc.xlsx"
     };
     XLSX.writeFile(wb, filenames[scope]);
@@ -804,10 +817,12 @@ class KnowledgeBaseManager {
           ...prior,
           id,
           name,
+          description: valueFor(row, key => key.includes("mota") || key === "description") || prior.description || "",
           severity: valueFor(row, key => key.includes("nguyhiem") || key === "severity") || prior.severity || "Trung bình",
           treatment: treatment || prior.treatment || prior.recommendation || "",
           recommendation: treatment || prior.recommendation || prior.treatment || "",
-          warningSigns: valueFor(row, key => key.includes("canhbao") || key.includes("warning")) || prior.warningSigns || ""
+          warningSigns: valueFor(row, key => key.includes("canhbao") || key.includes("warning")) || prior.warningSigns || "",
+          reference: valueFor(row, key => key.includes("nguon") || key.includes("reference")) || prior.reference || ""
         });
         imported.importedDiseases++;
       }
@@ -854,7 +869,9 @@ class KnowledgeBaseManager {
       throw new Error("Không tìm thấy dòng dữ liệu hợp lệ trong các sheet Nhóm triệu chứng, Triệu chứng, Danh mục bệnh hoặc Tập luật.");
     }
 
-    await this.saveToStorage();
+    if (!await this.saveToStorage()) {
+      throw new Error("Không thể lưu dữ liệu nhập vào CSDL.");
+    }
     return imported;
   }
 }
