@@ -639,7 +639,15 @@ class HistoryController {
     }
 
     // 3. Pane Quy tắc kích hoạt
-    const firedRules = (results.length > 0 && results[0].firedRules) || [];
+    let firedRules = (results.length > 0 && results[0].firedRules) || [];
+    if (firedRules.length === 0 && Array.isArray(session.firedRules) && session.firedRules.length > 0) {
+      firedRules = session.firedRules;
+    }
+    if (firedRules.length === 0 && session.traceLogs) {
+      firedRules = session.traceLogs
+        .filter(t => t.type === "RULE_FIRED")
+        .map(t => t.details || { ruleId: t.ruleId, ruleName: t.message, premises: [], ruleBaseCF: "-" });
+    }
     if (this.paneRules) {
       if (firedRules.length === 0) {
         this.paneRules.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Không có thông tin chi tiết về luật kích hoạt cho phiên này.</p>`;
@@ -734,20 +742,75 @@ class HistoryController {
   _buildCaseFromSession(session) {
     if (!session) return null;
     const timeStr = window.MauBaoCaoYTe ? window.MauBaoCaoYTe.dinhDangNgayGio(session.timestamp) : (session.timestamp || "");
-    const targetDisId = session.topDiseaseId || "D01";
-    const firedIds = (session.firedRules || []).map(r => (typeof r === "string" ? r : (r.id || r.ruleId || ""))).filter(Boolean);
+
+    // 1. Xác định mã bệnh mục tiêu hợp lệ (D01 - D07)
+    let targetDisId = session.topDiseaseId;
+    if (!targetDisId || targetDisId === "KHÔNG_XÁC_ĐỊNH" || targetDisId === "Chưa rõ" || !targetDisId.startsWith("D")) {
+      const validResult = (session.results || []).find(r => r.diseaseId && r.diseaseId.startsWith("D"));
+      if (validResult) {
+        targetDisId = validResult.diseaseId;
+      } else {
+        const validSummary = (session.resultsSummary || []).find(r => r.diseaseId && r.diseaseId.startsWith("D"));
+        targetDisId = validSummary ? validSummary.diseaseId : "D01";
+      }
+    }
+
+    // 2. Xác định tên bệnh mục tiêu
+    const facts = (window.MEDICAL_KB_GRAPH_DATA && window.MEDICAL_KB_GRAPH_DATA.facts) || {};
+    let targetDisName = session.topDiseaseName;
+    if (!targetDisName || targetDisName === "Không xác định") {
+      targetDisName = facts[targetDisId] ? facts[targetDisId].name : targetDisId;
+    }
+
+    // 3. Thu thập các luật kích hoạt từ nhiều nguồn (session.firedRules, session.results, session.traceLogs)
+    const firedRulesMap = new Map();
+    const firedIds = new Set();
+
+    if (Array.isArray(session.firedRules)) {
+      session.firedRules.forEach(r => {
+        const id = typeof r === "string" ? r : (r.ruleId || r.id);
+        if (id) {
+          firedIds.add(id);
+          firedRulesMap.set(id, r);
+        }
+      });
+    }
+
+    (session.results || []).forEach(res => {
+      (res.firedRules || []).forEach(r => {
+        const id = typeof r === "string" ? r : (r.ruleId || r.id);
+        if (id) {
+          firedIds.add(id);
+          firedRulesMap.set(id, r);
+        }
+      });
+    });
+
+    (session.traceLogs || []).forEach(t => {
+      if (t.type === "RULE_FIRED" && t.ruleId) {
+        firedIds.add(t.ruleId);
+        if (!firedRulesMap.has(t.ruleId) && t.details) {
+          firedRulesMap.set(t.ruleId, t.details);
+        }
+      }
+    });
+
+    // 4. Tập giả thiết ban đầu GT
+    const rawSymptoms = session.inputSymptoms || {};
+    const gt = Object.keys(rawSymptoms).filter(sId => rawSymptoms[sId] !== undefined && rawSymptoms[sId] > 0);
+    const finalGT = gt.length > 0 ? gt : Object.keys(rawSymptoms);
 
     return {
       id: "LIVE_DIAGNOSIS",
       sessionId: session.id,
-      name: `Phiên khám [${session.id}]: ${session.topDiseaseName || targetDisId}`,
+      name: `Phiên khám [${session.id}]: ${targetDisName}`,
       description: `Phiên khám bệnh ghi nhận lúc ${timeStr}`,
-      gt: Object.keys(session.inputSymptoms || {}),
+      gt: finalGT,
       kl: [targetDisId],
-      targetDiseaseName: `${session.topDiseaseName || targetDisId} (${targetDisId})`,
+      targetDiseaseName: `${targetDisName} (${targetDisId})`,
       targetDiseaseId: targetDisId,
-      firedRuleIds: firedIds,
-      firedRules: session.firedRules || []
+      firedRuleIds: Array.from(firedIds),
+      firedRules: Array.from(firedRulesMap.values())
     };
   }
 
@@ -760,13 +823,16 @@ class HistoryController {
       this.rpgVisualizer = new window.RPGVisualizer("modalCanvasRPG");
     }
 
-    setTimeout(() => {
+    const doRender = () => {
       if (!this.rpgVisualizer) return;
       this.rpgVisualizer.resizeCanvas();
       this.rpgVisualizer.setCase(clinicalCase);
       this.rpgVisualizer.setFilterRelatedOnly(true);
 
-      const sim = window.MedicalGraphAlgorithms ? window.MedicalGraphAlgorithms.simulateForwardChainingWithRPG(clinicalCase) : null;
+      const sim = window.MedicalGraphAlgorithms
+        ? window.MedicalGraphAlgorithms.simulateForwardChainingWithRPG(clinicalCase)
+        : null;
+
       if (sim && sim.steps && sim.steps.length > 0) {
         const finalStep = sim.steps[sim.steps.length - 1];
         this.rpgVisualizer.setSimulationState(
@@ -779,7 +845,10 @@ class HistoryController {
         this.rpgVisualizer.setSimulationState(new Set(clinicalCase.firedRuleIds));
       }
       this.rpgVisualizer.autoFit();
-    }, 60);
+    };
+
+    setTimeout(doRender, 50);
+    setTimeout(doRender, 180);
   }
 
   renderModalFPG(session) {
@@ -791,13 +860,16 @@ class HistoryController {
       this.fpgVisualizer = new window.FPGVisualizer("modalCanvasFPG");
     }
 
-    setTimeout(() => {
+    const doRender = () => {
       if (!this.fpgVisualizer) return;
       this.fpgVisualizer.resizeCanvas();
       this.fpgVisualizer.setCase(clinicalCase);
       this.fpgVisualizer.setFilterRelatedOnly(true);
 
-      const sim = window.MedicalGraphAlgorithms ? window.MedicalGraphAlgorithms.simulateForwardChainingWithFPG(clinicalCase) : null;
+      const sim = window.MedicalGraphAlgorithms
+        ? window.MedicalGraphAlgorithms.simulateForwardChainingWithFPG(clinicalCase)
+        : null;
+
       if (sim && sim.steps && sim.steps.length > 0) {
         const finalStep = sim.steps[sim.steps.length - 1];
         this.fpgVisualizer.setSimulationState(
@@ -815,7 +887,10 @@ class HistoryController {
         );
       }
       this.fpgVisualizer.autoFit();
-    }, 60);
+    };
+
+    setTimeout(doRender, 50);
+    setTimeout(doRender, 180);
   }
 
   openDedicatedGraphPage(type, session) {
@@ -825,11 +900,9 @@ class HistoryController {
 
     sessionStorage.setItem("LATEST_DIAGNOSIS_CASE", JSON.stringify(clinicalCase));
     sessionStorage.setItem("RPG_ACTIVE_SYMPTOMS", JSON.stringify(session.inputSymptoms || {}));
-    if (session.firedRules) {
-      sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(session.firedRules));
-    }
+    sessionStorage.setItem("RPG_FIRED_RULES", JSON.stringify(clinicalCase.firedRules || []));
 
-    const disId = session.topDiseaseId || "D01";
+    const disId = clinicalCase.targetDiseaseId || "D01";
     if (type === "rpg") {
       window.location.href = `../do_thi_rpg/do_thi_rpg.html?focus=LIVE_DIAGNOSIS&disease=${disId}`;
     } else {
