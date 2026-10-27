@@ -344,9 +344,14 @@
         renderInspector(null);
       }
 
-      function initSimulation() {
+      function initSimulation(startFromBeginning = false) {
         simulationResult = window.MedicalGraphAlgorithms.simulateForwardChainingWithFPG(currentCase);
-        currentStepIndex = 0;
+        // Với ca chẩn đoán thực tế hoặc khi vừa mở ca bệnh: mặc định hiển thị ở bước cuối cùng (hoàn tất suy diễn, đạt mục tiêu chẩn đoán)
+        if (!startFromBeginning && simulationResult && simulationResult.steps && simulationResult.steps.length > 0) {
+          currentStepIndex = simulationResult.steps.length - 1;
+        } else {
+          currentStepIndex = 0;
+        }
         updateSimulationUI();
       }
 
@@ -577,7 +582,7 @@
       });
 
       btnResetSim.addEventListener("click", () => {
-        initSimulation();
+        initSimulation(true);
       });
 
       fpgCaseSelect.addEventListener("change", (e) => {
