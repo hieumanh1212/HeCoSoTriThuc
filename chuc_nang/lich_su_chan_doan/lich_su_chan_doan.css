@@ -618,7 +618,7 @@
 
 .history-graph-canvas-container {
   width: 100%;
-  height: 380px;
+  height: 500px;
   background: #090d16;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -644,5 +644,35 @@
   align-items: center;
   gap: 0.6rem;
   line-height: 1.45;
+}
+
+/* Tối ưu kích thước màn phụ (Modal chi tiết phiên chẩn đoán) rộng rãi hơn */
+#modalSessionDetail .modal-card {
+  max-width: 1240px;
+  width: 95vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.75rem;
+}
+
+#modalSessionDetail .modal-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+#modalSessionDetail .history-detail-pane {
+  max-height: calc(92vh - 200px);
+}
+
+@media (max-width: 768px) {
+  #modalSessionDetail .modal-card {
+    width: 98vw;
+    padding: 1rem;
+    max-height: 95vh;
+  }
+  .history-graph-canvas-container {
+    height: 380px;
+  }
 }
 
