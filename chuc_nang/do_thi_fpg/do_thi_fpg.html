@@ -157,6 +157,22 @@
       </div>
     </div>
 
+    <!-- Thông báo khi chưa có dữ liệu chẩn đoán lâm sàng -->
+    <div id="noCasesPlaceholder" class="card" style="display: none; text-align: center; padding: 2.5rem 1.5rem; margin-bottom: 1.5rem; border: 2px dashed rgba(56, 189, 248, 0.4); border-radius: 12px; background: rgba(15, 23, 42, 0.75);">
+      <div style="font-size: 3rem; color: #38bdf8; margin-bottom: 0.75rem;">
+        <i class="fa-solid fa-notes-medical"></i>
+      </div>
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-primary);">
+        Chưa Có Dữ Liệu Suy Diễn Chẩn Đoán
+      </h3>
+      <p style="max-width: 620px; margin: 0 auto 1.25rem; font-size: 0.9rem; line-height: 1.6; color: var(--text-secondary);">
+        Đồ thị <strong>FPG</strong> bắt buộc phải nhận dữ liệu thực tế sau khi đã trải qua quá trình suy diễn tiến tại phân hệ Chẩn Đoán. Hãy thực hiện chẩn đoán lâm sàng để trực quan hóa toàn bộ mạng sự kiện suy diễn thực tế!
+      </p>
+      <a href="../chan_doan/chan_doan.html" class="btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.5rem; font-size: 0.95rem; text-decoration: none; border-radius: 8px; font-weight: 600;">
+        <i class="fa-solid fa-stethoscope"></i> Thực hiện Chẩn Đoán Ngay
+      </a>
+    </div>
+
     <!-- Layout 2 Cột: Canvas bên trái & Fact Inspector bên phải -->
     <div class="fpg-layout">
       <div class="canvas-container">
@@ -250,6 +266,8 @@
 
   <!-- ==================== SCRIPTS ==================== -->
   <script src="../../js/tien_ich_chung.js"></script>
+  <script src="../../js/co_so_du_lieu/tri_thuc_mac_dinh.js"></script>
+  <script src="../../js/co_so_du_lieu/dong_co_csdl.js"></script>
   <script src="../../js/dong_co/suy_dien_tien.js"></script>
   <script src="../../js/dong_co/thuat_toan_rpg_fpg.js"></script>
   <script src="ve_do_thi_fpg.js"></script>
@@ -301,34 +319,98 @@
         onNodeHover: (node) => renderInspector(node || fpgVisualizer.selectedNode)
       });
 
-      // 1. Nạp danh sách ca bệnh lâm sàng
-      let cases = [...(window.MEDICAL_KB_GRAPH_DATA.cases || [])];
-
-      // Đọc ca chẩn đoán thực tế mới nhất từ phân hệ Chẩn đoán lâm sàng
-      const liveCaseRaw = sessionStorage.getItem("LATEST_DIAGNOSIS_CASE");
+      // 1. Nạp danh sách ca bệnh lâm sàng sau khi suy diễn chẩn đoán
+      let cases = [];
       let liveCase = null;
-      if (liveCaseRaw) {
-        try {
-          liveCase = JSON.parse(liveCaseRaw);
-          if (liveCase && liveCase.gt && liveCase.gt.length > 0) {
-            cases = [liveCase, ...cases];
+      const dbEngine = (typeof DatabaseEngine !== "undefined") ? new DatabaseEngine() : null;
+
+      // Hàm chuyển đổi một phiên chẩn đoán từ CSDL thành ca bệnh lâm sàng chuẩn cho đồ thị FPG
+      function transformSessionToCase(session) {
+        if (!session) return null;
+        const timeStr = session.timestamp ? new Date(session.timestamp).toLocaleString("vi-VN") : "";
+        
+        let targetDisId = session.topDiseaseId;
+        if (!targetDisId || targetDisId === "KHÔNG_XÁC_ĐỊNH" || !targetDisId.startsWith("D")) {
+          const validResult = (session.results || []).find(r => r.diseaseId && r.diseaseId.startsWith("D"));
+          if (validResult) {
+            targetDisId = validResult.diseaseId;
+          } else {
+            const validSummary = (session.resultsSummary || []).find(r => r.diseaseId && r.diseaseId.startsWith("D"));
+            targetDisId = validSummary ? validSummary.diseaseId : "D01";
           }
-        } catch (e) {
-          console.warn("Lỗi nạp ca chẩn đoán thực tế:", e);
         }
+
+        const facts = (window.MEDICAL_KB_GRAPH_DATA && window.MEDICAL_KB_GRAPH_DATA.facts) || {};
+        let targetDisName = session.topDiseaseName;
+        if (!targetDisName || targetDisName === "Không xác định") {
+          targetDisName = facts[targetDisId] ? facts[targetDisId].name : targetDisId;
+        }
+
+        const firedRulesMap = new Map();
+        const firedIds = new Set();
+        if (Array.isArray(session.firedRules)) {
+          session.firedRules.forEach(r => {
+            const id = typeof r === "string" ? r : (r.ruleId || r.id);
+            if (id) {
+              firedIds.add(id);
+              firedRulesMap.set(id, r);
+            }
+          });
+        }
+        (session.results || []).forEach(res => {
+          (res.firedRules || []).forEach(r => {
+            const id = typeof r === "string" ? r : (r.ruleId || r.id);
+            if (id) {
+              firedIds.add(id);
+              firedRulesMap.set(id, r);
+            }
+          });
+        });
+        (session.traceLogs || []).forEach(t => {
+          if (t.type === "RULE_FIRED" && t.ruleId) {
+            firedIds.add(t.ruleId);
+            if (!firedRulesMap.has(t.ruleId) && t.details) {
+              firedRulesMap.set(t.ruleId, t.details);
+            }
+          }
+        });
+
+        const rawSymptoms = session.inputSymptoms || {};
+        const gt = Object.keys(rawSymptoms).filter(sId => rawSymptoms[sId] !== undefined && rawSymptoms[sId] > 0);
+        const finalGT = gt.length > 0 ? gt : Object.keys(rawSymptoms);
+
+        return {
+          id: session.id,
+          sessionId: session.id,
+          name: `Phiên khám [${session.id}]: ${targetDisName}`,
+          description: `Phiên khám bệnh ghi nhận lúc ${timeStr}. Triệu chứng thực tế: ${finalGT.join(", ")}`,
+          gt: finalGT,
+          kl: [targetDisId],
+          targetDiseaseName: `${targetDisName} (${targetDisId})`,
+          targetDiseaseId: targetDisId,
+          firedRuleIds: Array.from(firedIds),
+          firedRules: Array.from(firedRulesMap.values()),
+          timestamp: session.timestamp ? new Date(session.timestamp).getTime() : Date.now()
+        };
       }
 
       function renderCaseOptions() {
+        if (cases.length === 0) {
+          fpgCaseSelect.innerHTML = `<option value="">(Chưa có phiên chẩn đoán nào)</option>`;
+          fpgCaseSelect.disabled = true;
+          return;
+        }
+        fpgCaseSelect.disabled = false;
         fpgCaseSelect.innerHTML = cases.map(c => `
           <option value="${c.id}" ${c.id === 'LIVE_DIAGNOSIS' ? 'style="font-weight: 700; color: #10b981;"' : ''}>
             ${c.id === 'LIVE_DIAGNOSIS' ? '🩺 ' : ''}${c.name}
           </option>
         `).join("");
       }
-      renderCaseOptions();
 
       function loadCase(caseId) {
         currentCase = cases.find(c => c.id === caseId) || cases[0];
+        if (!currentCase) return;
         fpgVisualizer.setCase(currentCase);
         fpgVisualizer.setFilterRelatedOnly(isFilterRelated);
 
@@ -346,6 +428,7 @@
       }
 
       function initSimulation(startFromBeginning = false) {
+        if (!currentCase) return;
         simulationResult = window.MedicalGraphAlgorithms.simulateForwardChainingWithFPG(currentCase);
         // Với ca chẩn đoán thực tế hoặc khi vừa mở ca bệnh: mặc định hiển thị ở bước cuối cùng (hoàn tất suy diễn, đạt mục tiêu chẩn đoán)
         if (!startFromBeginning && simulationResult && simulationResult.steps && simulationResult.steps.length > 0) {
@@ -594,42 +677,107 @@
       document.getElementById("btnZoomOut").addEventListener("click", () => fpgVisualizer.zoomOut());
       document.getElementById("btnResetGraph").addEventListener("click", () => fpgVisualizer.resetView());
 
-      // Tự động nhận diện ca bệnh từ URL param (?focus=... hoặc ?case=... hoặc ?disease=...)
-      const urlParams = new URLSearchParams(window.location.search);
-      const targetParam = urlParams.get("focus") || urlParams.get("case") || urlParams.get("disease");
-      const diseaseParam = urlParams.get("disease");
+      // Khởi tạo nạp ca bệnh và xử lý ca được chọn
+      async function initializeAndHandleCase() {
+        cases = [];
 
-      let selectedCaseId = cases.length > 0 ? cases[0].id : null;
-
-      if (diseaseParam && liveCase) {
-        const diseaseMeta = (window.MEDICAL_KB_GRAPH_DATA.facts || {})[diseaseParam];
-        liveCase.kl = [diseaseParam];
-        if (diseaseMeta) {
-          liveCase.targetDiseaseName = `${diseaseMeta.name} (${diseaseParam})`;
-          liveCase.name = `Ca chẩn đoán thực tế: ${diseaseMeta.name}`;
-          renderCaseOptions();
+        // 1. Đọc ca chẩn đoán thực tế mới nhất từ phân hệ Chẩn đoán lâm sàng
+        const liveCaseRaw = sessionStorage.getItem("LATEST_DIAGNOSIS_CASE");
+        if (liveCaseRaw) {
+          try {
+            liveCase = JSON.parse(liveCaseRaw);
+            if (liveCase && liveCase.gt && liveCase.gt.length > 0) {
+              cases.push(liveCase);
+            }
+          } catch (e) {
+            console.warn("Lỗi nạp ca chẩn đoán thực tế:", e);
+          }
         }
-      }
 
-      if (targetParam) {
-        const found = cases.find(c =>
-          c.id === targetParam ||
-          (c.kl && c.kl.includes(targetParam)) ||
-          c.id.toLowerCase() === targetParam.toLowerCase()
-        );
-        if (found) {
-          selectedCaseId = found.id;
+        // 2. Nạp thêm các phiên khám từ CSDL nếu có
+        if (dbEngine) {
+          try {
+            await dbEngine.init();
+            const sessions = await dbEngine.getInferenceSessions();
+            if (sessions && sessions.length > 0) {
+              sessions.forEach(sess => {
+                if (cases.some(c => c.sessionId === sess.id || (c.timestamp && sess.timestamp && Math.abs(c.timestamp - new Date(sess.timestamp).getTime()) < 1000))) {
+                  return;
+                }
+                const cCase = transformSessionToCase(sess);
+                if (cCase && cCase.gt && cCase.gt.length > 0) {
+                  cases.push(cCase);
+                }
+              });
+            }
+          } catch (err) {
+            console.warn("Lỗi đọc lịch sử chẩn đoán từ CSDL:", err);
+          }
+        }
+
+        renderCaseOptions();
+
+        const emptyState = document.getElementById("noCasesPlaceholder");
+        const graphLayout = document.querySelector(".fpg-layout");
+        const simButtons = [btnToggleFilterRelated, btnStepSim, btnAutoSim, btnResetSim];
+
+        if (cases.length === 0) {
+          if (emptyState) emptyState.style.display = "block";
+          if (graphLayout) graphLayout.style.opacity = "0.35";
+          simButtons.forEach(btn => { if (btn) btn.disabled = true; });
+          bannerName.textContent = "Chưa có ca chẩn đoán lâm sàng";
+          bannerDesc.textContent = "Đồ thị bắt buộc nhận dữ liệu sau khi đã trải qua suy diễn tại chuẩn đoán. Vui lòng thực hiện chẩn đoán trước!";
+          bannerGT.textContent = "∅";
+          bannerKL.textContent = "∅";
+          bannerTG.textContent = "∅";
+          bannerTHOA.textContent = "∅";
+          bannerVET.textContent = "∅";
+          return;
+        }
+
+        if (emptyState) emptyState.style.display = "none";
+        if (graphLayout) graphLayout.style.opacity = "1";
+        simButtons.forEach(btn => { if (btn) btn.disabled = false; });
+
+        // Tự động nhận diện ca bệnh từ URL param (?focus=... hoặc ?case=... hoặc ?disease=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetParam = urlParams.get("focus") || urlParams.get("case") || urlParams.get("disease");
+        const diseaseParam = urlParams.get("disease");
+
+        let selectedCaseId = cases[0].id;
+
+        if (diseaseParam && liveCase) {
+          const diseaseMeta = (window.MEDICAL_KB_GRAPH_DATA.facts || {})[diseaseParam];
+          liveCase.kl = [diseaseParam];
+          if (diseaseMeta) {
+            liveCase.targetDiseaseName = `${diseaseMeta.name} (${diseaseParam})`;
+            liveCase.name = `Ca chẩn đoán thực tế: ${diseaseMeta.name}`;
+            renderCaseOptions();
+          }
+        }
+
+        if (targetParam) {
+          const found = cases.find(c =>
+            c.id === targetParam ||
+            (c.kl && c.kl.includes(targetParam)) ||
+            c.id.toLowerCase() === targetParam.toLowerCase()
+          );
+          if (found) {
+            selectedCaseId = found.id;
+          } else if (liveCase) {
+            selectedCaseId = "LIVE_DIAGNOSIS";
+          }
         } else if (liveCase) {
           selectedCaseId = "LIVE_DIAGNOSIS";
         }
-      } else if (liveCase) {
-        selectedCaseId = "LIVE_DIAGNOSIS";
+
+        if (selectedCaseId) {
+          fpgCaseSelect.value = selectedCaseId;
+          loadCase(selectedCaseId);
+        }
       }
 
-      if (selectedCaseId) {
-        fpgCaseSelect.value = selectedCaseId;
-        loadCase(selectedCaseId);
-      }
+      initializeAndHandleCase();
     });
   </script>
 </body>
